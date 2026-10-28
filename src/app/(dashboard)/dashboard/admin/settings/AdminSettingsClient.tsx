@@ -2368,7 +2368,7 @@ export default function AdminSettingsClient({
           {/* Favicon Upload */}
           <SettingCard
             title="Browser Favicon"
-            subtitle="Recommended dimensions: 32×32px (.ico or .png)"
+            subtitle="Recommended dimensions: 32×32px — ICO, PNG, JPG, WEBP, SVG or GIF"
             icon={Globe}
           >
             <ImageUploader

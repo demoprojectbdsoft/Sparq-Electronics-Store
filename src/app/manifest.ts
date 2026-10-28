@@ -1,5 +1,8 @@
 import type { MetadataRoute } from "next";
 import { getSiteSettings } from "@/lib/api/siteSettings";
+import { getFaviconType, isFaviconImage } from "@/lib/favicon";
+
+type ManifestIcon = NonNullable<MetadataRoute.Manifest["icons"]>[number];
 
 // Force per-request evaluation so admin edits to branding show up immediately
 // (getSiteSettings already fetches with cache: "no-store", but this also keeps
@@ -14,6 +17,10 @@ export const dynamic = "force-dynamic";
  *   theme_color      = cp.topBarVia  → matches --brand-flat / --site-topbar-via
  *   background_color = cp.background → light mode surface
  *   icons            = faviconUrl (falls back to the bundled /icon.svg)
+ *
+ * Whatever image format the admin uploads (ICO, PNG, JPG, WEBP, SVG, GIF) is
+ * applied to BOTH the favicon and the manifest — the type is derived from the
+ * extension so browsers never see a mismatched MIME.
  */
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const res = await getSiteSettings();
@@ -30,11 +37,27 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
   // The favicon is the PWA icon too — fall back to the bundled SVG when none
   // is configured so the manifest is never empty.
   const iconSrc = data?.faviconUrl || "/icon.svg";
-  const iconExt = iconSrc.split("?")[0].split(".").pop()?.toLowerCase();
-  const iconType =
-    iconExt === "svg" ? "image/svg+xml" :
-    iconExt === "png" || iconExt === "jpg" || iconExt === "jpeg" || iconExt === "webp" || iconExt === "gif" ? "image/png" :
-    undefined;
+  const iconType = getFaviconType(iconSrc);
+
+  // If the configured favicon is not a recognised image format, drop the
+  // `type` rather than lying about the MIME — browsers fall back to sniffing.
+  const icons: ManifestIcon[] =
+    iconSrc && isFaviconImage(iconSrc)
+      ? [
+          {
+            src: iconSrc,
+            sizes: "any",
+            type: iconType,
+            purpose: "any",
+          },
+          {
+            src: iconSrc,
+            sizes: "any",
+            type: iconType,
+            purpose: "maskable",
+          },
+        ]
+      : [];
 
   return {
     name: siteName,
@@ -45,19 +68,6 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     orientation: "portrait-primary",
     background_color: bgColor,
     theme_color: themeColor,
-    icons: [
-      {
-        src: iconSrc,
-        sizes: "any",
-        type: iconType,
-        purpose: "any",
-      },
-      {
-        src: iconSrc,
-        sizes: "any",
-        type: iconType,
-        purpose: "maskable",
-      },
-    ],
+    icons,
   };
 }

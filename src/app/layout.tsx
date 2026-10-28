@@ -3,6 +3,7 @@ import { Open_Sans, Poppins } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { ToastContainer } from "react-toastify";
+import { getFaviconType } from "@/lib/favicon";
 
 // 1. Initialize Primary Font (Open Sans)
 const openSans = Open_Sans({
@@ -38,7 +39,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const metaDesc =
     settings?.metaDescription ||
     `${siteName} - Premium Store with best deals, fast shipping, and top-tier products.`;
-  const icon = settings?.faviconUrl || "/icon.svg";
+  // The favicon is the single source of truth for both the browser tab icon
+  // and the PWA manifest. Whatever image format the admin uploads (ICO, PNG,
+  // JPG, WEBP, SVG, GIF) is applied to both — the MIME type is derived from
+  // the extension so browsers never see a mismatched type.
+  const favicon = settings?.faviconUrl || "/icon.svg";
+  const faviconType = getFaviconType(favicon);
 
   return {
     title: {
@@ -56,10 +62,34 @@ export async function generateMetadata(): Promise<Metadata> {
     formatDetection: {
       telephone: false,
     },
-    icons: {
-      icon,
-      apple: icon,
-    },
+    icons: [
+      {
+        url: favicon,
+        sizes: "any",
+        type: faviconType,
+      },
+      {
+        url: favicon,
+        sizes: "16x16",
+        type: faviconType,
+      },
+      {
+        url: favicon,
+        sizes: "32x32",
+        type: faviconType,
+      },
+      {
+        url: favicon,
+        sizes: "48x48",
+        type: faviconType,
+      },
+      {
+        url: favicon,
+        sizes: "180x180",
+        type: faviconType,
+        rel: "apple-touch-icon",
+      },
+    ],
   };
 }
 
