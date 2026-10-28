@@ -445,6 +445,9 @@ export default function CheckoutClient({
             },
           }),
       paymentMethod: selectedPaymentMethod,
+      shippingMethod: (isFreeShippingEligible
+        ? "free"
+        : selectedShippingMethod) as "free" | "standard" | "express",
       ...(selectedPaymentMethod !== "cod" && transactionId
         ? { transactionId }
         : {}),
@@ -935,21 +938,23 @@ export default function CheckoutClient({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {/* Standard Delivery */}
+                  {/* Standard Delivery — disabled when free shipping kicks in */}
                   <div
                     role="button"
                     tabIndex={0}
-                    onClick={() => setSelectedShippingMethod("standard")}
+                    onClick={() => !isFreeShippingEligible && setSelectedShippingMethod("standard")}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        setSelectedShippingMethod("standard");
+                        if (!isFreeShippingEligible) setSelectedShippingMethod("standard");
                       }
                     }}
-                    className={`p-4 rounded-xl border transition-all cursor-pointer flex flex-col justify-between gap-2.5 select-none ${
-                      selectedShippingMethod === "standard"
-                        ? "bg-primary/5 border-primary shadow-sm ring-1 ring-primary/20"
-                        : "bg-[var(--surface-alt)] border-[var(--border-color)] hover:border-primary/40"
+                    className={`p-4 rounded-xl border transition-all flex flex-col justify-between gap-2.5 select-none ${
+                      isFreeShippingEligible
+                        ? "opacity-50 cursor-not-allowed bg-[var(--surface-alt)] border-[var(--border-color)] line-through"
+                        : selectedShippingMethod === "standard"
+                          ? "cursor-pointer bg-primary/5 border-primary shadow-sm ring-1 ring-primary/20"
+                          : "cursor-pointer bg-[var(--surface-alt)] border-[var(--border-color)] hover:border-primary/40"
                     }`}
                   >
                     <div className="flex items-start justify-between">
@@ -977,9 +982,14 @@ export default function CheckoutClient({
                         )}
                       </span>
                     </div>
+                    {isFreeShippingEligible && (
+                      <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                        Unavailable (free applies)
+                      </span>
+                    )}
                   </div>
 
-                  {/* Express Delivery */}
+                  {/* Express Delivery — always available, pay to upgrade */}
                   <div
                     role="button"
                     tabIndex={0}
@@ -1099,9 +1109,15 @@ export default function CheckoutClient({
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1">
-                      <span>{selectedShippingMethod === "express" ? "Express Priority" : "Standard Shipping"}</span>
+                      <span>
+                        {isFreeShippingEligible
+                          ? "Free Shipping"
+                          : selectedShippingMethod === "express"
+                            ? "Express Priority"
+                            : "Standard Shipping"}
+                      </span>
                       <span className="text-[10px] text-[var(--foreground-muted)]">
-                        ({selectedShippingMethod === "express" ? "1-2 business days" : estimatedDays})
+                        ({isFreeShippingEligible ? "auto-applied" : selectedShippingMethod === "express" ? "1-2 business days" : estimatedDays})
                       </span>
                     </div>
                     <span>

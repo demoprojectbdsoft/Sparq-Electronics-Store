@@ -852,6 +852,22 @@ export default function OrdersClient({
                             {formatPrice(selectedOrder.shippingFee || 0)}
                           </span>
                         </div>
+                        {selectedOrder.shippingMethod && (
+                          <div className="flex justify-between text-[var(--foreground-secondary)] dark:text-[var(--foreground-muted)]">
+                            <span>Shipping Method</span>
+                            <span className="font-semibold capitalize">
+                              {selectedOrder.shippingMethod}
+                            </span>
+                          </div>
+                        )}
+                        {selectedOrder.estimatedDelivery && (
+                          <div className="flex justify-between text-[var(--foreground-secondary)] dark:text-[var(--foreground-muted)]">
+                            <span>Est. Delivery</span>
+                            <span className="font-semibold">
+                              {selectedOrder.estimatedDelivery}
+                            </span>
+                          </div>
+                        )}
                         <div className="pt-2 border-t border-[var(--border-color)] flex justify-between text-sm font-black text-[var(--foreground)]">
                           <span>Total Amount</span>
                           <span className="text-primary">

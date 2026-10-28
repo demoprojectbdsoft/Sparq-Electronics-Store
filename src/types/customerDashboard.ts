@@ -79,6 +79,9 @@ export interface CustomerOrder {
   items: CustomerOrderItem[];
   trackingNumber?: string;
   carrier?: string;
+  /** Shipping option chosen at checkout: free | standard | express */
+  shippingMethod?: "free" | "standard" | "express";
+  /** Estimated delivery window copied from site settings at checkout */
   estimatedDelivery?: string;
   shippingAddress: string;
   timeline: OrderTimelineStep[];

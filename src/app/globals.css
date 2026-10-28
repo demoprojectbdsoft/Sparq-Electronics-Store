@@ -61,6 +61,7 @@
   --primary-light: color-mix(in srgb, var(--brand-flat) 15%, white);
   --secondary: var(--site-secondary, #6366f1);
   --accent: var(--site-accent, #f59e0b);
+  --on-accent: #1a1206;
   --success: oklch(0.65 0.15 155);
   --foreground: #0f172a;
   --foreground-muted: #64748b;
@@ -123,6 +124,7 @@ html.dark,
   --primary-light: color-mix(in srgb, var(--primary) 25%, black);
   --secondary: var(--site-secondary, #818cf8);
   --accent: var(--site-accent, #fbbf24);
+  --on-accent: #1a1206;
   --background: color-mix(in srgb, #07090e 92%, var(--brand-flat) 8%);
   --surface: color-mix(in srgb, #0d121c 88%, var(--brand-flat) 12%);
   --foreground: #f1f5f9;

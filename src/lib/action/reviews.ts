@@ -20,6 +20,14 @@ export const updateReview = async (id: string, data: { rating?: number; comment?
   return serverMutation(`/reviews/${id}`, data, "PATCH");
 };
 
+/** Edit an existing review left by the current user (owner-only on the server). */
+export const editReview = async (
+  id: string,
+  data: { rating?: number; comment?: string; images?: string[] }
+) => {
+  return serverMutation(`/reviews/${id}`, data, "PATCH");
+};
+
 export const deleteReview = async (id: string) => {
   return serverMutation(`/reviews/${id}`, {}, "DELETE");
 };

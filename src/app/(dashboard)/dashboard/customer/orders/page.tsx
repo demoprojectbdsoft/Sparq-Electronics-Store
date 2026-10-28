@@ -217,6 +217,8 @@ export default async function CustomerOrdersPage() {
           itemCount: items.length,
           items,
           shippingAddress: shippingAddr,
+          shippingMethod: order.shippingMethod,
+          estimatedDelivery: order.estimatedDelivery,
           timeline: buildTimeline(
             order.orderStatus || "processing",
             order.createdAt,

@@ -13,6 +13,7 @@ import {
   ShoppingBag,
   Package,
   Truck,
+  Calendar,
   CheckCircle2,
   Clock,
   Search,
@@ -34,6 +35,17 @@ import { addToCart } from "@/lib/action/cart";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 const STATUS_TABS = ["All Orders", "Confirmed", "Processing", "Shipped", "Delivered", "Cancelled"];
+
+/** Human-readable label for the shipping option stored on an order.
+ *  Pre-existing orders have no method stored — assume Standard Delivery. */
+function shippingMethodLabel(method?: CustomerOrder["shippingMethod"]): string {
+  switch (method) {
+    case "free":    return "Free Shipping";
+    case "express": return "Express Delivery";
+    case "standard":return "Standard Delivery";
+    default:        return "Standard Delivery";
+  }
+}
 
 interface CustomerOrdersClientProps {
   initialOrders: CustomerOrder[];
@@ -336,6 +348,24 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
                       {formatPrice(order.total)}
                     </span>
                   </div>
+                  <div>
+                    <span className="text-[var(--foreground-muted)] text-[10px] uppercase font-bold block">
+                      Shipping Method
+                    </span>
+                    <span className="font-semibold text-[var(--foreground)] opacity-90">
+                      {shippingMethodLabel(order.shippingMethod)}
+                    </span>
+                  </div>
+                  {order.estimatedDelivery && (
+                    <div>
+                      <span className="text-[var(--foreground-muted)] text-[10px] uppercase font-bold block">
+                        Est. Delivery
+                      </span>
+                      <span className="font-semibold text-[var(--foreground)] opacity-90">
+                        {order.estimatedDelivery}
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-2.5">
@@ -597,6 +627,20 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
               >
                 ✕
               </Button>
+            </div>
+
+            {/* Shipping Method + Estimated Delivery */}
+            <div className="flex flex-wrap items-center gap-2.5 -mt-2">
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--surface-alt)] border border-[var(--border-color)] text-[11px] font-bold text-[var(--foreground)]">
+                <Truck className="w-3.5 h-3.5 text-primary" />
+                {shippingMethodLabel(trackingModalOrder.shippingMethod)}
+              </span>
+              {trackingModalOrder.estimatedDelivery && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[var(--surface-alt)] border border-[var(--border-color)] text-[11px] font-semibold text-[var(--foreground-secondary)]">
+                  <Calendar className="w-3.5 h-3.5 text-[var(--foreground-muted)]" />
+                  Est. {trackingModalOrder.estimatedDelivery}
+                </span>
+              )}
             </div>
 
             {/* Timeline */}

@@ -21,6 +21,9 @@ export interface CreateOrderPayload {
   shippingAddress?: ShippingAddress;
   paymentMethod: PaymentMethod;
   transactionId?: string;
+  /** Explicit shipping choice from checkout: free | standard | express.
+   *  When omitted the backend resolves it from the live site settings. */
+  shippingMethod?: "free" | "standard" | "express";
 }
 
 export interface SendOtpPayload {
@@ -73,6 +76,10 @@ export interface Order {
   totalAmount: number;
   subtotal?: number;
   shippingFee?: number;
+  /** Shipping option chosen at checkout: free | standard | express */
+  shippingMethod?: "free" | "standard" | "express";
+  /** Estimated delivery window copied from site settings at checkout */
+  estimatedDelivery?: string;
   /** Backend field name for order status */
   orderStatus?: "confirmed" | "processing" | "shipped" | "delivered" | "cancelled";
   /** Legacy / frontend-only status field */
