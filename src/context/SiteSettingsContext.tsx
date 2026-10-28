@@ -164,6 +164,38 @@ export function SiteSettingsProvider({
     // automatically from the --site-* values set above, in the correct mode.
   }, [settings.colorPalette]);
 
+  // Dynamically swap the favicon <link> tags when faviconUrl changes.
+  // SSR metadata alone can't react to live admin edits, and browsers aggressively
+  // cache favicons — so append a version query param to force a refetch.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const url = settings.faviconUrl;
+    if (!url) return;
+
+    const href = url.includes("?")
+      ? `${url}&v=${encodeURIComponent(url)}`
+      : `${url}?v=${encodeURIComponent(url)}`;
+
+    // Match the MIME type to the file extension so SVG favicons work too.
+    const ext = url.split("?")[0].split(".").pop()?.toLowerCase();
+    const type =
+      ext === "svg" ? "image/svg+xml" :
+      ext === "png" || ext === "jpg" || ext === "jpeg" || ext === "webp" || ext === "gif" ? "image/png" :
+      "";
+
+    const rels = ["icon", "shortcut icon"];
+    rels.forEach((rel) => {
+      let linkEl = document.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`);
+      if (!linkEl) {
+        linkEl = document.createElement("link");
+        linkEl.rel = rel;
+        document.head.appendChild(linkEl);
+      }
+      linkEl.href = href;
+      if (type) linkEl.type = type;
+    });
+  }, [settings.faviconUrl]);
+
   // Dynamically load Google Fonts when typography changes
   useEffect(() => {
     if (typeof document === "undefined") return;
