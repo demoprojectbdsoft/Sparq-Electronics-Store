@@ -827,6 +827,11 @@ export default function CustomerOverviewClient({
                       <span className="text-sm font-extrabold text-[var(--foreground)]">
                         {formatPrice(order.total)}
                       </span>
+                      {Boolean(order.pointsDiscount) && (
+                        <span className="block text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                          {order.pointsRedeemed} pts saved {formatPrice(order.pointsDiscount || 0)}
+                        </span>
+                      )}
                     </div>
 
                     <Button

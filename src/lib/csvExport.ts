@@ -458,6 +458,9 @@ export interface CustomerOverviewExportData {
       price: number;
     }>;
     shippingAddress?: string;
+    /** Loyalty points this order used up, and the money they saved. */
+    pointsRedeemed?: number;
+    pointsDiscount?: number;
   }>;
   wishlistItems: Array<{
     title: string;
@@ -531,6 +534,8 @@ export function exportCustomerOverviewCsv(
       order.date,
       order.status,
       round2(order.total),
+      order.pointsRedeemed ?? 0,
+      round2(order.pointsDiscount ?? 0),
       order.itemCount,
       itemList,
       order.shippingAddress || "",
@@ -598,6 +603,8 @@ export function exportCustomerOverviewCsv(
         "Date",
         "Status",
         `Total (${currency})`,
+        "Points used",
+        `Points saved (${currency})`,
         "Items",
         "Item details",
         "Shipping address",

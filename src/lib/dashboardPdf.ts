@@ -919,18 +919,22 @@ export async function downloadCustomerOverviewPdf(
     report.heading("Recent orders");
     report.table(
       [
-        { label: "Order", width: 95 },
-        { label: "Date", width: 78 },
-        { label: "Status", width: 66 },
-        { label: `Total (${currency})`, width: 70, align: "right" },
-        { label: "Items", width: 44, align: "right" },
-        { label: "Item details", width: 154 },
+        { label: "Order", width: 86 },
+        { label: "Date", width: 64 },
+        { label: "Status", width: 56 },
+        { label: `Total (${currency})`, width: 62, align: "right" },
+        { label: "Pts Used", width: 44, align: "right" },
+        { label: "Pts Saved", width: 56, align: "right" },
+        { label: "Items", width: 34, align: "right" },
+        { label: "Item details", width: 105 },
       ],
       data.recentOrders.slice(0, 20).map((order) => [
         order.orderNumber,
         order.date,
         order.status,
         String(round(order.total, 2)),
+        order.pointsRedeemed ? String(order.pointsRedeemed) : "-",
+        order.pointsDiscount ? `-${round(order.pointsDiscount, 2)}` : "-",
         String(order.itemCount),
         (order.items || []).map((item) => `${item.name} x${item.quantity}`).join(", ") || "-",
       ])

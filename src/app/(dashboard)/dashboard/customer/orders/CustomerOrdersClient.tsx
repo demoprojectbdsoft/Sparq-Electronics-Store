@@ -641,6 +641,16 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
                       {formatPrice(order.total)}
                     </span>
                   </div>
+                  {Boolean(order.pointsDiscount) && (
+                    <div>
+                      <span className="text-[var(--foreground-muted)] text-[10px] uppercase font-bold block">
+                        Points Saved
+                      </span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                        {formatPrice(order.pointsDiscount || 0)} ({order.pointsRedeemed} pts)
+                      </span>
+                    </div>
+                  )}
                   <div>
                     <span className="text-[var(--foreground-muted)] text-[10px] uppercase font-bold block">
                       Shipping Method
