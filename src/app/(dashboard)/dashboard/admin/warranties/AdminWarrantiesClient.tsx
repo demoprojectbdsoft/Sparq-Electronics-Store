@@ -34,7 +34,6 @@ import { adminUpdateClaim } from "@/lib/action/warranty";
 import ImageGalleryModal from "@/components/shared/ImageGalleryModal";
 import { formatOrderDate } from "@/lib/dateTime";
 import {
-  claimProblemLabel,
   formatWarrantyDuration,
   warrantyTypeLabel,
 } from "@/lib/warranty";
@@ -372,7 +371,6 @@ export default function AdminWarrantiesClient({
                   <th className="py-3 px-4">Product</th>
                   <th className="py-3 px-4">Warranty</th>
                   <th className="py-3 px-4">Customer</th>
-                  <th className="py-3 px-4">Problem</th>
                   <th className="py-3 px-4">Expiry</th>
                   <th className="py-3 px-4 text-center">Status</th>
                   <th className="py-3 px-4 text-right">Actions</th>
@@ -410,18 +408,6 @@ export default function AdminWarrantiesClient({
                         </a>
                       ) : (
                         <span className="text-[10px] text-[var(--foreground-muted)]">—</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4">
-                      {w.claimProblem ? (
-                        <span
-                          className="inline-block max-w-[130px] truncate text-[11px] font-semibold text-amber-700 dark:text-amber-400"
-                          title={claimProblemLabel(w.claimProblem)}
-                        >
-                          {claimProblemLabel(w.claimProblem)}
-                        </span>
-                      ) : (
-                        <span className="text-[var(--foreground-muted)]">—</span>
                       )}
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">
@@ -546,20 +532,13 @@ export default function AdminWarrantiesClient({
                   </div>
 
                   {(selectedWarranty.claimReason ||
-                    selectedWarranty.claimDescription ||
-                    selectedWarranty.claimProblem) && (
+                    selectedWarranty.claimDescription) && (
                     <div className="space-y-4 p-5 rounded-2xl bg-amber-500/5 border border-amber-500/10">
                       <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
                         <AlertCircle className="w-4 h-4" />
                         <h3 className="text-sm font-bold">Customer Claim Information</h3>
                       </div>
                       <div className="space-y-3">
-                        <div>
-                          <p className="text-[10px] font-bold uppercase text-amber-600/60 dark:text-amber-400/60">Problem</p>
-                          <p className="text-xs font-bold mt-0.5">
-                            {claimProblemLabel(selectedWarranty.claimProblem)}
-                          </p>
-                        </div>
                         <div>
                           <p className="text-[10px] font-bold uppercase text-amber-600/60 dark:text-amber-400/60">Reason</p>
                           <p className="text-xs font-bold mt-0.5">{selectedWarranty.claimReason}</p>

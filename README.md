@@ -179,7 +179,7 @@ Switching mode keeps the current filters, search and sort.
 | **Transactions** | Platform-wide payment records. |
 | **Users** | Change a user's role and account status, and see their points and membership tier. |
 | **Reviews** | View and moderate every product review. |
-| **Warranties** | Review coverage records and process claims. The table shows each record's **type and duration** and the customer's **problem**; opening one shows the full coverage (type, duration, terms, dates), the claim with its reason, description and evidence photos (plus the problem code on older claims), and a single icon dropdown to mark it under review, ask for more information, resolve or reject. Customer emails open the mail app. |
+| **Warranties** | Review coverage records and process claims. The table shows each record's **type and duration**; opening one shows the full coverage (type, duration, terms, dates), the claim with its reason, description and evidence photos, and a single icon dropdown to mark it under review, ask for more information, resolve or reject. Customer emails open the mail app. |
 | **Settings** | Site settings and branding — see [Site Settings & Branding](#-site-settings--branding). |
 
 ### Order management
@@ -257,7 +257,7 @@ A review holds a star rating, a written message and up to 5 images. Ratings are 
 
 - Coverage is created automatically when an order is delivered, one per item, using the product's warranty period, type and terms. Those three values are **copied onto the warranty record**, so the coverage still explains itself if the product is edited or deleted later.
 - Opening a warranty shows its **type**, **duration**, **terms** and activation/expiry dates, plus the days remaining.
-- While it is active the customer can file one claim: a short reason, a description and up to 5 photos. Claims filed before the form was simplified also carry a problem code, which still appears on both dashboards.
+- While it is active the customer can file one claim: a short reason, a description and up to 5 photos. Claims filed before the form was simplified also carry a problem code, which the customer still sees on their own claim.
 - After a claim is filed, its status is visible to the customer: under review, information requested, resolved or rejected.
 - Cancelling an order voids the coverage it created.
 
