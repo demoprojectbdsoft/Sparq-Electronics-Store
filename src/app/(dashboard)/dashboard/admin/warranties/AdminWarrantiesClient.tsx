@@ -363,8 +363,21 @@ export default function AdminWarrantiesClient({
       )}
 
       {/* ── Detail Modal ── */}
-      <Modal isOpen={isModalOpen && !isGalleryOpen} onOpenChange={setIsModalOpen}>
-        <Modal.Backdrop onClick={() => setIsModalOpen(false)}>
+      <Modal
+        isOpen={isModalOpen && !isGalleryOpen}
+        onOpenChange={(open) => {
+          // The image gallery opens on top of this modal, which hides it. That
+          // "closed" event must be ignored, otherwise closing the gallery would
+          // also wipe the details modal.
+          if (!isGalleryOpen) setIsModalOpen(open);
+        }}
+      >
+        {/*
+          No onClick on Modal.Backdrop: it wraps the dialog, so clicks inside
+          bubble up and close it. Outside-click dismissal is built in, and we
+          keep it off while an action is being saved.
+        */}
+        <Modal.Backdrop isDismissable={!isSubmitting}>
           <Modal.Container size="lg">
             <Modal.Dialog className="bg-[var(--surface-elevated)] rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
               {selectedWarranty && (

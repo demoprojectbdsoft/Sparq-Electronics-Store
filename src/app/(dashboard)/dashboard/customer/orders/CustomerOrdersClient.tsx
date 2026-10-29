@@ -1238,7 +1238,14 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
 
       {/* Warranty Detail & Claim Modal */}
       <Modal isOpen={isWarrantyModalOpen} onOpenChange={setIsWarrantyModalOpen}>
-        <Modal.Backdrop onClick={() => setIsWarrantyModalOpen(false)}>
+        {/*
+          Never put onClick on Modal.Backdrop: it is the react-aria overlay that
+          WRAPS the dialog, so clicks inside the form bubble up and close the
+          modal. Outside-click dismissal is already built in; we only switch it
+          off while a claim is uploading or being submitted so typed text is
+          not lost.
+        */}
+        <Modal.Backdrop isDismissable={!isSubmittingClaim && !isUploading}>
           <Modal.Container size="lg">
             <Modal.Dialog className="bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-3xl p-6 shadow-2xl space-y-5 max-h-[85vh] overflow-y-auto">
               <div className="flex items-start justify-between gap-3 border-b border-[var(--border-color)] pb-4">
