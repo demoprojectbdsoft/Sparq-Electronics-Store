@@ -89,7 +89,8 @@ Public pages anyone can visit.
 | **Order success** (`/order-success/[orderId]`) | Confirmation with the points that were spent and the points that will be earned. |
 | **Track order** (`/track-order`) | An order-lookup form with a delivery timeline. The per-order **Track Shipment** view in the customer dashboard is the live one. |
 | **Store locator** (`/store-locator`) | Store locations and contact details. |
-| **About / Services / Contact / Privacy / Terms** | Informational pages, branded from the store settings. |
+| **About** (`/about`) | Headline, story, headquarters note, **opening hours**, contact channels and call-to-action — all editable from **Site Settings → Contact & Socials**. |
+| **Services / Contact / Privacy / Terms** | Informational pages, branded from the store settings. |
 | **Maintenance** (`/maintenance`) | Shown while the store is paused. See [Maintenance Mode](#-maintenance-mode). |
 | **Forbidden** (`/forbidden`) | Shown when a signed-in user opens a dashboard that is not theirs. |
 
@@ -97,7 +98,7 @@ Public pages anyone can visit.
 
 | Feature | Description |
 |---|---|
-| **Admin-controlled branding** | Site name, tagline, SEO meta, fonts, colours, logos, favicon, announcement bar, contact details, currency and footer text all come from the database — no redeploy needed. |
+| **Admin-controlled branding** | Site name, tagline, SEO meta, fonts, colours, logos, favicon, announcement bar, contact details, opening hours, About page copy, currency and footer text all come from the database — no redeploy needed. |
 | **Category mega-menu** | Desktop and mobile menus driven by live category and subcategory data. |
 | **Dark / light theme** | Via `next-themes`, with separate light and dark colours and logos. |
 | **Language & currency** | A built-in translator for the storefront, and a per-customer display currency. |
@@ -148,7 +149,7 @@ Switching mode keeps the current filters, search and sort.
 | Page | What it offers |
 |---|---|
 | **Overview** | Spend and savings charts, summary stat cards, recent orders with their status and points saved. |
-| **Orders** | Full order history: status badge, timeline, **Track Shipment**, **invoice PDF**, **Buy Again**, warranty cards with claims, and the delivery-response form. |
+| **Orders** | Full order history: status badge, timeline, **Track Shipment**, **invoice PDF**, **Buy Again**, warranty cards with claims, and the delivery-response form. The delivery response is final once reported as received or cancelled; *not received* can be updated until it is settled. |
 | **Transactions** | Payment records for the customer's orders. |
 | **Wishlist** | Saved products, with add-to-cart. |
 | **Reviews** | The reviews they have written, with edit support. |
@@ -178,7 +179,7 @@ Switching mode keeps the current filters, search and sort.
 | **Transactions** | Platform-wide payment records. |
 | **Users** | Change a user's role and account status, and see their points and membership tier. |
 | **Reviews** | View and moderate every product review. |
-| **Warranties** | Review coverage records and process claims: mark under review, request more information, resolve or reject, with a note. |
+| **Warranties** | Review coverage records and process claims. The table shows each record's **type and duration** and the customer's **problem**; opening one shows the full coverage (type, duration, terms, dates), the claim with the customer's problem, reason, description and evidence photos, and a single icon dropdown to mark it under review, ask for more information, resolve or reject. Customer emails open the mail app. |
 | **Settings** | Site settings and branding — see [Site Settings & Branding](#-site-settings--branding). |
 
 ### Order management
@@ -254,8 +255,9 @@ A review holds a star rating, a written message and up to 5 images. Ratings are 
 
 ### Warranties
 
-- Coverage is created automatically when an order is delivered, one per item, using the product's warranty period and type.
-- The order card shows the coverage, its expiry and a claim form (reason, description, up to 5 images) while it is active.
+- Coverage is created automatically when an order is delivered, one per item, using the product's warranty period, type and terms. Those three values are **copied onto the warranty record**, so the coverage still explains itself if the product is edited or deleted later.
+- Opening a warranty shows its **type**, **duration**, **terms** and activation/expiry dates, plus the days remaining.
+- While it is active the customer can file one claim: a **problem** chosen from a fixed list (not turning on, stopped working, damaged on arrival, battery or charging, screen or display, missing parts, other), a short reason, a description and up to 5 photos.
 - After a claim is filed, its status is visible to the customer: under review, information requested, resolved or rejected.
 - Cancelling an order voids the coverage it created.
 
@@ -278,7 +280,7 @@ One page, split into tabs, controlling how the whole store looks and behaves. Ch
 | **Shipping & Delivery** | Free-shipping toggle and threshold, standard and express fees, estimated delivery duration, with a live customer-view preview. |
 | **Top Bar & Layout** | Show or hide the announcement bar, edit its text with live preview, and add custom action links. |
 | **Logos & Media** | Image + Text, Image Only or Text Only; separate light and dark logos for navbar and footer; brand wordmark; favicon by upload or URL (ImgBB). |
-| **Contact & Socials** | Support phone, email, address and social links used in the footer and mobile navigation. |
+| **Contact & Socials** | Support phone, email, address and social links used in the footer and mobile navigation, plus **opening hours** (one day per line) and every line of the **About page**: headline, intro, headquarters note, opening-hours note and call-to-action. Leave a field empty to keep the built-in text. |
 | **System & Security** | Store currency, timezone, footer copyright, the default shop browse mode, and **maintenance mode**. |
 
 ---
@@ -412,8 +414,10 @@ src/
 │   ├── compare.ts              localStorage comparison store
 │   ├── csvExport.ts            CSV report builders
 │   ├── dashboardPdf.ts         PDF report builders
+│   ├── dateTime.ts             order dates rendered in the store timezone
 │   ├── orderInvoicePdf.ts      per-order invoice PDF
 │   ├── orderStatusStyles.ts    one colour/icon palette per order status
+│   ├── warranty.ts             warranty type, duration and problem wording
 │   └── currency.ts             formatting helpers
 └── types/                      shared TypeScript models
 ```
@@ -503,7 +507,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | Reviews with image uploads and rating recalculation | ✅ Complete |
 | Customer dashboard with analytics and data export | ✅ Complete |
 | Admin dashboard with CSV and charted PDF reports | ✅ Complete |
-| Site settings, branding, maintenance mode | ✅ Complete |
+| Site settings: branding, About page copy, opening hours, maintenance mode | ✅ Complete |
 | Demo admin sandbox with daily restore | ✅ Complete |
 | Rate limiting and a strict CORS allow-list (API side) | ⏳ Planned |
 
