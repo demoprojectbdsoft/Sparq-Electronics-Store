@@ -97,6 +97,9 @@ export interface RecentOrder {
   amount: string;
   status: "Completed" | "Processing" | "Pending" | "Cancelled" | "Shipped" | "Delivered";
   date: string;
+  /** Loyalty points this order used up, and the points it will pay out. */
+  pointsRedeemed: number;
+  pointsEarned: number;
 }
 
 export interface Transaction {

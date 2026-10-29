@@ -789,17 +789,21 @@ export async function downloadAdminOverviewPdf(
     report.heading("Recent orders");
     report.table(
       [
-        { label: "Order", width: 92 },
-        { label: "Customer", width: 120 },
-        { label: "Items", width: 160 },
-        { label: "Amount", width: 60, align: "right" },
-        { label: "Status", width: 75 },
+        { label: "Order", width: 84 },
+        { label: "Customer", width: 90 },
+        { label: "Items", width: 112 },
+        { label: "Amount", width: 56, align: "right" },
+        { label: "Pts Used", width: 46, align: "right" },
+        { label: "Pts Earned", width: 52, align: "right" },
+        { label: "Status", width: 56 },
       ],
       data.recentOrders.slice(0, 20).map((order) => [
         order.id,
         order.customer,
         order.product,
         order.amount,
+        order.pointsRedeemed ? `-${order.pointsRedeemed}` : "-",
+        order.pointsEarned ? `+${order.pointsEarned}` : "-",
         order.status,
       ])
     );

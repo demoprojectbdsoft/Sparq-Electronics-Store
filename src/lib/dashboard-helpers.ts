@@ -130,6 +130,8 @@ export interface RawOrder {
   totalAmount?: number;
   subtotal?: number;
   shippingFee?: number;
+  pointsRedeemed?: number;
+  pointsEarned?: number;
   orderStatus?: string;
   paymentMethod?: string;
   createdAt?: string;
@@ -616,6 +618,8 @@ export function aggregateAdminDashboard(
       amount: amtStr,
       status: st,
       date: dateStr,
+      pointsRedeemed: Number(ord.pointsRedeemed ?? 0),
+      pointsEarned: Number(ord.pointsEarned ?? 0),
     };
   });
 

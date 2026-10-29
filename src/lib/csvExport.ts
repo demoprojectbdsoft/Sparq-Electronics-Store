@@ -215,6 +215,9 @@ export interface AdminOverviewExportData {
     amount: string;
     status: string;
     date: string;
+    /** Loyalty points this order used up, and the points it will pay out. */
+    pointsRedeemed?: number;
+    pointsEarned?: number;
   }>;
 }
 
