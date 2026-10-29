@@ -191,7 +191,7 @@ confirmed ──▶ processing ──▶ shipped ──▶ delivered
 ```
 
 - The **Set order status** picker only offers legal next stages, each shown with a coloured status dot, so an order cannot skip a step or restart after cancellation.
-- After shipping, the admin sees *Awaiting Customer Response*: `delivered` and `cancelled` stay locked until the customer reports what happened.
+- After shipping, the admin sees *Awaiting Customer Response*: `delivered` and `cancelled` stay locked until the customer reports what happened. Once they do, only the matching side opens — *received* allows `delivered`, while *not received* or *cancelled* allows `cancelled`.
 - The order detail shows the full pricing breakdown, including **points redeemed** (money saved) and **points earned** (credited on delivery).
 - Every transition is recorded in the order's status history, which is what the customer's timeline renders.
 
