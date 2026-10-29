@@ -12,6 +12,26 @@ export default function AboutPage() {
   const deliveryDays = settings.shipping?.estimatedDeliveryDays || "2-4 business days";
   const isFreeShipping = settings.shipping?.freeShippingEnabled !== false;
 
+  // ── Editable copy (Admin → Settings → Contact & Socials → About Page) ──
+  // Older settings records have no `about` group, so every line falls back to
+  // the text this page shipped with.
+  const about = settings.about || {};
+  const headline =
+    about.headline?.trim() || "We Provide High Quality Electronics & Tech Gadgets";
+  const intro =
+    about.intro?.trim() ||
+    `Welcome to ${siteName}, your number one destination for premium consumer electronics, smart gadgets, computers, audio equipment, and tech accessories. We are dedicated to giving you the best online shopping experience.`;
+  const headquartersNote =
+    about.headquartersNote?.trim() || "Official Storefront & Innovation Center";
+  const openingHours =
+    settings.openingHours?.trim() || "Mon - Fri: 9:00 AM - 8:00 PM";
+  const openingHoursNote =
+    about.openingHoursNote?.trim() || "Live helpline & in-store customer assistance";
+  const ctaTitle = about.ctaTitle?.trim() || "Ready to explore our latest arrivals?";
+  const ctaDescription =
+    about.ctaDescription?.trim() ||
+    "Browse our wide selection of consumer tech, laptops, smartphones, and gaming consoles today.";
+
   const features = [
     {
       icon: Truck,
@@ -27,8 +47,8 @@ export default function AboutPage() {
     },
     {
       icon: Headphones,
-      title: "24/7 Dedicated Support",
-      desc: `Our friendly support team at ${siteName} is always available to help with your inquiries.`,
+      title: "Dedicated Support",
+      desc: `Our friendly support team at ${siteName} is one call or email away whenever you need help.`,
     },
     {
       icon: Award,
@@ -54,10 +74,10 @@ export default function AboutPage() {
           About {siteName}
         </span>
         <h1 className="text-3xl md:text-5xl font-extrabold text-[var(--foreground)] tracking-tight">
-          We Provide High Quality Electronics & Tech Gadgets
+          {headline}
         </h1>
         <p className="text-sm md:text-base text-[var(--foreground-secondary)] dark:text-[var(--foreground-muted)] leading-relaxed">
-          Welcome to {siteName}, your number one destination for premium consumer electronics, smart gadgets, computers, audio equipment, and tech accessories. We are dedicated to giving you the best online shopping experience.
+          {intro}
         </p>
       </div>
 
@@ -88,14 +108,15 @@ export default function AboutPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
         <div className="p-6 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-elevated)] space-y-2">
           <span className="text-xs font-bold text-primary uppercase tracking-wider block">Headquarters</span>
-          <p className="text-sm font-bold text-[var(--foreground)]">{settings.address || "17 Princess Road, London, UK"}</p>
-          <p className="text-xs text-[var(--foreground-muted)]">Official Storefront & Innovation Center</p>
+          <p className="text-sm font-bold text-[var(--foreground)] whitespace-pre-line">{settings.address || "17 Princess Road, London, UK"}</p>
+          <p className="text-xs text-[var(--foreground-muted)]">{headquartersNote}</p>
         </div>
 
         <div className="p-6 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-elevated)] space-y-2">
           <span className="text-xs font-bold text-primary uppercase tracking-wider block">Opening Hours</span>
-          <p className="text-sm font-bold text-[var(--foreground)]">{settings.openingHours || "Mon - Fri: 9:00 AM - 8:00 PM"}</p>
-          <p className="text-xs text-[var(--foreground-muted)]">Live helpline & in-store customer assistance</p>
+          {/* whitespace-pre-line keeps one-day-per-line hours readable. */}
+          <p className="text-sm font-bold text-[var(--foreground)] whitespace-pre-line">{openingHours}</p>
+          <p className="text-xs text-[var(--foreground-muted)]">{openingHoursNote}</p>
         </div>
 
         <div className="p-6 rounded-2xl border border-[var(--border-color)] bg-[var(--surface-elevated)] space-y-2">
@@ -115,9 +136,10 @@ export default function AboutPage() {
       {/* CTA Box */}
       <div className="rounded-2xl bg-gradient-primary text-white p-8 md:p-12 flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl shadow-primary/20">
         <div className="space-y-2 text-center md:text-left">
-          <h2 className="text-2xl md:text-3xl font-bold">Ready to explore our latest arrivals?</h2>
+          <h2 className="text-2xl md:text-3xl font-bold">{ctaTitle}</h2>
           <p className="text-xs md:text-sm text-white/80 max-w-xl">
-            {settings.siteTagline ? `${settings.siteTagline} ` : ""}Browse our wide selection of consumer tech, laptops, smartphones, and gaming consoles today.
+            {settings.siteTagline ? `${settings.siteTagline} ` : ""}
+            {ctaDescription}
           </p>
         </div>
         <Link

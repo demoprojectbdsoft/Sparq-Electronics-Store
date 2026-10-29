@@ -43,6 +43,7 @@ import {
   Zap,
   Sprout,
   AlertCircle,
+  FileText,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import {
@@ -967,6 +968,26 @@ export default function AdminSettingsClient({
         ]
   );
 
+  // ── 7b. About Page Content State ──
+  // Left empty when the owner has not customised a line: the About page then
+  // shows its built-in text, so clearing a field restores the default.
+  const [aboutHeadline, setAboutHeadline] = useState(
+    current.about?.headline || ""
+  );
+  const [aboutIntro, setAboutIntro] = useState(current.about?.intro || "");
+  const [aboutHeadquartersNote, setAboutHeadquartersNote] = useState(
+    current.about?.headquartersNote || ""
+  );
+  const [aboutHoursNote, setAboutHoursNote] = useState(
+    current.about?.openingHoursNote || ""
+  );
+  const [aboutCtaTitle, setAboutCtaTitle] = useState(
+    current.about?.ctaTitle || ""
+  );
+  const [aboutCtaDescription, setAboutCtaDescription] = useState(
+    current.about?.ctaDescription || ""
+  );
+
   // ── 8. System & Security State ──
   const [currency, setCurrency] = useState(current.currency || "USD");
   const currencySymbol = getCurrencySymbol(currency);
@@ -1188,6 +1209,14 @@ export default function AdminSettingsClient({
           supportPhone,
           openingHours,
           address,
+          about: {
+            headline: aboutHeadline.trim(),
+            intro: aboutIntro.trim(),
+            headquartersNote: aboutHeadquartersNote.trim(),
+            openingHoursNote: aboutHoursNote.trim(),
+            ctaTitle: aboutCtaTitle.trim(),
+            ctaDescription: aboutCtaDescription.trim(),
+          },
           socialLinks: socialLinks.filter((s) => s.platform.trim()),
           currency,
           timezone,
@@ -2447,12 +2476,17 @@ export default function AdminSettingsClient({
               <label className="text-xs font-semibold text-[var(--foreground-secondary)]">
                 Opening Days & Hours
               </label>
-              <Input
-                type="text"
+              {/* TextArea so each day can sit on its own line. */}
+              <TextArea
+                rows={3}
                 value={openingHours}
                 onChange={(e) => setOpeningHours(e.target.value)}
-                placeholder="e.g. Mon - Fri: 9:00 AM - 8:00 PM"
+                placeholder="Mon - Fri: 9:00 AM - 8:00 PM"
               />
+              <p className="text-[10px] text-[var(--foreground-muted)]">
+                Shown on the About page and the store footer. Use a new line for
+                each day, e.g. "Mon - Thu: 9 AM - 8 PM" then "Fri - Sat: 10 AM - 6 PM".
+              </p>
             </div>
 
             <div className="flex flex-col gap-1">
@@ -2464,6 +2498,89 @@ export default function AdminSettingsClient({
                 value={address}
                 onChange={(e) => setAddress(e.target.value)}
                 placeholder="17 Princess Road, London, UK"
+              />
+            </div>
+          </SettingCard>
+
+          <SettingCard
+            title="About Page Content"
+            subtitle="Headlines, story and call-to-action shown on /about"
+            icon={FileText}
+          >
+            <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed">
+              Leave a field empty to keep the built-in text. Opening hours, address
+              and phone/email come from the Store Contact Details card above.
+            </p>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-[var(--foreground-secondary)]">
+                Page Headline
+              </label>
+              <Input
+                type="text"
+                value={aboutHeadline}
+                onChange={(e) => setAboutHeadline(e.target.value)}
+                placeholder="We Provide High Quality Electronics & Tech Gadgets"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-[var(--foreground-secondary)]">
+                Intro Paragraph
+              </label>
+              <TextArea
+                rows={4}
+                value={aboutIntro}
+                onChange={(e) => setAboutIntro(e.target.value)}
+                placeholder="Welcome to our store, your number one destination for..."
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-[var(--foreground-secondary)]">
+                Headquarters Note (under the address)
+              </label>
+              <Input
+                type="text"
+                value={aboutHeadquartersNote}
+                onChange={(e) => setAboutHeadquartersNote(e.target.value)}
+                placeholder="Official Storefront & Innovation Center"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-[var(--foreground-secondary)]">
+                Opening Hours Note (under the hours)
+              </label>
+              <Input
+                type="text"
+                value={aboutHoursNote}
+                onChange={(e) => setAboutHoursNote(e.target.value)}
+                placeholder="Live helpline & in-store customer assistance"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-[var(--foreground-secondary)]">
+                Call-to-Action Title
+              </label>
+              <Input
+                type="text"
+                value={aboutCtaTitle}
+                onChange={(e) => setAboutCtaTitle(e.target.value)}
+                placeholder="Ready to explore our latest arrivals?"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-semibold text-[var(--foreground-secondary)]">
+                Call-to-Action Text
+              </label>
+              <TextArea
+                rows={2}
+                value={aboutCtaDescription}
+                onChange={(e) => setAboutCtaDescription(e.target.value)}
+                placeholder="Browse our wide selection of consumer tech, laptops, smartphones, and gaming consoles today."
               />
             </div>
           </SettingCard>

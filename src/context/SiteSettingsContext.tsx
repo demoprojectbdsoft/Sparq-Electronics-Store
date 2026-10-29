@@ -62,6 +62,15 @@ export const DEFAULT_SITE_SETTINGS: SiteSettingsData = {
   timezone: "Asia/Dhaka",
   maintenanceMode: false,
   footerCopyright: "",
+  about: {
+    headline: "We Provide High Quality Electronics & Tech Gadgets",
+    intro: "",
+    headquartersNote: "Official Storefront & Innovation Center",
+    openingHoursNote: "Live helpline & in-store customer assistance",
+    ctaTitle: "Ready to explore our latest arrivals?",
+    ctaDescription:
+      "Browse our wide selection of consumer tech, laptops, smartphones, and gaming consoles today.",
+  },
 };
 
 interface SiteSettingsContextType {
@@ -100,6 +109,10 @@ export function SiteSettingsProvider({
       ...DEFAULT_SITE_SETTINGS.shipping,
       ...(initialSettings?.shipping || {}),
     },
+    about: {
+      ...DEFAULT_SITE_SETTINGS.about,
+      ...(initialSettings?.about || {}),
+    },
   }));
 
   const updateSettings = (newSettings: Partial<SiteSettingsData>) => {
@@ -122,6 +135,10 @@ export function SiteSettingsProvider({
       shipping: {
         ...prev.shipping,
         ...(newSettings.shipping || {}),
+      },
+      about: {
+        ...prev.about,
+        ...(newSettings.about || {}),
       },
     }));
   };

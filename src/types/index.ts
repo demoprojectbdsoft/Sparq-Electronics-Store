@@ -233,6 +233,19 @@ export interface SiteTypographyConfig {
   baseFontSize?: string;
 }
 
+/**
+ * Editable copy for the public /about page. Every field is optional because
+ * settings saved before this group existed simply do not have it.
+ */
+export interface SiteAboutConfig {
+  headline?: string;
+  intro?: string;
+  headquartersNote?: string;
+  openingHoursNote?: string;
+  ctaTitle?: string;
+  ctaDescription?: string;
+}
+
 export interface SiteSettingsData {
   _id?: string;
   siteName: string;
@@ -243,6 +256,8 @@ export interface SiteSettingsData {
   supportPhone: string;
   openingHours?: string;
   address: string;
+  /** Copy shown on the About page. */
+  about?: SiteAboutConfig;
   metaTitle: string;
   metaDescription: string;
   topBarText: string;
