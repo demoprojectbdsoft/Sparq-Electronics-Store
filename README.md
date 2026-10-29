@@ -179,7 +179,7 @@ Switching mode keeps the current filters, search and sort.
 | **Transactions** | Platform-wide payment records. |
 | **Users** | Change a user's role and account status, and see their points and membership tier. |
 | **Reviews** | View and moderate every product review. |
-| **Warranties** | Review coverage records and process claims. The table shows each record's **type and duration**; opening one shows the full coverage (type, duration, terms, dates), the claim with its reason, description and evidence photos, and a single icon dropdown to mark it under review, ask for more information, resolve or reject. Customer emails open the mail app. |
+| **Warranties** | Review coverage records and process claims. Status badges (icon + colour) appear in the table and in the modal, and the table shows each record's **type and duration**. Opening one shows the full coverage (type, duration, terms, dates) and the claim with its reason, description and evidence photos, plus one coloured icon button per action — under review, ask for info, resolve or reject. Every action button locks while a save is in flight, so two decisions can never race. Customer emails open the mail app. |
 | **Settings** | Site settings and branding — see [Site Settings & Branding](#-site-settings--branding). |
 
 ### Order management
@@ -418,6 +418,7 @@ src/
 │   ├── orderInvoicePdf.ts      per-order invoice PDF
 │   ├── orderStatusStyles.ts    one colour/icon palette per order status
 │   ├── warranty.ts             warranty type, duration and problem wording
+│   ├── warrantyStatusStyles.ts status badge colours and icons
 │   └── currency.ts             formatting helpers
 └── types/                      shared TypeScript models
 ```

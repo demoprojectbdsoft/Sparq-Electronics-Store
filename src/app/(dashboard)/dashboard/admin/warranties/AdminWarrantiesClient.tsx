@@ -10,7 +10,6 @@ import {
   Select,
   ListBox,
   Modal,
-  Chip,
   TextArea,
 } from "@heroui/react";
 import {
@@ -32,6 +31,7 @@ import {
 import { toast } from "react-toastify";
 import { adminUpdateClaim } from "@/lib/action/warranty";
 import ImageGalleryModal from "@/components/shared/ImageGalleryModal";
+import WarrantyStatusBadge from "@/components/shared/WarrantyStatusBadge";
 import { formatOrderDate } from "@/lib/dateTime";
 import {
   formatWarrantyDuration,
@@ -48,8 +48,8 @@ const SORT_OPTIONS = [
 ];
 
 /**
- * The four actions an admin can take on a claim, shown in one dropdown so the
- * modal has a single control instead of four competing buttons.
+ * The four actions an admin can take on a claim. Each one carries its own icon
+ * and colour so the buttons read as different decisions at a glance.
  */
 const CLAIM_ACTIONS = [
   {
@@ -57,24 +57,32 @@ const CLAIM_ACTIONS = [
     label: "Mark Under Review",
     hint: "Let the customer know you are checking it",
     icon: ClipboardCheck,
+    className:
+      "bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 dark:bg-sky-500/15 dark:text-sky-200 dark:border-sky-500/30",
   },
   {
     id: "request_info",
     label: "Ask For More Info",
     hint: "Send the customer a note",
     icon: MessageCircleQuestion,
+    className:
+      "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-200 dark:border-amber-500/30",
   },
   {
     id: "resolve",
     label: "Resolve Claim",
     hint: "Approve and close the claim",
     icon: CheckCircle2,
+    className:
+      "bg-emerald-600 text-white border-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/20",
   },
   {
     id: "reject",
     label: "Reject Claim",
     hint: "Decline the claim",
     icon: XCircle,
+    className:
+      "bg-rose-600 text-white border-rose-600 hover:bg-rose-700 shadow-md shadow-rose-600/20",
   },
 ] as const;
 
@@ -106,6 +114,9 @@ export default function AdminWarrantiesClient({
   const [selectedWarranty, setSelectedWarranty] = useState<WarrantyItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Which action button was clicked, so only that one shows a spinner while
+  // every other button stays locked.
+  const [pendingAction, setPendingAction] = useState<ClaimActionId | null>(null);
 
   // Action state
   const [adminNote, setAdminNote] = useState("");
@@ -189,6 +200,7 @@ export default function AdminWarrantiesClient({
     }
 
     setIsSubmitting(true);
+    setPendingAction(action);
     try {
       const res = await adminUpdateClaim(selectedWarranty.id, {
         action,
@@ -216,25 +228,7 @@ export default function AdminWarrantiesClient({
       toast.error("An error occurred");
     } finally {
       setIsSubmitting(false);
-    }
-  };
-
-  const getStatusChip = (status: string) => {
-    switch (status) {
-      case "active":
-        return <Chip size="sm" variant="soft"  className="font-bold uppercase text-[10px]">Active</Chip>;
-      case "expired":
-        return <Chip size="sm" variant="soft" color="default" className="font-bold uppercase text-[10px]">Expired</Chip>;
-      case "claim_submitted":
-        return <Chip size="sm" variant="soft" color="warning" className="font-bold uppercase text-[10px]">Claimed</Chip>;
-      case "under_review":
-        return <Chip size="sm" variant="soft" color="accent" className="font-bold uppercase text-[10px]">Review</Chip>;
-      case "info_requested":
-        return <Chip size="sm" variant="soft" color="warning" className="font-bold uppercase text-[10px]">Needs Info</Chip>;
-      case "resolved":
-        return <Chip size="sm" variant="soft"  className="font-bold uppercase text-[10px]">Resolved</Chip>;
-      default:
-        return <Chip size="sm" variant="soft" color="default" className="font-bold uppercase text-[10px]">{status}</Chip>;
+      setPendingAction(null);
     }
   };
 
@@ -416,7 +410,7 @@ export default function AdminWarrantiesClient({
                         {formatOrderDate(w.expiryDate)}
                       </div>
                     </td>
-                    <td className="py-3 px-4 text-center">{getStatusChip(w.status)}</td>
+                    <td className="py-3 px-4 text-center"><WarrantyStatusBadge status={w.status} size="sm" /></td>
                     <td className="py-3 px-4 text-right">
                       <Button isIconOnly size="sm" variant="ghost" className="h-8 w-8 rounded-lg" onPress={() => openWarrantyModal(w)}>
                         <Eye className="w-4 h-4" />
@@ -505,7 +499,7 @@ export default function AdminWarrantiesClient({
                         </div>
                         <p className="text-xs font-bold truncate">{selectedWarranty.productTitle}</p>
                       </div>
-                      <div className="flex items-center justify-between">{getStatusChip(selectedWarranty.status)}</div>
+                      <div className="flex items-center justify-between"><WarrantyStatusBadge status={selectedWarranty.status} /></div>
                     </div>
                   </div>
 
@@ -595,47 +589,33 @@ export default function AdminWarrantiesClient({
                         />
                       </div>
 
-                      {/* One dropdown instead of four buttons, each option with its
-                          own icon and a one-line explanation. */}
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-2">
-                        <Select
-                          aria-label="Claim actions"
-                          selectedKey={null}
-                          isDisabled={isSubmitting || !canActOnClaim}
-                          onSelectionChange={(key) => {
-                            if (key) handleAdminAction(String(key) as ClaimActionId);
-                          }}
-                          placeholder="Choose an action"
-                          className="w-full sm:w-72"
-                        >
-                          <Select.Trigger className="h-10 w-full px-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] text-xs font-semibold flex items-center justify-between">
-                            <Select.Value />
-                            <Select.Indicator />
-                          </Select.Trigger>
-                          <Select.Popover className="w-80 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl">
-                            <ListBox>
-                              {CLAIM_ACTIONS.map((action) => {
-                                const Icon = action.icon;
-                                return (
-                                  <ListBox.Item
-                                    key={action.id}
-                                    id={action.id}
-                                    textValue={action.label}
-                                    className="px-3 py-2 rounded-lg hover:bg-primary/10"
-                                  >
-                                    <div className="flex items-start gap-2">
-                                      <Icon className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                                      <div className="min-w-0">
-                                        <p className="text-xs font-semibold">{action.label}</p>
-                                        <p className="text-[10px] text-[var(--foreground-muted)]">{action.hint}</p>
-                                      </div>
-                                    </div>
-                                  </ListBox.Item>
-                                );
-                              })}
-                            </ListBox>
-                          </Select.Popover>
-                        </Select>
+                      {/* One button per action, each with its icon and colour.
+                          All of them lock while a request is in flight, so two
+                          actions (for example resolve and reject) can never
+                          race each other. */}
+                      <div className="flex flex-wrap gap-2 pt-2">
+                        {CLAIM_ACTIONS.map((action) => {
+                          const Icon = action.icon;
+                          const isPending = pendingAction === action.id;
+                          return (
+                            // The hint lives on the wrapper because HeroUI Button
+                            // does not accept a title attribute.
+                            <span key={action.id} title={action.hint}>
+                              <Button
+                                isDisabled={isSubmitting || !canActOnClaim}
+                                onPress={() => handleAdminAction(action.id)}
+                                className={`h-10 px-4 rounded-xl border text-xs font-bold flex items-center gap-2 transition-colors cursor-pointer ${action.className}`}
+                              >
+                                {isPending ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Icon className="w-4 h-4" />
+                                )}
+                                {action.label}
+                              </Button>
+                            </span>
+                          );
+                        })}
                         {isSubmitting && (
                           <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--foreground-muted)]">
                             <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" /> Saving...
