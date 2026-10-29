@@ -81,6 +81,8 @@ export interface CustomerOrder {
   /** Loyalty points spent on this order, and the money they saved. */
   pointsRedeemed?: number;
   pointsDiscount?: number;
+  /** Points this order will pay out once it is delivered. */
+  pointsEarned?: number;
   items: CustomerOrderItem[];
   trackingNumber?: string;
   carrier?: string;

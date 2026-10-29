@@ -919,13 +919,13 @@ export async function downloadCustomerOverviewPdf(
     report.heading("Recent orders");
     report.table(
       [
-        { label: "Order", width: 86 },
-        { label: "Date", width: 64 },
-        { label: "Status", width: 56 },
-        { label: `Total (${currency})`, width: 62, align: "right" },
-        { label: "Pts Used", width: 44, align: "right" },
-        { label: "Pts Saved", width: 56, align: "right" },
-        { label: "Items", width: 34, align: "right" },
+        { label: "Order", width: 84 },
+        { label: "Date", width: 62 },
+        { label: "Status", width: 54 },
+        { label: `Total (${currency})`, width: 60, align: "right" },
+        { label: "Pts Used", width: 42, align: "right" },
+        { label: "Pts Saved", width: 52, align: "right" },
+        { label: "Pts Earned", width: 48, align: "right" },
         { label: "Item details", width: 105 },
       ],
       data.recentOrders.slice(0, 20).map((order) => [
@@ -935,7 +935,7 @@ export async function downloadCustomerOverviewPdf(
         String(round(order.total, 2)),
         order.pointsRedeemed ? String(order.pointsRedeemed) : "-",
         order.pointsDiscount ? `-${round(order.pointsDiscount, 2)}` : "-",
-        String(order.itemCount),
+        order.pointsEarned ? `+${order.pointsEarned}` : "-",
         (order.items || []).map((item) => `${item.name} x${item.quantity}`).join(", ") || "-",
       ])
     );
