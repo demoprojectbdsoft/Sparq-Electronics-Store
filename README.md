@@ -8,7 +8,6 @@
 
 [![Frontend Repo](https://img.shields.io/badge/Frontend-Repository-2ea44f?style=for-the-badge)](https://github.com/demoprojectbdsoft/Sparq-Electronics-Store)
 [![Server Repo](https://img.shields.io/badge/Server-Repository-blue?style=for-the-badge)](https://github.com/demoprojectbdsoft/Sparq-Server)
-[![Internship Project](https://img.shields.io/badge/Type-Internship%20Project-orange?style=for-the-badge)]()
 
 </div>
 
@@ -33,7 +32,7 @@
 15. [Setup](#-setup)
 16. [Project Status](#-project-status)
 17. [Roadmap](#️-roadmap)
-18. [About This Project](#-about-this-project)
+18. [About This Project](#ℹ️-about-this-project)
 
 ---
 
@@ -47,7 +46,7 @@ Nothing is hardcoded. Categories, products, the homepage slider and the store's 
 |---|---|
 | **Shoppers** | Browse, compare and buy electronics, then track and review what they bought. |
 | **Store admins** | Manage the catalog, orders, inventories, users, reviews, warranties and the look of the whole store, with CSV/PDF reporting. |
-| **Developers / recruiters** | A demonstration of full-stack, role-based application development. |
+| **Developers** | A reference implementation of a role-based, full-stack e-commerce build. |
 
 **This repository is the frontend.** The API lives in [Sparq-Server](https://github.com/demoprojectbdsoft/Sparq-Server) and must be running for anything to load.
 
@@ -526,6 +525,6 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
-## 🎓 About This Project
+## ℹ️ About This Project
 
-An internship project for learning and demonstration — not distributed under an open-source license. Feel free to explore the code, but please reach out before reusing or redistributing it.
+Not distributed under an open-source license. Feel free to explore the code, but please reach out before reusing or redistributing it.
