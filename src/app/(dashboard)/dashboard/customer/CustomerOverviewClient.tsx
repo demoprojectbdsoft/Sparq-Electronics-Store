@@ -22,7 +22,6 @@ import {
   ArrowRight,
   Package,
   Truck,
-  CheckCircle2,
   Clock,
   ChevronRight,
   ShoppingCart,
@@ -58,6 +57,7 @@ import { toast } from "react-toastify";
 import { authClient } from "@/lib/auth-client";
 import SuspendedAccountModal from "@/components/shared/SuspendedAccountModal";
 import { addToCart } from "@/lib/action/cart";
+import OrderStatusBadge from "@/components/shared/OrderStatusBadge";
 import {
   SpendingDataPoint,
   CustomerSpendingVsSavings,
@@ -755,8 +755,6 @@ export default function CustomerOverviewClient({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {recentOrders.slice(0, 3).map((order) => {
               const isShipped = order.status === "Shipped";
-              const isDelivered = order.status === "Delivered";
-              const isProcessing = order.status === "Processing";
 
               return (
                 <Card
@@ -771,21 +769,7 @@ export default function CustomerOverviewClient({
                       <p className="text-[11px] text-[var(--foreground-muted)]">{order.date}</p>
                     </div>
 
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold ${
-                        isDelivered
-                          ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/40"
-                          : isShipped
-                          ? "bg-primary/10 text-primary border border-primary/20"
-                          : isProcessing
-                          ? "bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20"
-                          : "bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-800/40"
-                      }`}
-                    >
-                      {isShipped && <span className="w-1.5 h-1.5 rounded-full bg-primary animate-ping" />}
-                      {isDelivered && <CheckCircle2 className="w-3 h-3" />}
-                      {order.status}
-                    </span>
+                    <OrderStatusBadge status={order.status} size="sm" pulse={isShipped} />
                   </div>
 
                   {/* Order item preview */}

@@ -41,6 +41,7 @@ import { submitCustomerOrderResponse } from "@/lib/action/orders";
 import { addToCart } from "@/lib/action/cart";
 import { submitWarrantyClaim } from "@/lib/action/warranty";
 import { downloadOrderInvoicePdf } from "@/lib/orderInvoicePdf";
+import OrderStatusBadge from "@/components/shared/OrderStatusBadge";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 const STATUS_TABS = ["All Orders", "Confirmed", "Processing", "Shipped", "Delivered", "Cancelled"];
@@ -673,21 +674,7 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
 
                 <div className="flex items-center gap-2.5">
                   {/* Status Badge */}
-                  <span
-                    className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
-                      order.status === "Delivered"
-                        ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/40"
-                        : order.status === "Shipped"
-                          ? "bg-[var(--accent)] dark:bg-[var(--accent)]/60 text-primary border border-[var(--accent)]/50 dark:border-[var(--accent)]/40"
-                          : order.status === "Confirmed"
-                            ? "bg-primary/10 text-primary border border-primary/20"
-                            : order.status === "Processing"
-                              ? "bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200/50 dark:border-amber-800/40"
-                              : "bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-800/40"
-                    }`}
-                  >
-                    {order.status}
-                  </span>
+                  <OrderStatusBadge status={order.status} pulse={order.status === "Shipped"} />
 
                   <Button
                     size="sm"
@@ -929,9 +916,12 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
           <Card className="bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-3xl max-w-lg w-full p-6 shadow-2xl space-y-6 text-[var(--foreground)]">
             <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-4">
               <div>
-                <h3 className="text-base font-bold text-[var(--foreground)]">
-                  Tracking: {trackingModalOrder.orderNumber}
-                </h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h3 className="text-base font-bold text-[var(--foreground)]">
+                    Tracking: {trackingModalOrder.orderNumber}
+                  </h3>
+                  <OrderStatusBadge status={trackingModalOrder.status} size="sm" />
+                </div>
                 <div className="flex items-center gap-2 mt-0.5">
                   <p className="text-xs text-[var(--foreground-muted)]">
                     {trackingModalOrder.carrier} • #{trackingModalOrder.trackingNumber}
@@ -988,7 +978,7 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
                       step.completed
                         ? "bg-primary text-white shadow-xs"
                         : step.current
-                          ? "bg-amber-500 text-white ring-4 ring-amber-100 dark:ring-amber-950/60 animate-pulse"
+                          ? "bg-amber-400 text-amber-950 ring-4 ring-amber-100 dark:ring-amber-950/60 animate-pulse"
                           : "bg-[var(--surface-alt)] text-[var(--foreground-muted)] border border-[var(--border-color)]"
                     }`}
                   >

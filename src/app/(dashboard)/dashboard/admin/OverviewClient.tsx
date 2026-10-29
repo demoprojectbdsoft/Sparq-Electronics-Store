@@ -61,6 +61,7 @@ import {
 } from "@/types/adminDashboard";
 import { exportAdminOverviewCsv, exportTopSellingCsv } from "@/lib/csvExport";
 import { downloadAdminOverviewPdf } from "@/lib/dashboardPdf";
+import OrderStatusBadge from "@/components/shared/OrderStatusBadge";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 interface OverviewClientProps {
@@ -1224,19 +1225,7 @@ export default function OverviewClient({
                       {order.amount}
                     </td>
                     <td className="py-3.5">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold ${
-                          order.status === "Completed" || order.status === "Delivered"
-                            ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/40"
-                            : order.status === "Processing" || order.status === "Shipped"
-                            ? "bg-primary/10 text-primary border border-primary/20"
-                            : order.status === "Pending"
-                            ? "bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200/50 dark:border-amber-800/40"
-                            : "bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-800/40"
-                        }`}
-                      >
-                        {order.status}
-                      </span>
+                      <OrderStatusBadge status={order.status} size="sm" showIcon={false} />
                     </td>
                     <td className="py-3.5 pr-2 text-right text-[var(--foreground-muted)]">
                       {order.date}

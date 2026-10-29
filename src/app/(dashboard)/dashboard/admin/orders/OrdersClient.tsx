@@ -19,7 +19,6 @@ import {
   Search,
   CheckCircle2,
   Clock,
-  Truck,
   XCircle,
   Eye,
   User as UserIcon,
@@ -34,14 +33,16 @@ import {
 import { toast } from "react-toastify";
 import { Order } from "@/types";
 import { updateOrderStatus } from "@/lib/action/orders";
+import { getOrderStatusStyle } from "@/lib/orderStatusStyles";
+import OrderStatusBadge from "@/components/shared/OrderStatusBadge";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 const STATUS_OPTIONS = [
-  { id: "confirmed",  label: "Confirmed",  color: "sky" },
-  { id: "processing", label: "Processing", color: "amber" },
-  { id: "shipped",    label: "Shipped",    color: "blue" },
-  { id: "delivered",  label: "Delivered",  color: "emerald" },
-  { id: "cancelled",  label: "Cancelled",  color: "rose" },
+  { id: "confirmed",  label: "Confirmed" },
+  { id: "processing", label: "Processing" },
+  { id: "shipped",    label: "Shipped" },
+  { id: "delivered",  label: "Delivered" },
+  { id: "cancelled",  label: "Cancelled" },
 ];
 
 /**
@@ -145,48 +146,9 @@ export default function OrdersClient({
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
-  // Status badge helper
-  const getStatusBadge = (status?: string) => {
-    const s = (status || "processing").toLowerCase();
-    switch (s) {
-      case "delivered":
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/40">
-            <CheckCircle2 className="w-3 h-3" />
-            Delivered
-          </span>
-        );
-      case "shipped":
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--accent)]/10 text-[var(--accent)] border border-[var(--accent)]/20">
-            <Truck className="w-3 h-3" />
-            Shipped
-          </span>
-        );
-      case "confirmed":
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-[var(--brand-flat)]/10 text-[var(--brand-flat)] border border-[var(--brand-flat)]/25">
-            <CheckCircle2 className="w-3 h-3" />
-            Confirmed
-          </span>
-        );
-      case "cancelled":
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-800/40">
-            <XCircle className="w-3 h-3" />
-            Cancelled
-          </span>
-        );
-      case "processing":
-      default:
-        return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200/50 dark:border-amber-800/40">
-            <Clock className="w-3 h-3" />
-            Processing
-          </span>
-        );
-    }
-  };
+  // Status badge - colour and icon come from the shared status palette, so a
+  // shipped order is never brand-blue text on an amber pill again.
+  const getStatusBadge = (status?: string) => <OrderStatusBadge status={status} size="sm" />;
 
   // Open Details Modal
   const handleOpenDetail = (order: Order) => {
@@ -703,6 +665,7 @@ export default function OrdersClient({
                                 placeholder="Select Status"
                               >
                                 <Select.Trigger className="w-full h-10 px-3 rounded-xl border border-[var(--border-color)] bg-[var(--surface-elevated)] text-xs font-semibold text-[var(--foreground)] flex items-center justify-between gap-1.5 cursor-pointer hover:border-primary transition-colors shadow-xs [&>span]:text-xs [&>span]:font-semibold">
+                                  <span className={`w-2 h-2 rounded-full shrink-0 ${getOrderStatusStyle(currentStatus).dot}`} />
                                   <Select.Value className="text-xs font-semibold truncate capitalize" />
                                   <Select.Indicator className="[&>svg]:w-3.5 [&>svg]:h-3.5 text-[var(--foreground-muted)] shrink-0" />
                                 </Select.Trigger>
@@ -723,6 +686,9 @@ export default function OrdersClient({
                                           }`}
                                         >
                                           <div className="flex items-center gap-1.5">
+                                            <span
+                                              className={`w-2 h-2 rounded-full shrink-0 ${getOrderStatusStyle(opt.id).dot}`}
+                                            />
                                             <span>{opt.label}</span>
                                             {reason && (
                                               <span className="text-[10px] text-amber-500 font-bold">
