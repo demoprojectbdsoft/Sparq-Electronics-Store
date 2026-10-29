@@ -26,24 +26,6 @@ export interface CreateOrderPayload {
   shippingMethod?: "free" | "standard" | "express";
 }
 
-export interface SendOtpPayload {
-  phone: string;
-}
-
-export interface SendOtpResponse {
-  otp: string;
-  expiresInMinutes: number;
-}
-
-export interface VerifyOtpPayload {
-  phone: string;
-  otp: string;
-}
-
-export interface VerifyOtpResponse {
-  transactionId: string;
-}
-
 export interface OrderItem {
   productId: string | Product;
   product?: Product;

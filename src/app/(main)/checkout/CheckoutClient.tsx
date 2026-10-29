@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -31,10 +31,6 @@ import {
   Sparkles,
   Coins,
   ChevronRight,
-  Info,
-  X,
-  Clock,
-  ExternalLink,
   Ban,
 } from "lucide-react";
 import { toast } from "react-toastify";
@@ -49,6 +45,15 @@ import {
   ShippingAddress,
 } from "@/types";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
+import WalletPaymentModal from "./WalletPaymentModal";
+import {
+  buildDemoTransactionId,
+  buildDemoWalletPhone,
+  isTransactionIdValid,
+  isWalletPhoneValid,
+  normaliseTransactionId,
+  normaliseWalletPhone,
+} from "@/lib/walletPayment";
 
 // ── Payment Methods Definition ──────────────────────────────────────────────
 interface PaymentOption {
@@ -61,6 +66,8 @@ interface PaymentOption {
   borderActive: string;
   gatewayColor: string;
   gatewayHeaderBg: string;
+  brandButtonClass: string;
+  brandBarClass: string;
   icon: React.ReactNode;
 }
 
@@ -75,18 +82,22 @@ const PAYMENT_OPTIONS: PaymentOption[] = [
     borderActive: "border-emerald-500 dark:border-emerald-500 ring-1 ring-emerald-500/30",
     gatewayColor: "emerald",
     gatewayHeaderBg: "from-emerald-600 to-teal-700",
+    brandButtonClass: "bg-emerald-600 hover:bg-emerald-700",
+    brandBarClass: "bg-emerald-500",
     icon: <Coins className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />,
   },
   {
     id: "bkash",
     name: "bKash Direct",
-    subtitle: "Instant payment via bKash mobile wallet OTP",
+    subtitle: "Instant payment via bKash mobile wallet",
     tag: "Fast & Popular",
     accentColor: "text-pink-600 dark:text-pink-400",
     bgActive: "bg-pink-50/70 dark:bg-pink-950/30",
     borderActive: "border-pink-500 dark:border-pink-500 ring-1 ring-pink-500/30",
     gatewayColor: "pink",
     gatewayHeaderBg: "from-[#D81B60] via-[#E2136E] to-[#C2185B]",
+    brandButtonClass: "bg-[#E2136E] hover:bg-[#C2185B]",
+    brandBarClass: "bg-[#E2136E]",
     icon: <Smartphone className="w-5 h-5 text-pink-600 dark:text-pink-400" />,
   },
   {
@@ -99,6 +110,8 @@ const PAYMENT_OPTIONS: PaymentOption[] = [
     borderActive: "border-orange-500 dark:border-orange-500 ring-1 ring-orange-500/30",
     gatewayColor: "orange",
     gatewayHeaderBg: "from-[#F7941D] via-[#EA580C] to-[#C2410C]",
+    brandButtonClass: "bg-[#F7941D] hover:bg-[#EA580C]",
+    brandBarClass: "bg-[#F7941D]",
     icon: <CreditCard className="w-5 h-5 text-orange-600 dark:text-orange-400" />,
   },
   {
@@ -111,6 +124,8 @@ const PAYMENT_OPTIONS: PaymentOption[] = [
     borderActive: "border-purple-500 dark:border-purple-500 ring-1 ring-purple-500/30",
     gatewayColor: "purple",
     gatewayHeaderBg: "from-[#8C3494] via-[#7B1FA2] to-[#6A1B9A]",
+    brandButtonClass: "bg-[#8C3494] hover:bg-[#7B1FA2]",
+    brandBarClass: "bg-[#8C3494]",
     icon: <ShieldCheck className="w-5 h-5 text-purple-600 dark:text-purple-400" />,
   },
 ];
@@ -145,16 +160,11 @@ export default function CheckoutClient({
     useState<PaymentMethod>("cod");
 
   // ── Wallet Verification State (React useState ONLY - session only) ─────────
+  // Phone number + TrxID typed by the customer (demo flow, nothing is sent away)
   const [walletPhone, setWalletPhone] = useState<string>("");
-  const [demoOtp, setDemoOtp] = useState<string | null>(null);
-  const [enteredOtp, setEnteredOtp] = useState<string>("");
-  const [isSendingOtp, setIsSendingOtp] = useState<boolean>(false);
-  const [isOtpSent, setIsOtpSent] = useState<boolean>(false);
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState<boolean>(false);
-  const [isOtpVerified, setIsOtpVerified] = useState<boolean>(false);
-  const [transactionId, setTransactionId] = useState<string | null>(null);
-  const [isOtpModalOpen, setIsOtpModalOpen] = useState<boolean>(false);
-  const [resendTimer, setResendTimer] = useState<number>(60);
+  const [walletTransactionId, setWalletTransactionId] = useState<string>("");
+  const [isWalletVerified, setIsWalletVerified] = useState<boolean>(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState<boolean>(false);
 
   // ── Order Placement State ──────────────────────────────────────────────────
   const [isPlacingOrder, setIsPlacingOrder] = useState<boolean>(false);
@@ -178,17 +188,6 @@ export default function CheckoutClient({
 
     fetchUserCart();
   }, [user?.id, cart]);
-
-  // Resend OTP countdown timer
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (isOtpModalOpen && resendTimer > 0) {
-      interval = setInterval(() => {
-        setResendTimer((prev) => prev - 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isOtpModalOpen, resendTimer]);
 
   // Derived Calculations
   const items: CartItem[] = cart?.items || [];
@@ -235,12 +234,16 @@ export default function CheckoutClient({
   }, [shippingForm]);
 
   // Validation: Payment requirement
-  // If COD: ready if shipping is valid
-  // If Wallet: must have verified transactionId
+  // If COD: ready once shipping is valid
+  // If wallet: phone + TrxID must pass the demo gateway check
   const isPaymentValid = useMemo(() => {
     if (selectedPaymentMethod === "cod") return true;
-    return Boolean(transactionId && isOtpVerified);
-  }, [selectedPaymentMethod, transactionId, isOtpVerified]);
+    return isWalletVerified && Boolean(walletTransactionId);
+  }, [selectedPaymentMethod, isWalletVerified, walletTransactionId]);
+
+  // The Verify button only wakes up once both fields look like real wallet data.
+  const isWalletDetailsValid =
+    isWalletPhoneValid(walletPhone) && isTransactionIdValid(walletTransactionId);
 
   const isCheckoutReady =
     !isCartEmpty && isShippingValid && isPaymentValid && !isPlacingOrder;
@@ -249,20 +252,21 @@ export default function CheckoutClient({
     PAYMENT_OPTIONS.find((opt) => opt.id === selectedPaymentMethod) ||
     PAYMENT_OPTIONS[0];
 
+  // TrxID placeholder so the demo looks like the SMS the wallet really sends.
+  const transactionIdPlaceholder =
+    selectedPaymentMethod === "rocket" ? "12 digit TrxID" : "e.g. 9F2K7LM4QZ";
+
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   // Reset wallet verification state when user switches payment method
   const handlePaymentMethodChange = (method: PaymentMethod) => {
     if (method !== selectedPaymentMethod) {
       setSelectedPaymentMethod(method);
-      // Reset wallet state when switching methods to prevent cross-wallet state leaks
+      // Reset wallet details so one wallet's payment can't verify another wallet
       setWalletPhone("");
-      setDemoOtp(null);
-      setEnteredOtp("");
-      setIsOtpSent(false);
-      setIsOtpVerified(false);
-      setTransactionId(null);
-      setIsOtpModalOpen(false);
+      setWalletTransactionId("");
+      setIsWalletVerified(false);
+      setIsPaymentModalOpen(false);
     }
   };
 
@@ -273,8 +277,8 @@ export default function CheckoutClient({
     setShippingForm((prev) => ({ ...prev, [field]: value }));
   };
 
-  // 1. Send OTP (Demo) -> Triggers Modal
-  const handleSendOtp = async (e?: React.FormEvent) => {
+  // 1. Validate the typed wallet number + TrxID, then open the gateway modal.
+  const handleStartWalletVerification = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
 
     if (isSuspended) {
@@ -282,111 +286,51 @@ export default function CheckoutClient({
       return;
     }
 
-    const cleanPhone = walletPhone.trim();
-    if (!cleanPhone || cleanPhone.length < 10) {
-      toast.error("Please enter a valid mobile number (min 10 digits)");
+    if (!isWalletPhoneValid(walletPhone)) {
+      toast.error("Enter a valid 11-digit mobile number, e.g. 01712345678");
       return;
     }
 
-    setIsSendingOtp(true);
-    console.log("POST /api/payments/demo/send-otp payload:", {
-      phone: cleanPhone,
-      paymentMethod: selectedPaymentMethod,
-    });
-
-    try {
-      // Simulate API call to POST /api/payments/demo/send-otp
-      await new Promise((resolve) => setTimeout(resolve, 800));
-
-      // Generated 6-digit demo OTP for seamless interactive testing
-      const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresInMinutes = 5;
-
-      console.log("POST /api/payments/demo/send-otp response:", {
-        otp: generatedOtp,
-        expiresInMinutes,
-      });
-
-      setDemoOtp(generatedOtp);
-      setIsOtpSent(true);
-      setEnteredOtp("");
-      setIsOtpVerified(false);
-      setTransactionId(null);
-      setResendTimer(60);
-      setIsOtpModalOpen(true);
-
-      toast.info(
-        `Demo OTP sent to ${cleanPhone}: ${generatedOtp}`
-      );
-    } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "Failed to send OTP. Please retry.";
-      toast.error(msg);
-      console.error("Error in handleSendOtp:", err);
-    } finally {
-      setIsSendingOtp(false);
+    if (!isTransactionIdValid(walletTransactionId)) {
+      toast.error("Enter the TrxID from your wallet SMS (8-20 letters or digits)");
+      return;
     }
+
+    setIsWalletVerified(false);
+    setIsPaymentModalOpen(true);
   };
 
-  // 2. Verify OTP (Demo) inside Modal
-  const handleVerifyOtp = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-
+  // 2. Demo shortcut: fill both fields with realistic values and run the gateway.
+  const handleDemoAutoFill = () => {
     if (isSuspended) {
       setShowSuspendedAlert(true);
       return;
     }
 
-    const cleanOtp = enteredOtp.trim();
-    if (!cleanOtp || cleanOtp.length !== 6) {
-      toast.error("Please enter the complete 6-digit OTP code");
-      return;
+    // Reuse what the customer typed, then the shipping phone, then invent one.
+    const shippingPhone = normaliseWalletPhone(shippingForm.phone);
+    let phone = walletPhone;
+
+    if (!isWalletPhoneValid(phone)) {
+      phone = isWalletPhoneValid(shippingPhone) ? shippingPhone : buildDemoWalletPhone();
     }
 
-    setIsVerifyingOtp(true);
-    console.log("POST /api/payments/demo/verify-otp payload:", {
-      phone: walletPhone.trim(),
-      otp: cleanOtp,
-    });
-
-    try {
-      // Simulate API call to POST /api/payments/demo/verify-otp
-      await new Promise((resolve) => setTimeout(resolve, 750));
-
-      if (cleanOtp !== demoOtp && cleanOtp !== "123456") {
-        throw new Error("Invalid OTP code. Please enter the demo code shown above.");
-      }
-
-      const generatedTrxId = `TRX-${selectedPaymentMethod.toUpperCase()}-${Date.now().toString().slice(-8)}`;
-      console.log("POST /api/payments/demo/verify-otp response:", {
-        transactionId: generatedTrxId,
-      });
-
-      setTransactionId(generatedTrxId);
-      setIsOtpVerified(true);
-      setIsOtpModalOpen(false);
-
-      toast.success(
-        `Payment verified successfully! Ref: ${generatedTrxId}`
-      );
-    } catch (err: unknown) {
-      const msg =
-        err instanceof Error ? err.message : "Verification failed. Please retry.";
-      toast.error(msg);
-      console.error("Error in handleVerifyOtp:", err);
-    } finally {
-      setIsVerifyingOtp(false);
-    }
+    setWalletPhone(phone);
+    setWalletTransactionId(buildDemoTransactionId(selectedPaymentMethod));
+    setIsWalletVerified(false);
+    setIsPaymentModalOpen(true);
   };
 
-  // 3. Reset/Retry Wallet Verification
+  // The gateway modal finished its checks - remember that this payment went through.
+  const handleWalletPaymentSuccess = useCallback(() => {
+    setIsWalletVerified(true);
+  }, []);
+
+  // 3. Start over (wrong TrxID, wrong number, ...)
   const handleResetWalletVerification = () => {
-    setEnteredOtp("");
-    setDemoOtp(null);
-    setIsOtpSent(false);
-    setIsOtpVerified(false);
-    setTransactionId(null);
-    setIsOtpModalOpen(false);
+    setWalletTransactionId("");
+    setIsWalletVerified(false);
+    setIsPaymentModalOpen(false);
   };
 
   // 4. Place Order — calls real backend POST /api/orders
@@ -406,7 +350,7 @@ export default function CheckoutClient({
       return;
     }
 
-    if (selectedPaymentMethod !== "cod" && (!transactionId || !isOtpVerified)) {
+    if (selectedPaymentMethod !== "cod" && !isWalletVerified) {
       toast.error("Please complete mobile wallet verification before placing order.");
       return;
     }
@@ -435,8 +379,8 @@ export default function CheckoutClient({
       shippingMethod: (isFreeShippingEligible
         ? "free"
         : selectedShippingMethod) as "free" | "standard" | "express",
-      ...(selectedPaymentMethod !== "cod" && transactionId
-        ? { transactionId }
+      ...(selectedPaymentMethod !== "cod"
+        ? { transactionId: normaliseTransactionId(walletTransactionId) }
         : {}),
     };
 
@@ -658,7 +602,7 @@ export default function CheckoutClient({
                   })}
                 </div>
 
-                {/* ── Conditional Payment Info & OTP Trigger Block ── */}
+                {/* ── Conditional Payment Info & Wallet Verification Block ── */}
                 {selectedPaymentMethod === "cod" ? (
                   /* Cash on Delivery Notice */
                   <div className="p-4 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-800/50 flex items-start gap-3">
@@ -670,7 +614,7 @@ export default function CheckoutClient({
                         Cash on Delivery Selected
                       </p>
                       <p className="text-emerald-700/90 dark:text-emerald-300/80 text-[11px]">
-                        No advance payment or OTP verification required. Please provide your shipping address below for courier delivery.
+                        No advance payment or wallet verification required. Please provide your shipping address below for courier delivery.
                       </p>
                     </div>
                   </div>
@@ -689,10 +633,10 @@ export default function CheckoutClient({
                         <div className="flex items-center gap-2">
                           <Smartphone className="w-4 h-4 text-primary" />
                           <h3 className="text-xs font-bold text-[var(--foreground)] uppercase tracking-wider">
-                            {selectedPaymentMethod.toUpperCase()} Direct Verification
+                            {selectedPaymentMethod.toUpperCase()} Payment Verification
                           </h3>
                         </div>
-                        {isOtpVerified ? (
+                        {isWalletVerified ? (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100/70 dark:bg-emerald-950/60 px-2.5 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800">
                             <CheckCircle2 className="w-3.5 h-3.5" />
                             Payment Verified
@@ -700,66 +644,81 @@ export default function CheckoutClient({
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[10px] font-medium text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800/60">
                             <AlertCircle className="w-3.5 h-3.5" />
-                            OTP Verification Required
+                            Verification Pending
                           </span>
                         )}
                       </div>
 
-                      {/* Phone Number Input & Modal Trigger */}
-                      <div className="space-y-2">
-                        <label className={labelClass}>
-                          {selectedPaymentMethod.toUpperCase()} Account Mobile Number
-                        </label>
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                          <div className="relative flex-1">
-                            <Input
-                              type="tel"
-                              placeholder="01XXXXXXXXX"
-                              value={walletPhone}
-                              onChange={(e) => setWalletPhone(e.target.value)}
-                              disabled={isOtpVerified || isSendingOtp}
-                              className="w-full"
-                            />
-                            <Smartphone className="w-4 h-4 text-[var(--foreground-muted)] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      {/* Wallet number + TrxID - the two details a real wallet receipt shows */}
+                      <form onSubmit={handleStartWalletVerification} className="space-y-3">
+                        <div className="grid sm:grid-cols-2 gap-3">
+                          <div className={fieldClass}>
+                            <label className={labelClass}>Wallet Mobile Number</label>
+                            <div className="relative">
+                              <Input
+                                type="tel"
+                                inputMode="numeric"
+                                placeholder="01XXXXXXXXX"
+                                value={walletPhone}
+                                onChange={(e) => setWalletPhone(normaliseWalletPhone(e.target.value))}
+                                disabled={isWalletVerified}
+                                className="w-full"
+                              />
+                              <Smartphone className="w-4 h-4 text-[var(--foreground-muted)] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            </div>
                           </div>
 
-                          {!isOtpVerified ? (
-                            <Button
-                              type="button"
-                              onPress={() => handleSendOtp()}
-                              isDisabled={
-                                isSendingOtp ||
-                                !walletPhone ||
-                                walletPhone.trim().length < 10
-                              }
-                              className="h-10 px-5 bg-primary hover:bg-primary-hover text-white font-bold text-xs rounded-xl transition-colors shrink-0 disabled:opacity-50"
-                            >
-                              {isSendingOtp ? (
-                                <span className="flex items-center gap-1.5">
-                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                  Sending OTP...
-                                </span>
-                              ) : (
-                                <span className="flex items-center gap-1.5">
-                                  <Lock className="w-4 h-4" />
-                                  Send OTP & Verify
-                                </span>
-                              )}
-                            </Button>
-                          ) : (
-                            <Button
-                              type="button"
-                              onPress={handleResetWalletVerification}
-                              className="h-10 px-4 bg-[var(--surface-alt)] dark:bg-[var(--surface)] hover:bg-[var(--surface-alt)] dark:hover:bg-[var(--surface-alt)] text-[var(--foreground-secondary)] dark:text-[var(--foreground)] font-bold text-xs rounded-xl transition-colors shrink-0"
-                            >
-                              Change Number
-                            </Button>
-                          )}
+                          <div className={fieldClass}>
+                            <label className={labelClass}>Transaction ID (TrxID)</label>
+                            <div className="relative">
+                              <Input
+                                type="text"
+                                placeholder={transactionIdPlaceholder}
+                                value={walletTransactionId}
+                                onChange={(e) => setWalletTransactionId(normaliseTransactionId(e.target.value))}
+                                disabled={isWalletVerified}
+                                className="w-full font-mono"
+                              />
+                              <Hash className="w-4 h-4 text-[var(--foreground-muted)] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            </div>
+                          </div>
                         </div>
-                      </div>
+
+                        <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed">
+                          Pay with your {currentPaymentOption.name} app first, then paste the TrxID from
+                          the confirmation SMS. No real money moves here - press{" "}
+                          <strong>Use demo payment</strong> to fill both fields and run the gateway.
+                        </p>
+
+                        {!isWalletVerified && (
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <Button
+                              type="button"
+                              onPress={handleDemoAutoFill}
+                              className="h-10 flex-1 bg-amber-100 hover:bg-amber-200 dark:bg-amber-950/50 dark:hover:bg-amber-950/70 text-amber-900 dark:text-amber-200 font-bold text-xs rounded-xl border border-amber-300 dark:border-amber-800/70 transition-colors"
+                            >
+                              <span className="flex items-center justify-center gap-1.5">
+                                <Sparkles className="w-4 h-4" />
+                                Use demo payment
+                              </span>
+                            </Button>
+
+                            <Button
+                              type="submit"
+                              isDisabled={!isWalletDetailsValid}
+                              className="h-10 flex-1 bg-primary hover:bg-primary-hover text-white font-bold text-xs rounded-xl transition-colors disabled:opacity-50"
+                            >
+                              <span className="flex items-center justify-center gap-1.5">
+                                <Lock className="w-4 h-4" />
+                                Verify Payment
+                              </span>
+                            </Button>
+                          </div>
+                        )}
+                      </form>
 
                       {/* Verified State Banner */}
-                      {isOtpVerified && transactionId && (
+                      {isWalletVerified && (
                         <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2.5">
                             <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
@@ -770,7 +729,7 @@ export default function CheckoutClient({
                                 Payment Authenticated & Ready
                               </p>
                               <p className="text-[11px] font-mono text-emerald-700 dark:text-emerald-400">
-                                Ref Trx ID: {transactionId}
+                                TrxID {walletTransactionId} - {walletPhone}
                               </p>
                             </div>
                           </div>
@@ -1204,7 +1163,7 @@ export default function CheckoutClient({
                     </p>
                   )}
 
-                  {selectedPaymentMethod !== "cod" && !isOtpVerified && (
+                  {selectedPaymentMethod !== "cod" && !isWalletVerified && (
                     <p className="text-[11px] text-center text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                       Verify your mobile wallet before placing order.
@@ -1234,164 +1193,23 @@ export default function CheckoutClient({
       )}
 
       {/* ════════════════════════════════════════════════════════
-          REALISTIC PAYMENT GATEWAY OTP VERIFICATION MODAL
+          DEMO MOBILE WALLET PAYMENT GATEWAY (PHONE + TRXID)
       ════════════════════════════════════════════════════════ */}
-      {isOtpModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[var(--surface)]/75 animate-in fade-in duration-150">
-          <div className="relative w-full max-w-sm bg-[var(--surface-elevated)] dark:bg-[var(--surface-elevated)] border border-[var(--border-color)] dark:border-[var(--border-color)] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-150">
-            {/* Gateway Brand Header - Compact */}
-            <div
-              className={`px-4 py-3 bg-gradient-to-r ${currentPaymentOption.gatewayHeaderBg} text-white flex items-center justify-between relative overflow-hidden`}
-            >
-              <div className="flex items-center gap-2.5 relative z-10">
-                <div className="w-8 h-8 rounded-xl bg-[var(--surface-elevated)]/20 flex items-center justify-center border border-white/30 text-white shadow-xs">
-                  {currentPaymentOption.icon}
-                </div>
-                <div>
-                  <h3 className="text-xs font-black tracking-wide uppercase leading-tight">
-                    {currentPaymentOption.name} Gateway
-                  </h3>
-                  <p className="text-[10px] text-white/80 font-medium">
-                    {settings.siteName || "Sparq"} E-Commerce
-                  </p>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => setIsOtpModalOpen(false)}
-                className="w-7 h-7 rounded-full bg-[var(--surface-elevated)]/15 hover:bg-[var(--surface-elevated)]/30 flex items-center justify-center text-white transition-colors cursor-pointer relative z-10"
-                title="Close"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Gateway Body - Compact */}
-            <div className="p-4 space-y-3">
-              {/* Compact Merchant & Phone Summary */}
-              <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-[var(--surface-alt)] dark:bg-[var(--surface)]/60 border border-[var(--border-color)]/80 dark:border-[var(--border-color)]/80 text-xs">
-                <div>
-                  <span className="text-[10px] text-[var(--foreground-muted)] block leading-none">Amount</span>
-                  <span className="font-extrabold text-slate-900 dark:text-[var(--foreground)] text-sm">
-                    {formatPrice(grandTotal)}
-                  </span>
-                </div>
-                <div className="text-right font-mono text-[11px] text-[var(--foreground-secondary)] dark:text-[var(--foreground-secondary)]">
-                  <span className="text-[10px] text-[var(--foreground-muted)] block font-sans leading-none">Mobile No</span>
-                  <span className="font-bold">+880 {walletPhone}</span>
-                </div>
-              </div>
-
-              {/* Demo Mode Compact Alert with 1-click Auto-fill */}
-              {demoOtp && (
-                <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/70 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <Info className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
-                    <div>
-                      <span className="text-[10px] text-amber-700 dark:text-amber-400 font-semibold block leading-tight">
-                        Demo OTP
-                      </span>
-                      <span className="font-mono font-bold text-xs text-amber-950 dark:text-amber-100">
-                        {demoOtp}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setEnteredOtp(demoOtp)}
-                    className="text-[10px] font-bold text-amber-800 dark:text-amber-200 hover:text-amber-950 dark:hover:text-white bg-amber-200/60 dark:bg-amber-900/60 px-2 py-1 rounded-md border border-amber-300 dark:border-amber-700 cursor-pointer transition-colors"
-                  >
-                    Auto Fill
-                  </button>
-                </div>
-              )}
-
-              {/* 6-Digit OTP Input Form */}
-              <form onSubmit={handleVerifyOtp} className="space-y-3">
-                <div className="space-y-1 text-center">
-                  <label className="text-[11px] font-bold text-[var(--foreground-secondary)] dark:text-[var(--foreground-secondary)]">
-                    Enter 6-Digit Verification Code
-                  </label>
-                  <Input
-                    type="text"
-                    maxLength={6}
-                    autoFocus
-                    placeholder="• • • • • •"
-                    value={enteredOtp}
-                    onChange={(e) =>
-                      setEnteredOtp(
-                        e.target.value.replace(/\D/g, "").slice(0, 6)
-                      )
-                    }
-                    className="font-mono text-center text-base tracking-[0.35em] font-bold h-10"
-                  />
-                </div>
-
-                {/* Resend OTP Timer */}
-                <div className="flex items-center justify-between text-[10px] text-[var(--foreground-muted)] px-0.5">
-                  <span>Didn&apos;t receive code?</span>
-                  {resendTimer > 0 ? (
-                    <span className="font-mono text-[var(--foreground-muted)] flex items-center gap-1">
-                      <Clock className="w-2.5 h-2.5" />
-                      00:{resendTimer < 10 ? `0${resendTimer}` : resendTimer}
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleSendOtp()}
-                      disabled={isSendingOtp}
-                      className="font-bold text-primary hover:underline cursor-pointer disabled:opacity-50"
-                    >
-                      Resend Code
-                    </button>
-                  )}
-                </div>
-
-                {/* Modal Actions */}
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <Button
-                    type="button"
-                    onPress={() => setIsOtpModalOpen(false)}
-                    className="h-9 rounded-xl bg-[var(--surface-alt)] hover:bg-[var(--surface-alt)] dark:bg-[var(--surface)] dark:hover:bg-[var(--surface-alt)] text-[var(--foreground-secondary)] dark:text-[var(--foreground)] font-bold text-xs transition-colors"
-                  >
-                    Cancel
-                  </Button>
-
-                  <Button
-                    type="submit"
-                    isDisabled={isVerifyingOtp || enteredOtp.trim().length !== 6}
-                    className={`h-9 rounded-xl text-white font-bold text-xs transition-all shadow-sm flex items-center justify-center gap-1 ${
-                      selectedPaymentMethod === "bkash"
-                        ? "bg-[#E2136E] hover:bg-[#C2185B]"
-                        : selectedPaymentMethod === "nagad"
-                        ? "bg-[#F7941D] hover:bg-[#EA580C]"
-                        : "bg-[#8C3494] hover:bg-[#7B1FA2]"
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
-                  >
-                    {isVerifyingOtp ? (
-                      <span className="flex items-center gap-1">
-                        <RefreshCw className="w-3 h-3 animate-spin" />
-                        Verifying...
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1">
-                        <Check className="w-3 h-3" />
-                        Verify OTP
-                      </span>
-                    )}
-                  </Button>
-                </div>
-              </form>
-            </div>
-
-            {/* Gateway Footer Security */}
-            <div className="py-2 px-3 bg-[var(--surface-alt)] dark:bg-[var(--surface)]/40 border-t border-[var(--border-color)]/60 dark:border-[var(--border-color)] text-center flex items-center justify-center gap-1.5 text-[9px] text-[var(--foreground-muted)]">
-              <ShieldCheck className="w-3 h-3 text-emerald-500" />
-              <span>256-Bit Encrypted Payment Gateway</span>
-            </div>
-          </div>
-        </div>
+      {/* Demo wallet gateway: runs the phone + TrxID check, then shows the receipt. */}
+      {isPaymentModalOpen && (
+        <WalletPaymentModal
+          gatewayName={currentPaymentOption.name}
+          headerGradient={currentPaymentOption.gatewayHeaderBg}
+          brandButtonClass={currentPaymentOption.brandButtonClass}
+          brandBarClass={currentPaymentOption.brandBarClass}
+          icon={currentPaymentOption.icon}
+          siteName={settings.siteName || "Sparq"}
+          amountLabel={formatPrice(grandTotal)}
+          phone={walletPhone}
+          transactionId={walletTransactionId}
+          onClose={() => setIsPaymentModalOpen(false)}
+          onSuccess={handleWalletPaymentSuccess}
+        />
       )}
     </div>
     </>
