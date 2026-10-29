@@ -30,6 +30,13 @@ function normalizeWarranty(w: RawWarranty): NormalizedAdminWarranty {
     activationDate: w.activationDate,
     expiryDate: w.expiryDate,
     status: w.status as NormalizedAdminWarranty["status"],
+    // Live product terms first, then the copy saved on the warranty record when
+    // the product has been edited or deleted.
+    warrantyType: w?.productId?.warrantyType || w.warrantyType,
+    warrantyPeriodMonths:
+      w?.productId?.warrantyPeriodMonths ?? w.warrantyPeriodMonths,
+    warrantyTerms: w?.productId?.warrantyTerms || w.warrantyTerms,
+    claimProblem: w.claimProblem,
     claimReason: w.claimReason,
     claimDescription: w.claimDescription,
     claimImages: w.claimImages,

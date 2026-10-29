@@ -24,10 +24,20 @@ import {
   AlertCircle,
   Clock,
   Loader2,
+  ClipboardCheck,
+  MessageCircleQuestion,
+  CheckCircle2,
+  XCircle,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { adminUpdateClaim } from "@/lib/action/warranty";
 import ImageGalleryModal from "@/components/shared/ImageGalleryModal";
+import { formatOrderDate } from "@/lib/dateTime";
+import {
+  claimProblemLabel,
+  formatWarrantyDuration,
+  warrantyTypeLabel,
+} from "@/lib/warranty";
 import type { NormalizedAdminWarranty } from "@/types";
 
 const STATUS_FILTER_TABS = ["All", "Active", "Claim Submitted", "Under Review", "Info Requested", "Resolved", "Expired"];
@@ -37,6 +47,39 @@ const SORT_OPTIONS = [
   { key: "oldest", label: "Oldest First" },
   { key: "expiry_near", label: "Expiry (Soonest)" },
 ];
+
+/**
+ * The four actions an admin can take on a claim, shown in one dropdown so the
+ * modal has a single control instead of four competing buttons.
+ */
+const CLAIM_ACTIONS = [
+  {
+    id: "mark_under_review",
+    label: "Mark Under Review",
+    hint: "Let the customer know you are checking it",
+    icon: ClipboardCheck,
+  },
+  {
+    id: "request_info",
+    label: "Ask For More Info",
+    hint: "Send the customer a note",
+    icon: MessageCircleQuestion,
+  },
+  {
+    id: "resolve",
+    label: "Resolve Claim",
+    hint: "Approve and close the claim",
+    icon: CheckCircle2,
+  },
+  {
+    id: "reject",
+    label: "Reject Claim",
+    hint: "Decline the claim",
+    icon: XCircle,
+  },
+] as const;
+
+type ClaimActionId = (typeof CLAIM_ACTIONS)[number]["id"];
 
 type WarrantyItem = NormalizedAdminWarranty;
 
@@ -68,7 +111,6 @@ export default function AdminWarrantiesClient({
   // Action state
   const [adminNote, setAdminNote] = useState("");
   const [resolution, setResolution] = useState("");
-  const [currentAction, setCurrentAction] = useState<string>("");
 
   // Gallery state
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
@@ -130,8 +172,12 @@ export default function AdminWarrantiesClient({
     setIsModalOpen(true);
   };
 
-  const handleAdminAction = async (action: "mark_under_review" | "request_info" | "resolve" | "reject") => {
+  const handleAdminAction = async (action: ClaimActionId) => {
     if (!selectedWarranty) return;
+
+    // Guard against double submits: the dropdown is disabled while saving, but a
+    // fast double click could still land here.
+    if (isSubmitting) return;
 
     if ((action === "resolve" || action === "reject") && !resolution.trim() && !adminNote.trim()) {
       toast.warning("Please provide resolution details or an admin note.");
@@ -144,7 +190,6 @@ export default function AdminWarrantiesClient({
     }
 
     setIsSubmitting(true);
-    setCurrentAction(action);
     try {
       const res = await adminUpdateClaim(selectedWarranty.id, {
         action,
@@ -172,7 +217,6 @@ export default function AdminWarrantiesClient({
       toast.error("An error occurred");
     } finally {
       setIsSubmitting(false);
-      setCurrentAction("");
     }
   };
 
@@ -198,6 +242,23 @@ export default function AdminWarrantiesClient({
   const { page, limit, total, totalPages } = pagination || { page: 1, limit: 10, total: 0, totalPages: 1 };
   const startItem = total > 0 ? (page - 1) * limit + 1 : 0;
   const endItem = Math.min(page * limit, total);
+
+  // A claim can only be moved while it is open. A record with no claim, or one
+  // already resolved/rejected, is read-only.
+  const claimActionBlockedReason = !selectedWarranty
+    ? ""
+    : !(
+          selectedWarranty.claimReason ||
+          selectedWarranty.claimDescription ||
+          selectedWarranty.claimProblem
+        )
+      ? "No claim has been submitted for this warranty yet."
+      : selectedWarranty.status === "resolved"
+        ? "This claim is already resolved."
+        : selectedWarranty.status === "expired"
+          ? "This claim is closed, so no further action can be taken."
+          : "";
+  const canActOnClaim = claimActionBlockedReason === "";
 
   return (
     <div className="space-y-6">
@@ -309,7 +370,9 @@ export default function AdminWarrantiesClient({
                 <tr>
                   <th className="py-3 px-4">Warranty ID</th>
                   <th className="py-3 px-4">Product</th>
+                  <th className="py-3 px-4">Warranty</th>
                   <th className="py-3 px-4">Customer</th>
+                  <th className="py-3 px-4">Problem</th>
                   <th className="py-3 px-4">Expiry</th>
                   <th className="py-3 px-4 text-center">Status</th>
                   <th className="py-3 px-4 text-right">Actions</th>
@@ -327,14 +390,32 @@ export default function AdminWarrantiesClient({
                         <span className="font-bold truncate">{w.productTitle || "Product"}</span>
                       </div>
                     </td>
+                    <td className="py-3 px-4 whitespace-nowrap">
+                      <p className="font-semibold">{warrantyTypeLabel(w.warrantyType)}</p>
+                      <p className="text-[10px] text-[var(--foreground-muted)]">
+                        {formatWarrantyDuration(w.warrantyPeriodMonths)}
+                      </p>
+                    </td>
                     <td className="py-3 px-4">
                       <p className="font-semibold">{w.userName || "Customer"}</p>
                       <p className="text-[10px] text-[var(--foreground-muted)]">{w.userEmail}</p>
                     </td>
+                    <td className="py-3 px-4">
+                      {w.claimProblem ? (
+                        <span
+                          className="inline-block max-w-[130px] truncate text-[11px] font-semibold text-amber-700 dark:text-amber-400"
+                          title={claimProblemLabel(w.claimProblem)}
+                        >
+                          {claimProblemLabel(w.claimProblem)}
+                        </span>
+                      ) : (
+                        <span className="text-[var(--foreground-muted)]">—</span>
+                      )}
+                    </td>
                     <td className="py-3 px-4 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
                         <Calendar className="w-3 h-3 text-[var(--foreground-muted)]" />
-                        {new Date(w.expiryDate).toLocaleDateString()}
+                        {formatOrderDate(w.expiryDate)}
                       </div>
                     </td>
                     <td className="py-3 px-4 text-center">{getStatusChip(w.status)}</td>
@@ -421,13 +502,43 @@ export default function AdminWarrantiesClient({
                     </div>
                   </div>
 
-                  {selectedWarranty.claimReason && (
+                  {/* Warranty coverage, so the admin can judge the claim in one glance. */}
+                  <div className="p-4 rounded-2xl bg-[var(--surface-alt)] border border-[var(--border-color)]/60 space-y-3">
+                    <p className="text-[10px] font-bold uppercase text-[var(--foreground-muted)]">Warranty Coverage</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <p className="text-[10px] text-[var(--foreground-muted)]">Type</p>
+                        <p className="text-xs font-bold">{warrantyTypeLabel(selectedWarranty.warrantyType)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-[var(--foreground-muted)]">Duration</p>
+                        <p className="text-xs font-bold">{formatWarrantyDuration(selectedWarranty.warrantyPeriodMonths)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-[var(--foreground-muted)]">Expires</p>
+                        <p className="text-xs font-bold">{formatOrderDate(selectedWarranty.expiryDate)}</p>
+                      </div>
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-[var(--foreground-muted)] whitespace-pre-line">
+                      {selectedWarranty.warrantyTerms || "No terms were saved on this record."}
+                    </p>
+                  </div>
+
+                  {(selectedWarranty.claimReason ||
+                    selectedWarranty.claimDescription ||
+                    selectedWarranty.claimProblem) && (
                     <div className="space-y-4 p-5 rounded-2xl bg-amber-500/5 border border-amber-500/10">
                       <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
                         <AlertCircle className="w-4 h-4" />
                         <h3 className="text-sm font-bold">Customer Claim Information</h3>
                       </div>
                       <div className="space-y-3">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase text-amber-600/60 dark:text-amber-400/60">Problem</p>
+                          <p className="text-xs font-bold mt-0.5">
+                            {claimProblemLabel(selectedWarranty.claimProblem)}
+                          </p>
+                        </div>
                         <div>
                           <p className="text-[10px] font-bold uppercase text-amber-600/60 dark:text-amber-400/60">Reason</p>
                           <p className="text-xs font-bold mt-0.5">{selectedWarranty.claimReason}</p>
@@ -484,46 +595,58 @@ export default function AdminWarrantiesClient({
                         />
                       </div>
 
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2">
-                        <Button
-                          size="sm"
-                          
-                          variant={selectedWarranty.status === "under_review" ? "primary" : "ghost"}
-                          onPress={() => handleAdminAction("mark_under_review")}
-                          isDisabled={isSubmitting}
-                          className="font-bold text-[10px] uppercase h-9"
+                      {/* One dropdown instead of four buttons, each option with its
+                          own icon and a one-line explanation. */}
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-2">
+                        <Select
+                          aria-label="Claim actions"
+                          selectedKey={null}
+                          isDisabled={isSubmitting || !canActOnClaim}
+                          onSelectionChange={(key) => {
+                            if (key) handleAdminAction(String(key) as ClaimActionId);
+                          }}
+                          placeholder="Choose an action"
+                          className="w-full sm:w-72"
                         >
-                          {currentAction === "mark_under_review" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Review"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          
-                          variant={selectedWarranty.status === "info_requested" ? "secondary" : "ghost"}
-                          onPress={() => handleAdminAction("request_info")}
-                          isDisabled={isSubmitting}
-                          className="font-bold text-[10px] uppercase h-9"
-                        >
-                           {currentAction === "request_info" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Ask Info"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          
-                          onPress={() => handleAdminAction("resolve")}
-                          isDisabled={isSubmitting}
-                          className="font-bold text-[10px] uppercase h-9 text-white"
-                        >
-                           {currentAction === "resolve" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Resolve"}
-                        </Button>
-                        <Button
-                          size="sm"
-                          
-                          onPress={() => handleAdminAction("reject")}
-                          isDisabled={isSubmitting}
-                          className="font-bold text-[10px] uppercase h-9"
-                        >
-                           {currentAction === "reject" ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : "Reject"}
-                        </Button>
+                          <Select.Trigger className="h-10 w-full px-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] text-xs font-semibold flex items-center justify-between">
+                            <Select.Value />
+                            <Select.Indicator />
+                          </Select.Trigger>
+                          <Select.Popover className="w-80 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl">
+                            <ListBox>
+                              {CLAIM_ACTIONS.map((action) => {
+                                const Icon = action.icon;
+                                return (
+                                  <ListBox.Item
+                                    key={action.id}
+                                    id={action.id}
+                                    textValue={action.label}
+                                    className="px-3 py-2 rounded-lg hover:bg-primary/10"
+                                  >
+                                    <div className="flex items-start gap-2">
+                                      <Icon className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                                      <div className="min-w-0">
+                                        <p className="text-xs font-semibold">{action.label}</p>
+                                        <p className="text-[10px] text-[var(--foreground-muted)]">{action.hint}</p>
+                                      </div>
+                                    </div>
+                                  </ListBox.Item>
+                                );
+                              })}
+                            </ListBox>
+                          </Select.Popover>
+                        </Select>
+                        {isSubmitting && (
+                          <span className="flex items-center gap-1.5 text-[11px] font-semibold text-[var(--foreground-muted)]">
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" /> Saving...
+                          </span>
+                        )}
                       </div>
+                      {!canActOnClaim && (
+                        <p className="text-[11px] font-semibold text-[var(--foreground-muted)]">
+                          {claimActionBlockedReason}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
