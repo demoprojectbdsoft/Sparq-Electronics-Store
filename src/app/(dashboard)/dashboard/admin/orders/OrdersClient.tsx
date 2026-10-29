@@ -893,6 +893,16 @@ export default function OrdersClient({
                             {formatPrice(selectedOrder.shippingFee || 0)}
                           </span>
                         </div>
+                        {Boolean(selectedOrder.pointsDiscount) && (
+                          <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
+                            <span>
+                              Points Redeemed ({selectedOrder.pointsRedeemed || 0} pts)
+                            </span>
+                            <span className="font-semibold">
+                              -{formatPrice(selectedOrder.pointsDiscount || 0)}
+                            </span>
+                          </div>
+                        )}
                         {selectedOrder.shippingMethod && (
                           <div className="flex justify-between text-[var(--foreground-secondary)] dark:text-[var(--foreground-muted)]">
                             <span>Shipping Method</span>
@@ -915,6 +925,14 @@ export default function OrdersClient({
                             {formatPrice(selectedOrder.totalAmount)}
                           </span>
                         </div>
+                        {Boolean(selectedOrder.pointsEarned) && (
+                          <div className="flex justify-between text-[10px] text-[var(--foreground-muted)]">
+                            <span>Points Earned (credited on delivery)</span>
+                            <span className="font-semibold">
+                              +{selectedOrder.pointsEarned} pts
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
