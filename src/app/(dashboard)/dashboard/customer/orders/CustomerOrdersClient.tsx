@@ -40,6 +40,7 @@ import { CustomerOrder, CustomerOrderItem, CustomerWarranty } from "@/types/cust
 import { submitCustomerOrderResponse } from "@/lib/action/orders";
 import { addToCart } from "@/lib/action/cart";
 import { submitWarrantyClaim } from "@/lib/action/warranty";
+import { downloadOrderInvoicePdf } from "@/lib/orderInvoicePdf";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 const STATUS_TABS = ["All Orders", "Confirmed", "Processing", "Shipped", "Delivered", "Cancelled"];
@@ -201,7 +202,8 @@ interface CustomerOrdersClientProps {
 }
 
 export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrdersClientProps) {
-  const { formatPrice } = useSiteSettings();
+  const { formatPrice, settings: siteSettings } = useSiteSettings();
+  const siteName = siteSettings.siteName || "Sparq";
   const { data: session } = authClient.useSession();
   const user = session?.user;
   const isSuspended = ((user as { status?: string })?.status || "").toLowerCase() === "suspended";
@@ -358,9 +360,22 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
 
   const userRole = ((user as { role?: string })?.role || "").toLowerCase();
   const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
+  // Id of the order whose invoice is being generated right now.
+  const [downloadingOrderId, setDownloadingOrderId] = useState<string | null>(null);
 
-  const handleDownloadInvoice = (orderNumber: string) => {
-    toast.success(`Downloading Invoice for order ${orderNumber}...`);
+  const handleDownloadInvoice = async (order: CustomerOrder) => {
+    setDownloadingOrderId(order.id);
+    try {
+      await downloadOrderInvoicePdf(order, {
+        siteName,
+        formatMoney: formatPrice,
+      });
+      toast.success(`Invoice ${order.orderNumber} downloaded.`);
+    } catch {
+      toast.error("Could not create the invoice PDF. Please try again.");
+    } finally {
+      setDownloadingOrderId(null);
+    }
   };
 
   const handleBuyAgain = async (item: CustomerOrderItem) => {
@@ -667,11 +682,18 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleDownloadInvoice(order.orderNumber)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] hover:bg-[var(--surface-alt)] text-xs font-semibold text-[var(--foreground)] transition-colors cursor-pointer h-8"
+                    onClick={() => handleDownloadInvoice(order)}
+                    isDisabled={downloadingOrderId === order.id}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-[var(--border-color)] hover:bg-[var(--surface-alt)] text-xs font-semibold text-[var(--foreground)] transition-colors cursor-pointer h-8 disabled:opacity-60 disabled:cursor-not-allowed"
                   >
-                    <Download className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Invoice</span>
+                    <Download
+                      className={`w-3.5 h-3.5 ${
+                        downloadingOrderId === order.id ? "animate-pulse" : ""
+                      }`}
+                    />
+                    <span className="hidden sm:inline">
+                      {downloadingOrderId === order.id ? "Preparing" : "Invoice"}
+                    </span>
                   </Button>
                 </div>
               </div>
