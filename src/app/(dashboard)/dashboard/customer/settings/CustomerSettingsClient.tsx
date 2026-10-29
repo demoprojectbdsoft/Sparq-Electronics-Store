@@ -33,6 +33,8 @@ import {
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { authClient } from "@/lib/auth-client";
+import { exportMyAccountData } from "@/lib/action/account";
+import { downloadJson } from "@/lib/downloadFile";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 // ── Supported Currencies ────────────────────────────────────────────────────────
@@ -309,12 +311,29 @@ export default function CustomerSettingsClient({
     toast.info("Session revoked successfully.");
   };
 
-  const handleExportData = () => {
-    toast.success("Preparing your account data archive (orders, profile, preferences)...");
-    setTimeout(() => {
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Downloads the customer's real records as a JSON file.
+  const handleExportData = async () => {
+    setIsExporting(true);
+    try {
+      const res = await exportMyAccountData();
+
+      if (!res.success) {
+        toast.error(res.message);
+        return;
+      }
+
       const slug = siteName.toLowerCase().replace(/\s+/g, "-");
-      toast.info(`Account data downloaded: ${slug}_user_data.json`);
-    }, 1200);
+      const today = new Date().toISOString().split("T")[0];
+
+      downloadJson(`${slug}_account_data_${today}.json`, res.data);
+      toast.success("Your account data has been downloaded.");
+    } catch {
+      toast.error("Could not collect your data. Please try again.");
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const handleDeleteAccount = () => {
@@ -792,16 +811,21 @@ export default function CustomerSettingsClient({
                     Export Account Data
                   </h3>
                   <p className="text-xs text-[var(--foreground-muted)] mt-0.5">
-                    Download an archive containing your full purchase history, saved addresses, and profile metadata.
+                    Download a JSON file containing your profile, orders, payments, reviews, wishlist, cart and warranties.
                   </p>
                 </div>
                 <Button
                   variant="outline"
                   onClick={handleExportData}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[var(--border-color)] hover:bg-[var(--surface-alt)] text-xs font-semibold text-[var(--foreground)] transition-colors cursor-pointer shrink-0 h-10"
+                  isDisabled={isExporting}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[var(--border-color)] hover:bg-[var(--surface-alt)] text-xs font-semibold text-[var(--foreground)] transition-colors cursor-pointer shrink-0 h-10 disabled:opacity-60 disabled:cursor-not-allowed"
                 >
-                  <Download className="w-4 h-4" />
-                  <span>Export JSON</span>
+                  {isExporting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  <span>{isExporting ? "Preparing..." : "Export JSON"}</span>
                 </Button>
               </Card>
 
