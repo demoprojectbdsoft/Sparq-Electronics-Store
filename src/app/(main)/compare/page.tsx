@@ -1,6 +1,7 @@
+import type { Metadata } from "next";
 import CompareClient from "./CompareClient";
 
-export const metadata = {
+export const metadata: Metadata = {
   // The root layout appends "| <siteName>" from settings.
   title: "Compare Products",
   description:
