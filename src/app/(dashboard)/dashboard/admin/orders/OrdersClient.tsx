@@ -44,6 +44,18 @@ const STATUS_OPTIONS = [
   { id: "cancelled",  label: "Cancelled",  color: "rose" },
 ];
 
+/**
+ * The stages an order is allowed to move to next.
+ * The backend enforces the same rules, this map only hides illegal choices.
+ */
+const ORDER_FLOW: Record<string, string[]> = {
+  confirmed:  ["processing", "cancelled"],
+  processing: ["shipped", "cancelled"],
+  shipped:    ["delivered", "cancelled"],
+  delivered:  ["cancelled"],
+  cancelled:  [],
+};
+
 const FILTER_TABS = ["All", "Confirmed", "Processing", "Shipped", "Delivered", "Cancelled"];
 
 const SORT_OPTIONS = [
@@ -186,18 +198,7 @@ export default function OrdersClient({
   const handleStatusChange = async (newStatus: string) => {
     if (!selectedOrder || !newStatus) return;
 
-    const currentStatus = (selectedOrder.orderStatus || selectedOrder.status || "").toLowerCase();
-    if (
-      currentStatus === "shipped" &&
-      !selectedOrder.customerResponse &&
-      (newStatus === "cancelled" || newStatus === "delivered")
-    ) {
-      toast.warning(
-        `Customer response is required before marking this shipped order as "${newStatus}".`
-      );
-      return;
-    }
-
+    // The dropdown only offers legal moves and the backend checks them again.
     const orderId = selectedOrder._id || selectedOrder.id;
     if (!orderId) return;
     setIsUpdatingStatus(true);
@@ -629,14 +630,56 @@ export default function OrdersClient({
                   <Modal.Body className="space-y-6">
                     {/* Status Changer Bar */}
                     {(() => {
-                      const currentStatus = (selectedOrder.orderStatus || selectedOrder.status || "").toLowerCase();
+                      const currentStatus = (
+                        selectedOrder.orderStatus ||
+                        selectedOrder.status ||
+                        "confirmed"
+                      ).toLowerCase();
+                      const allowedNext = ORDER_FLOW[currentStatus] ?? [];
+
+                      // A cancelled order is closed: there is nothing to move to.
+                      if (allowedNext.length === 0) {
+                        return (
+                          <div className="p-4 bg-[var(--surface-alt)] rounded-2xl border border-[var(--border-color)] flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-xl bg-rose-500/10 text-rose-500 flex items-center justify-center shrink-0">
+                              <XCircle className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-[var(--foreground)]">
+                                This order is closed
+                              </p>
+                              <p className="text-[11px] text-[var(--foreground-muted)]">
+                                A cancelled order keeps its final status.
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
+
                       const isShipped = currentStatus === "shipped";
+                      // Once shipped, the customer must report back before the
+                      // order can be delivered or cancelled.
                       const isResponseLocked = isShipped && !selectedOrder.customerResponse;
-                      // Only show "delivered" once the order has been shipped
+                      // The customer said it never arrived / they cancelled it.
+                      const customerDisagrees =
+                        selectedOrder.customerResponse === "not_received" ||
+                        selectedOrder.customerResponse === "cancelled";
+
+                      // The current stage plus the stages it may move to.
                       const visibleOptions = STATUS_OPTIONS.filter(
-                        (opt) => opt.id !== "delivered" || isShipped
+                        (opt) => opt.id === currentStatus || allowedNext.includes(opt.id)
                       );
-                      const disabledKeys = isResponseLocked ? ["cancelled", "delivered"] : [];
+
+                      const disabledKeys: string[] = [currentStatus];
+                      if (isResponseLocked) disabledKeys.push("delivered", "cancelled");
+                      if (customerDisagrees) disabledKeys.push("delivered");
+
+                      const lockReason = (id: string) => {
+                        if (id === currentStatus) return "(Current)";
+                        if (isResponseLocked) return "(Awaiting customer)";
+                        if (id === "delivered" && customerDisagrees) return "(Customer disagreed)";
+                        return null;
+                      };
 
                       return (
                         <div className="space-y-3">
@@ -646,16 +689,14 @@ export default function OrdersClient({
                                 Update Fulfillment Status
                               </p>
                               <p className="text-[11px] text-[var(--foreground-muted)]">
-                                Select the new stage for this customer order
+                                Only the next valid stage is offered
                               </p>
                             </div>
 
                             <div className="w-56 shrink-0">
                               <Select
                                 aria-label="Update Fulfillment Status"
-                                selectedKey={
-                                  (selectedOrder.orderStatus || selectedOrder.status || "processing").toLowerCase()
-                                }
+                                selectedKey={currentStatus}
                                 onSelectionChange={(key) => key && handleStatusChange(String(key))}
                                 isDisabled={isUpdatingStatus}
                                 disabledKeys={disabledKeys}
@@ -668,24 +709,24 @@ export default function OrdersClient({
                                 <Select.Popover className="w-56 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl z-50">
                                   <ListBox disabledKeys={disabledKeys}>
                                     {visibleOptions.map((opt) => {
-                                      const isLocked = isResponseLocked && (opt.id === "cancelled" || opt.id === "delivered");
+                                      const reason = lockReason(opt.id);
                                       return (
                                         <ListBox.Item
                                           key={opt.id}
                                           id={opt.id}
                                           textValue={opt.label}
-                                          isDisabled={isLocked}
+                                          isDisabled={Boolean(reason)}
                                           className={`text-xs font-medium px-3 py-2 rounded-lg flex items-center justify-between ${
-                                            isLocked
+                                            reason
                                               ? "opacity-45 cursor-not-allowed bg-[var(--surface-alt)] text-[var(--foreground-muted)]"
                                               : "hover:bg-primary/10 dark:hover:bg-[var(--surface)] text-[var(--foreground)] cursor-pointer"
                                           }`}
                                         >
                                           <div className="flex items-center gap-1.5">
                                             <span>{opt.label}</span>
-                                            {isLocked && (
+                                            {reason && (
                                               <span className="text-[10px] text-amber-500 font-bold">
-                                                (Awaiting customer)
+                                                {reason}
                                               </span>
                                             )}
                                           </div>
@@ -700,7 +741,7 @@ export default function OrdersClient({
                           </div>
 
                           {/* Customer Response Status Banner */}
-                          {isShipped && !selectedOrder.customerResponse && (
+                          {isResponseLocked && (
                             <div className="p-3.5 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-3 shadow-xs">
                               <div className="w-7 h-7 rounded-lg bg-amber-500 text-white flex items-center justify-center shrink-0 mt-0.5">
                                 <Clock className="w-4 h-4" />
