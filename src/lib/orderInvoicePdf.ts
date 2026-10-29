@@ -193,12 +193,21 @@ export async function downloadOrderInvoicePdf(
   });
 
   // ── Total ─────────────────────────────────────────────────────────────────
-  ensureSpace(80);
+  ensureSpace(order.pointsDiscount ? 100 : 80);
   y += 10;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   doc.setTextColor(...MUTED);
   doc.text(`${order.itemCount} item(s) in this order`, left, y + 12);
+
+  // Loyalty points spent at checkout get their own line above the total.
+  if (order.pointsDiscount) {
+    doc.text(`Reward points (${order.pointsRedeemed ?? 0} pts)`, colUnit - 20, y + 30, {
+      align: "right",
+    });
+    doc.text(`-${money(order.pointsDiscount)}`, right, y + 30, { align: "right" });
+    y += 18;
+  }
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);

@@ -287,6 +287,8 @@ export default async function CustomerOrdersPage() {
           paymentStatus: "Paid",
           paymentMethod: mapPaymentMethod(order.paymentMethod),
           total: order.totalAmount ?? 0,
+          pointsRedeemed: order.pointsRedeemed ?? 0,
+          pointsDiscount: order.pointsDiscount ?? 0,
           itemCount: items.length,
           items,
           shippingAddress: shippingAddr,

@@ -24,6 +24,8 @@ export interface CreateOrderPayload {
   /** Explicit shipping choice from checkout: free | standard | express.
    *  When omitted the backend resolves it from the live site settings. */
   shippingMethod?: "free" | "standard" | "express";
+  /** Loyalty points the customer chose to spend (100 points = 1 currency unit). */
+  pointsToRedeem?: number;
 }
 
 export interface OrderItem {
@@ -70,6 +72,9 @@ export interface Order {
   customerResponseNote?: string;
   customerResponseAt?: string | Date | null;
   pointsEarned?: number;
+  /** Points this order used up, and the money they took off the total. */
+  pointsRedeemed?: number;
+  pointsDiscount?: number;
   createdAt?: string;
   updatedAt?: string;
 }

@@ -78,6 +78,9 @@ export interface CustomerOrder {
   paymentMethod: string;
   total: number;
   itemCount: number;
+  /** Loyalty points spent on this order, and the money they saved. */
+  pointsRedeemed?: number;
+  pointsDiscount?: number;
   items: CustomerOrderItem[];
   trackingNumber?: string;
   carrier?: string;

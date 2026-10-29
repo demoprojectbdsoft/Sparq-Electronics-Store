@@ -614,6 +614,15 @@ export default function OrderSuccessClient({
                   </span>
                 </div>
 
+                {(order?.pointsDiscount ?? 0) > 0 && (
+                  <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
+                    <span>Reward Points Redeemed</span>
+                    <span className="font-bold">
+                      -{formatPrice(order?.pointsDiscount || 0)}
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between">
                   <span>Estimated Tax &amp; VAT</span>
                   <span className="text-[var(--foreground-muted)] text-[11px]">Included in total (0% extra)</span>
@@ -633,6 +642,16 @@ export default function OrderSuccessClient({
                     {formatPrice(order?.totalAmount || 0)}
                   </span>
                 </div>
+
+                {(order?.pointsEarned ?? 0) > 0 && (
+                  <p className="text-[10px] text-[var(--foreground-muted)]">
+                    You will earn{" "}
+                    <span className="font-bold text-amber-600 dark:text-amber-400">
+                      {order?.pointsEarned} points
+                    </span>{" "}
+                    once this order is delivered.
+                  </p>
+                )}
               </div>
 
               {/* ── Security Stamp & Barcode Footer ── */}

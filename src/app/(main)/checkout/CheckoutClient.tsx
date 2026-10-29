@@ -55,6 +55,11 @@ import {
   normaliseWalletPhone,
 } from "@/lib/walletPayment";
 
+// ── Loyalty Points Rates ────────────────────────────────────────────────────
+// Same rules as the backend: 100 points = 1 currency unit, 100 to start.
+const POINTS_PER_UNIT = 100;
+const MIN_POINTS_TO_REDEEM = 100;
+
 // ── Payment Methods Definition ──────────────────────────────────────────────
 interface PaymentOption {
   id: PaymentMethod;
@@ -166,6 +171,11 @@ export default function CheckoutClient({
   const [isWalletVerified, setIsWalletVerified] = useState<boolean>(false);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState<boolean>(false);
 
+  // ── Reward Points State ────────────────────────────────────────────────────
+  // The customer only chooses whether to spend points; the amount is worked
+  // out from their balance and the cart subtotal.
+  const [useRewardPoints, setUseRewardPoints] = useState<boolean>(false);
+
   // ── Order Placement State ──────────────────────────────────────────────────
   const [isPlacingOrder, setIsPlacingOrder] = useState<boolean>(false);
 
@@ -219,7 +229,25 @@ export default function CheckoutClient({
     return isFreeShippingEligible ? 0.0 : standardShippingCost;
   }, [subtotal, selectedShippingMethod, isFreeShippingEligible, expressShippingCost, standardShippingCost]);
 
-  const grandTotal = subtotal + shippingCost;
+  // ── Loyalty Points ─────────────────────────────────────────────────────────
+  // The session user carries the live balance (see lib/auth.ts).
+  const userPoints =
+    Number((user as { points?: number | null } | null)?.points) || 0;
+  const availablePoints = Math.max(0, Math.floor(userPoints));
+  // Points pay for products only, so the cap is the subtotal in points - and
+  // never more than the customer actually owns.
+  const maxRedeemablePoints = Math.min(
+    availablePoints,
+    Math.floor(subtotal) * POINTS_PER_UNIT
+  );
+  const canRedeemPoints = maxRedeemablePoints >= MIN_POINTS_TO_REDEEM;
+  const pointsToRedeem =
+    useRewardPoints && canRedeemPoints ? maxRedeemablePoints : 0;
+  const pointsDiscount = pointsToRedeem / POINTS_PER_UNIT;
+  // Points are earned on what is really paid for the products.
+  const pointsEarned = Math.floor(subtotal - pointsDiscount);
+
+  const grandTotal = subtotal + shippingCost - pointsDiscount;
   const isCartEmpty = items.length === 0;
 
   // Validation: Shipping form must have all required fields for every payment method
@@ -382,6 +410,7 @@ export default function CheckoutClient({
       ...(selectedPaymentMethod !== "cod"
         ? { transactionId: normaliseTransactionId(walletTransactionId) }
         : {}),
+      ...(pointsToRedeem > 0 ? { pointsToRedeem } : {}),
     };
 
     try {
@@ -1063,6 +1092,40 @@ export default function CheckoutClient({
                   })}
                 </div>
 
+                {/* ── Reward Points ── spend the loyalty balance on this order */}
+                {availablePoints > 0 && (
+                  <div className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] p-3">
+                    <label
+                      className={`flex items-start gap-2.5 ${
+                        canRedeemPoints ? "cursor-pointer" : "cursor-not-allowed opacity-60"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={useRewardPoints && canRedeemPoints}
+                        disabled={!canRedeemPoints}
+                        onChange={(e) => setUseRewardPoints(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 shrink-0 accent-primary cursor-pointer disabled:cursor-not-allowed"
+                      />
+                      <span className="min-w-0">
+                        <span className="flex items-center gap-1.5 text-xs font-bold text-[var(--foreground)]">
+                          <Coins className="w-3.5 h-3.5 text-amber-500" />
+                          Use my reward points
+                        </span>
+                        <span className="mt-0.5 block text-[11px] text-[var(--foreground-muted)]">
+                          {canRedeemPoints
+                            ? `Save ${formatPrice(maxRedeemablePoints / POINTS_PER_UNIT)} with ${maxRedeemablePoints} points`
+                            : `Collect ${MIN_POINTS_TO_REDEEM}+ points and keep products in the cart`}
+                        </span>
+                      </span>
+                    </label>
+                    <p className="mt-2 text-[10px] text-[var(--foreground-muted)]">
+                      Balance: {availablePoints} pts &middot; 100 pts ={" "}
+                      {formatPrice(1)}
+                    </p>
+                  </div>
+                )}
+
                 {/* Price Breakdown */}
                 <div className="pt-4 border-t border-[var(--border-color)] space-y-2.5 text-xs text-[var(--foreground-secondary)] dark:text-[var(--foreground-secondary)]">
                   <div className="flex items-center justify-between">
@@ -1096,6 +1159,16 @@ export default function CheckoutClient({
                     </span>
                   </div>
 
+                  {/* Points spent on this order - only shown when used */}
+                  {pointsDiscount > 0 && (
+                    <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400">
+                      <span>Reward points ({pointsToRedeem} pts)</span>
+                      <span className="font-bold">
+                        -{formatPrice(pointsDiscount)}
+                      </span>
+                    </div>
+                  )}
+
                   {shippingCost > 0 && isFreeShippingEnabled && selectedShippingMethod === "standard" && (
                     <p className="text-[10px] text-primary">
                       Add {formatPrice(freeShippingThreshold - subtotal)} more for
@@ -1117,6 +1190,16 @@ export default function CheckoutClient({
                       {formatPrice(grandTotal)}
                     </span>
                   </div>
+
+                  {pointsEarned > 0 && (
+                    <p className="text-[10px] text-[var(--foreground-muted)]">
+                      You will earn{" "}
+                      <span className="font-bold text-amber-600 dark:text-amber-400">
+                        {pointsEarned} points
+                      </span>{" "}
+                      when this order is delivered.
+                    </p>
+                  )}
                 </div>
 
                 {/* ── Place Order Action Button ── */}
