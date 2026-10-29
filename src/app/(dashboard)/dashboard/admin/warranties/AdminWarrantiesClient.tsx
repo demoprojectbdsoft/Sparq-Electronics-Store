@@ -398,7 +398,19 @@ export default function AdminWarrantiesClient({
                     </td>
                     <td className="py-3 px-4">
                       <p className="font-semibold">{w.userName || "Customer"}</p>
-                      <p className="text-[10px] text-[var(--foreground-muted)]">{w.userEmail}</p>
+                      {w.userEmail ? (
+                        <a
+                          href={`mailto:${w.userEmail}`}
+                          // The whole row opens the modal, so the link must not
+                          // trigger that click as well.
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-[10px] text-[var(--foreground-muted)] hover:text-primary hover:underline"
+                        >
+                          {w.userEmail}
+                        </a>
+                      ) : (
+                        <span className="text-[10px] text-[var(--foreground-muted)]">—</span>
+                      )}
                     </td>
                     <td className="py-3 px-4">
                       {w.claimProblem ? (
@@ -481,7 +493,16 @@ export default function AdminWarrantiesClient({
                         <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs">{(selectedWarranty.userName || "C").charAt(0)}</div>
                         <div className="min-w-0">
                           <p className="text-xs font-bold truncate">{selectedWarranty.userName}</p>
-                          <p className="text-[10px] text-[var(--foreground-muted)] truncate">{selectedWarranty.userEmail}</p>
+                          {selectedWarranty.userEmail ? (
+                            <a
+                              href={`mailto:${selectedWarranty.userEmail}`}
+                              className="block text-[10px] text-[var(--foreground-muted)] truncate hover:text-primary hover:underline"
+                            >
+                              {selectedWarranty.userEmail}
+                            </a>
+                          ) : (
+                            <p className="text-[10px] text-[var(--foreground-muted)]">—</p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center justify-between text-[11px]">
