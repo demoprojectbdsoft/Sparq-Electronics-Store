@@ -16,6 +16,7 @@ import {
   isWishlisted as checkIsWishlistedAction,
 } from "@/lib/action/wishlist";
 import { getReviewsByProductId } from "@/lib/api/reviews";
+import { COMPARE_LIMIT, useCompare } from "@/lib/compare";
 import { Product } from "@/types";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
@@ -103,6 +104,8 @@ export default function ProductCard({
   const pathname = usePathname();
   const { data: session } = authClient.useSession();
   const { formatPrice } = useSiteSettings();
+  const compare = useCompare();
+  const isCompared = compare.has(product.id);
   const user = session?.user;
   const userRole = ((user as { role?: string })?.role || "").toLowerCase();
   const isOwner = Boolean(
@@ -338,7 +341,24 @@ export default function ProductCard({
   };
 
   const handleAddToCompare = () => {
-    toast.info(`"${product.title}" added to compare!`, {
+    if (isCompared) {
+      compare.remove(product.id);
+      toast.info(`"${product.title}" removed from compare.`);
+      return;
+    }
+
+    const result = compare.add(product);
+
+    if (result === "full") {
+      toast.warning(`You can compare up to ${COMPARE_LIMIT} products. Remove one first.`);
+      return;
+    }
+    if (result === "duplicate") {
+      toast.info("This product is already in your compare list.");
+      return;
+    }
+
+    toast.success(`"${product.title}" added to compare!`, {
       icon: <span>🔁</span>,
     });
   };
@@ -449,9 +469,13 @@ export default function ProductCard({
           <span className="w-[1px] h-3 bg-[var(--border-color)]" />
           <button
             type="button"
-            aria-label="Add to compare"
+            aria-label={isCompared ? "Remove from compare" : "Add to compare"}
             onClick={handleAddToCompare}
-            className="p-1.5 rounded-full text-[var(--foreground-muted)] hover:text-primary hover:bg-primary/10 transition-all cursor-pointer"
+            className={`p-1.5 rounded-full transition-all cursor-pointer ${
+              isCompared
+                ? "text-primary bg-primary/10"
+                : "text-[var(--foreground-muted)] hover:text-primary hover:bg-primary/10"
+            }`}
           >
             <Repeat className="w-3.5 h-3.5" />
           </button>

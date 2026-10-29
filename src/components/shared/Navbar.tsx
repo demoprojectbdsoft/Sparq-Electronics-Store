@@ -30,6 +30,7 @@ import MobileMenuContent from "./MobileMenuContent";
 import CartButton from "./CartButton";
 import WishlistButton from "./WishlistButton";
 import UserAccountMenu from "./UserAccountMenu";
+import { useCompare } from "@/lib/compare";
 
 export default function Navbar() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -38,6 +39,7 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isLeftDrawerOpen, setIsLeftDrawerOpen] = useState(false);
   const [isRightDrawerOpen, setIsRightDrawerOpen] = useState(false);
+  const { count: compareCount } = useCompare();
 
   useEffect(() => {
     let isMounted = true;
@@ -155,10 +157,15 @@ export default function Navbar() {
             <div className="hidden md:flex items-center gap-3 text-[var(--foreground)] shrink-0">
               <Link
                 href="/compare"
-                aria-label="Compare Products"
-                className="flex items-center text-[var(--foreground-muted)] hover:text-primary transition-colors p-2 rounded-full hover:bg-[var(--surface-alt)]"
+                aria-label={`Compare Products${compareCount > 0 ? ` (${compareCount})` : ""}`}
+                className="relative flex items-center text-[var(--foreground-muted)] hover:text-primary transition-colors p-2 rounded-full hover:bg-[var(--surface-alt)]"
               >
                 <ArrowLeftRight className="w-5 h-5 stroke-[1.8]" />
+                {compareCount > 0 && (
+                  <span className="absolute top-0 right-0 bg-primary text-white text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center shadow-sm border border-[var(--surface-elevated)]">
+                    {compareCount}
+                  </span>
+                )}
               </Link>
               <WishlistButton />
               <CartButton showTotal={true} />

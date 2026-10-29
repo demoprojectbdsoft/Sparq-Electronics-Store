@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { getCartByUserId } from "@/lib/api/cart";
 import { getWishlistByUserId } from "@/lib/api/wishlist";
+import { useCompare } from "@/lib/compare";
 import { authClient } from "@/lib/auth-client";
 
 export default function MobileFloatingActions() {
@@ -20,7 +21,8 @@ export default function MobileFloatingActions() {
   const [isOpen, setIsOpen] = useState(false);
   const [cartCount, setCartCount] = useState<number>(0);
   const [wishlistCount, setWishlistCount] = useState<number>(0);
-  const [compareCount, setCompareCount] = useState<number>(0);
+  // The compare list lives in the browser, so it reports its own live count.
+  const { count: compareCount } = useCompare();
 
   // ── Sync Live Counts ──────────────────────────────────────────────────────
   useEffect(() => {
@@ -58,12 +60,10 @@ export default function MobileFloatingActions() {
 
     window.addEventListener("cart-updated", loadCounts);
     window.addEventListener("wishlist-updated", loadCounts);
-    window.addEventListener("compare-updated", loadCounts);
 
     return () => {
       window.removeEventListener("cart-updated", loadCounts);
       window.removeEventListener("wishlist-updated", loadCounts);
-      window.removeEventListener("compare-updated", loadCounts);
     };
   }, [user?.id]);
 

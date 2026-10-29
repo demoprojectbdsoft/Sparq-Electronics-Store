@@ -43,6 +43,7 @@ import { Product, ProductReview, User } from "@/types";
 import ProductNotFound from "./ProductNotFound";
 import { addReview, editReview } from "@/lib/action/reviews";
 import { addToCart, isCarted as checkIsCartedAction } from "@/lib/action/cart";
+import { COMPARE_LIMIT, useCompare } from "@/lib/compare";
 import {
   addToWishlist,
   removeFromWishlist,
@@ -70,6 +71,7 @@ export default function ProductDetailsPage({
   const pathname = usePathname();
   const { data: clientSession } = authClient.useSession();
   const { settings, formatPrice } = useSiteSettings();
+  const compare = useCompare();
 
   // Local reviews state initialized with server-fetched or demo reviews
   const [reviews, setReviews] = useState<ProductReview[]>(initialReviews);
@@ -402,8 +404,28 @@ export default function ProductDetailsPage({
     }
   };
 
+  // `product` is safe to read here: the component returns early when it is missing.
+  const isCompared = compare.has(product.id);
+
   const handleAddToCompare = () => {
-    toast.info(`"${product.title}" added to compare!`, {
+    if (isCompared) {
+      compare.remove(product.id);
+      toast.info(`"${product.title}" removed from compare.`);
+      return;
+    }
+
+    const result = compare.add(product);
+
+    if (result === "full") {
+      toast.warning(`You can compare up to ${COMPARE_LIMIT} products. Remove one first.`);
+      return;
+    }
+    if (result === "duplicate") {
+      toast.info("This product is already in your compare list.");
+      return;
+    }
+
+    toast.success(`"${product.title}" added to compare!`, {
       icon: <span>🔁</span>,
     });
   };
@@ -948,9 +970,14 @@ export default function ProductDetailsPage({
                 <button
                   type="button"
                   onClick={handleAddToCompare}
-                  className="flex items-center gap-1.5 text-slate-600 dark:text-slate-400 hover:text-primary transition-colors cursor-pointer"
+                  className={`flex items-center gap-1.5 transition-colors cursor-pointer ${
+                    isCompared
+                      ? "text-primary font-semibold"
+                      : "text-slate-600 dark:text-slate-400 hover:text-primary"
+                  }`}
                 >
-                  <Repeat className="w-4 h-4" /> Add to Compare
+                  <Repeat className="w-4 h-4" />
+                  {isCompared ? "In Compare" : "Add to Compare"}
                 </button>
                 <button
                   type="button"
