@@ -21,6 +21,7 @@ import {
   Zap,
   MessageSquare,
   ThumbsUp,
+  Edit,
   UserCheck,
   Send,
   User as UserIcon,
@@ -32,7 +33,7 @@ import {
   Loader2,
   Images,
 } from "lucide-react";
-import { Button, Card, Tabs, Tab, TabList, TabPanel } from "@heroui/react";
+import { Button, Card, Tabs, Tab, TabList, TabPanel, Modal } from "@heroui/react";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 import { toast } from "react-toastify";
 import { authClient } from "@/lib/auth-client";
@@ -40,7 +41,7 @@ import SuspendedAccountModal from "@/components/shared/SuspendedAccountModal";
 import ImageGalleryModal from "@/components/shared/ImageGalleryModal";
 import { Product, ProductReview, User } from "@/types";
 import ProductNotFound from "./ProductNotFound";
-import { addReview } from "@/lib/action/reviews";
+import { addReview, editReview } from "@/lib/action/reviews";
 import { addToCart, isCarted as checkIsCartedAction } from "@/lib/action/cart";
 import {
   addToWishlist,
@@ -94,6 +95,16 @@ export default function ProductDetailsPage({
   const [reviewGalleryImages, setReviewGalleryImages] = useState<string[]>([]);
   const [reviewGalleryIndex, setReviewGalleryIndex] = useState<number>(0);
   const [isReviewGalleryOpen, setIsReviewGalleryOpen] = useState<boolean>(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [reviewToEdit, setReviewToEdit] = useState<ProductReview | null>(null);
+
+  // Review edit state
+  const [isEditingReview, setIsEditingReview] = useState<string | null>(null);
+  const [editRatingVal, setEditRatingVal] = useState<number>(5);
+  const [editCommentVal, setEditCommentVal] = useState<string>('');
+  const [editReviewImages, setEditReviewImages] = useState<string[]>([]);
+  const [isUploadingEditReviewImage, setIsUploadingEditReviewImage] = useState<boolean>(false);
+  const [editHoverRating, setEditHoverRating] = useState<number>(0);
 
   // ── Countdown Timer ────────────────────────────────────────────────────────
   const offerTarget = useMemo(() => {
@@ -512,6 +523,73 @@ export default function ProductDetailsPage({
       }));
       return { ...prev, [reviewId]: isLiked };
     });
+  };
+
+  const handleEditReviewImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const remaining = 5 - editReviewImages.length;
+    if (remaining <= 0) {
+      toast.warning("Maximum 5 images per review.");
+      return;
+    }
+    const toUpload = files.slice(0, remaining);
+    setIsUploadingEditReviewImage(true);
+    try {
+      const uploaded: string[] = [];
+      for (const file of toUpload) {
+        const body = new FormData();
+        body.append("image", file);
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, { method: "POST", body });
+        const data = await res.json();
+        if (data.success) uploaded.push(data.data.url as string);
+      }
+      setEditReviewImages((prev) => [...prev, ...uploaded].slice(0, 5));
+    } catch {
+      toast.error("Failed to upload image(s). Please try again.");
+    } finally {
+      setIsUploadingEditReviewImage(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleStartEditingReview = (reviewId: string, currentRating: number, currentComment: string, currentImages: string[]) => {
+    setIsEditingReview(reviewId);
+    setEditRatingVal(currentRating);
+    setEditCommentVal(currentComment);
+    setEditReviewImages(currentImages || []);
+    setEditHoverRating(0);
+  };
+
+  const handleSaveReviewEdit = async (reviewId: string) => {
+    if (!editCommentVal.trim()) {
+      toast.warning("Please enter a review comment.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const res = await editReview(reviewId, {
+        rating: editRatingVal,
+        comment: editCommentVal.trim(),
+        images: editReviewImages,
+      });
+      if (res?.success !== false) {
+        toast.success("Review updated successfully!");
+        setReviews((prev) => prev.map((r) => r.id === reviewId ? { ...r, rating: editRatingVal, comment: editCommentVal.trim(), images: editReviewImages } : r));
+        setIsEditingReview(null);
+        setIsEditModalOpen(false);
+        setReviewToEdit(null);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("review-updated", { detail: { productId: product.id } }));
+        }
+      } else {
+        toast.error(res?.message || "Failed to update review");
+      }
+    } catch {
+      toast.error("Failed to update review");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const getBadgeStyle = (badge: string) => {
@@ -1398,22 +1476,38 @@ export default function ProductDetailsPage({
                             </div>
 
                             {/* Review Footer / Helpful reaction */}
-                            <div className="pt-2 border-t border-[var(--border-color)] flex items-center justify-between text-[11px]">
+                            <div className="pt-2 border-t border-[var(--border-color)] flex items-center justify-between text-[11px] gap-2">
                               <span className="text-slate-400 text-[10px]">
                                 Was this review helpful?
                               </span>
-                              <button
-                                type="button"
-                                onClick={() => handleToggleHelpful(rev.id)}
-                                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                                  isLiked
-                                    ? "bg-primary/10 text-primary border border-primary/30 font-bold"
-                                    : "text-slate-500 hover:text-primary hover:bg-[var(--surface-alt)]"
-                                }`}
-                              >
-                                <ThumbsUp className={`w-3 h-3 ${isLiked ? "fill-primary text-primary" : ""}`} />
-                                <span>Helpful {helpfulCount > 0 ? `(${helpfulCount})` : ""}</span>
-                              </button>
+                              <div className="flex items-center gap-1.5">
+                                {user?.id && String(user.id) === String(rev.userId) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setReviewToEdit(rev);
+                                      handleStartEditingReview(rev.id, rev.rating, rev.comment, rev.images || []);
+                                      setIsEditModalOpen(true);
+                                    }}
+                                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/50 transition-colors cursor-pointer"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                    <span>Edit</span>
+                                  </button>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleHelpful(rev.id)}
+                                  className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                                    isLiked
+                                      ? "bg-primary/10 text-primary border border-primary/30 font-bold"
+                                      : "text-slate-500 hover:text-primary hover:bg-[var(--surface-alt)]"
+                                  }`}
+                                >
+                                  <ThumbsUp className={`w-3 h-3 ${isLiked ? "fill-primary text-primary" : ""}`} />
+                                  <span>Helpful {helpfulCount > 0 ? `(${helpfulCount})` : ""}</span>
+                                </button>
+                              </div>
                             </div>
                           </div>
                         );
@@ -1443,6 +1537,155 @@ export default function ProductDetailsPage({
       initialIndex={reviewGalleryIndex}
       productTitle="Review Photos"
     />
+
+    {/* Edit Review Modal */}
+    <Modal
+      isOpen={isEditModalOpen && !!reviewToEdit}
+      onOpenChange={setIsEditModalOpen}
+    >
+      <Modal.Backdrop
+        className="bg-black/60 backdrop-blur-sm fixed inset-0 z-50"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setIsEditModalOpen(false);
+        }}
+      >
+        <Modal.Container>
+          <Modal.Dialog className="bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-2xl shadow-2xl overflow-hidden p-6 space-y-5 max-h-[90vh] overflow-y-auto w-full max-w-lg">
+          <Modal.Header className="flex items-center justify-between border-b border-[var(--border-color)] pb-4">
+            <Modal.Heading className="text-base font-bold text-[var(--foreground)]">
+              Edit Review
+            </Modal.Heading>
+            <Modal.CloseTrigger className="text-[var(--foreground-muted)] hover:text-[var(--foreground)] cursor-pointer p-1 rounded-lg transition-colors" />
+          </Modal.Header>
+          <Modal.Body className="py-4 space-y-4">
+            <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); handleSaveReviewEdit(reviewToEdit!.id); }}>
+              {/* Rating */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                  <span>Overall Rating</span>
+                  <span className="text-[11px] font-bold text-amber-500">
+                    {(editHoverRating || editRatingVal) === 5 && "5 - Excellent"}
+                    {(editHoverRating || editRatingVal) === 4 && "4 - Very Good"}
+                    {(editHoverRating || editRatingVal) === 3 && "3 - Average"}
+                    {(editHoverRating || editRatingVal) === 2 && "2 - Poor"}
+                    {(editHoverRating || editRatingVal) === 1 && "1 - Terrible"}
+                  </span>
+                </label>
+                <div className="flex items-center gap-1.5 bg-[var(--surface-elevated)] p-2.5 rounded-xl border border-[var(--border-color)] w-fit">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setEditRatingVal(star)}
+                      onMouseEnter={() => setEditHoverRating(star)}
+                      onMouseLeave={() => setEditHoverRating(0)}
+                      aria-label={`Rate ${star} stars`}
+                      className="p-1 hover:scale-125 transition-transform cursor-pointer"
+                    >
+                      <Star
+                        className={`w-5 h-5 transition-colors ${
+                          star <= (editHoverRating || editRatingVal)
+                            ? "fill-amber-400 text-amber-400 drop-shadow-sm"
+                            : "text-slate-300 dark:text-slate-700"
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Comment */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Review Description
+                </label>
+                <textarea
+                  rows={4}
+                  value={editCommentVal}
+                  onChange={(e) => setEditCommentVal(e.target.value)}
+                  placeholder="What did you like or dislike?"
+                  required
+                  className="w-full px-3 py-2.5 text-xs rounded-xl bg-[var(--surface-elevated)] border border-[var(--border-color)] text-[var(--foreground)] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all resize-none"
+                />
+              </div>
+
+              {/* Images */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                    <Images className="w-3.5 h-3.5 text-primary" />
+                    Photos <span className="text-[10px] font-normal text-slate-400">(optional, max 5)</span>
+                  </label>
+                  <span className="text-[10px] text-slate-400">{editReviewImages.length}/5</span>
+                </div>
+
+                {editReviewImages.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {editReviewImages.map((img, idx) => (
+                      <div key={idx} className="relative w-16 h-16 rounded-xl overflow-hidden border border-[var(--border-color)] group">
+                        <img src={img} alt={`Review photo ${idx + 1}`} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setEditReviewImages((prev) => prev.filter((_, i) => i !== idx))}
+                          className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+                        >
+                          <XIcon className="w-4 h-4 text-white" />
+                        </button>
+                      </div>
+                    ))}
+                    {isUploadingEditReviewImage && (
+                      <div className="w-16 h-16 rounded-xl border border-dashed border-primary/40 bg-primary/10 flex items-center justify-center">
+                        <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {editReviewImages.length < 5 && (
+                  <label className={`flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--surface-alt)] hover:border-primary/50 transition-colors cursor-pointer text-xs font-semibold text-primary w-fit ${isUploadingEditReviewImage ? "opacity-50 pointer-events-none" : ""}`}>
+                    {isUploadingEditReviewImage ? (
+                      <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading...</>
+                    ) : (
+                      <><ImagePlus className="w-3.5 h-3.5" /> Add Photo{editReviewImages.length === 0 ? "s" : ""}</>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={handleEditReviewImageUpload}
+                      disabled={isUploadingEditReviewImage}
+                    />
+                  </label>
+                )}
+              </div>
+              {/* Actions */}
+              <div className="flex items-center gap-3 pt-2">
+                <Button
+                  type="button"
+                  onPress={() => {
+                    setIsEditModalOpen(false);
+                    setIsEditingReview(null);
+                  }}
+                  className="px-5 h-10 text-xs font-bold rounded-xl bg-[var(--surface-alt)] border border-[var(--border-color)] hover:bg-[var(--surface-elevated)] transition-all cursor-pointer"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  isDisabled={isSubmitting || isUploadingEditReviewImage}
+                  className="px-5 h-10 bg-gradient-to-r from-primary to-primary-hover hover:from-primary-hover hover:to-primary text-white text-xs font-bold rounded-xl shadow-md shadow-primary/25 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  {isSubmitting ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </form>
+          </Modal.Body>
+        </Modal.Dialog>
+      </Modal.Container>
+      </Modal.Backdrop>
+    </Modal>
     </>
   );
 }

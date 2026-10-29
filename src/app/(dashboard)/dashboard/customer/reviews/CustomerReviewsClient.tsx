@@ -27,9 +27,13 @@ import {
   Images,
   Maximize2,
   X,
+  Edit2,
+  ImagePlus,
+  Loader2,
+  Send,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { deleteReview } from "@/lib/action/reviews";
+import { deleteReview, editReview } from "@/lib/action/reviews";
 import ImageGalleryModal from "@/components/shared/ImageGalleryModal";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
@@ -87,6 +91,13 @@ export default function CustomerReviewsClient({
   const [selectedReview, setSelectedReview] = useState<ReviewItem | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
+  const [editRating, setEditRating] = useState(5);
+  const [editComment, setEditComment] = useState("");
+  const [editImages, setEditImages] = useState<string[]>([]);
+  const [isUploadingEditImage, setIsUploadingEditImage] = useState(false);
+  const [hoverRating, setHoverRating] = useState(0);
   const [reviewToDelete, setReviewToDelete] = useState<ReviewItem | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   // Review image gallery state
@@ -179,6 +190,88 @@ export default function CustomerReviewsClient({
   const openReviewModal = (review: ReviewItem) => {
     setSelectedReview(review);
     setIsModalOpen(true);
+    setIsEditing(false); // Reset edit mode when opening modal
+  };
+
+  const IMGBB_API_KEY = process.env.NEXT_PUBLIC_IMGBB_API_KEY ?? "";
+
+  const handleEditImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    const remaining = 5 - editImages.length;
+    if (remaining <= 0) {
+      toast.warning("Maximum 5 images per review.");
+      return;
+    }
+    const toUpload = files.slice(0, remaining);
+    setIsUploadingEditImage(true);
+    try {
+      const uploaded: string[] = [];
+      for (const file of toUpload) {
+        const body = new FormData();
+        body.append("image", file);
+        const res = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+          method: "POST",
+          body,
+        });
+        const data = await res.json();
+        if (data.success) uploaded.push(data.data.url as string);
+      }
+      setEditImages((prev) => [...prev, ...uploaded].slice(0, 5));
+    } catch {
+      toast.error("Failed to upload image(s). Please try again.");
+    } finally {
+      setIsUploadingEditImage(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleStartEditing = () => {
+    if (!selectedReview) return;
+    setEditRating(selectedReview.rating);
+    setEditComment(selectedReview.comment);
+    setEditImages(selectedReview.images || []);
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedReview) return;
+    const reviewId = selectedReview.id || selectedReview._id;
+    if (!reviewId) return;
+
+    if (!editComment.trim()) {
+      toast.warning("Please enter a review comment.");
+      return;
+    }
+
+    setIsSubmittingEdit(true);
+    try {
+      const res = await editReview(reviewId, {
+        rating: editRating,
+        comment: editComment.trim(),
+        images: editImages,
+      });
+
+      if (res?.success !== false) {
+        toast.success("Review updated successfully!");
+        const updatedReview = res.data ?? res;
+
+        // Update local state
+        setReviews((prev) =>
+          prev.map((r) => ((r.id || r._id) === reviewId ? { ...r, ...updatedReview } : r))
+        );
+        setSelectedReview((prev) => (prev ? { ...prev, ...updatedReview } : null));
+
+        setIsEditing(false);
+        router.refresh();
+      } else {
+        toast.error(res?.message || "Failed to update review");
+      }
+    } catch {
+      toast.error("Failed to update review");
+    } finally {
+      setIsSubmittingEdit(false);
+    }
   };
 
   const renderStars = (rating: number) => {
@@ -600,18 +693,7 @@ export default function CustomerReviewsClient({
                         </p>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsModalOpen(false);
-                      }}
-                      aria-label="Close modal"
-                      className="p-1.5 rounded-xl text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-alt)] active:scale-95 transition-all cursor-pointer touch-manipulation"
-                    >
-                      <X className="w-5 h-5 pointer-events-none" />
-                    </button>
-                  </Modal.Header>
+                    </Modal.Header>
 
                   {/* Modal Body */}
                   <Modal.Body className="space-y-6">
@@ -673,15 +755,120 @@ export default function CustomerReviewsClient({
                       </p>
                     </div>
 
-                    {/* Review Comment */}
+                    {/* Review Comment (editable when in edit mode) */}
                     <div className="space-y-2">
                       <div className="flex items-center gap-1.5 text-xs font-bold text-[var(--foreground)]">
                         <MessageSquare className="w-4 h-4 text-amber-500" />
-                        <span>Your Review:</span>
+                        <span>{isEditing ? "Edit Your Review:" : "Your Review:"}</span>
                       </div>
-                      <div className="p-4 rounded-2xl bg-[var(--surface-alt)] dark:bg-[var(--surface)]/60 border border-[var(--border-color)]/80 dark:border-[var(--border-color)] text-xs leading-relaxed text-[var(--foreground)] italic">
-                        "{selectedReview.comment}"
-                      </div>
+
+                      {isEditing ? (
+                        <div className="space-y-4">
+                          {/* Rating picker */}
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                              <span>Overall Rating</span>
+                              <span className="text-[11px] font-bold text-amber-500">
+                                {(hoverRating || editRating) === 5 && "5 - Excellent"}
+                                {(hoverRating || editRating) === 4 && "4 - Very Good"}
+                                {(hoverRating || editRating) === 3 && "3 - Average"}
+                                {(hoverRating || editRating) === 2 && "2 - Poor"}
+                                {(hoverRating || editRating) === 1 && "1 - Terrible"}
+                              </span>
+                            </label>
+                            <div className="flex items-center gap-1.5 bg-[var(--surface-elevated)] p-2.5 rounded-xl border border-[var(--border-color)] w-fit shadow-xs">
+                              {[1, 2, 3, 4, 5].map((star) => {
+                                const isFilled = star <= (hoverRating || editRating);
+                                return (
+                                  <button
+                                    key={star}
+                                    type="button"
+                                    onClick={() => setEditRating(star)}
+                                    onMouseEnter={() => setHoverRating(star)}
+                                    onMouseLeave={() => setHoverRating(0)}
+                                    aria-label={`Rate ${star} stars`}
+                                    className="p-1 hover:scale-125 transition-transform cursor-pointer group"
+                                  >
+                                    <Star
+                                      className={`w-5 h-5 transition-colors ${
+                                        isFilled
+                                          ? "fill-amber-400 text-amber-400 drop-shadow-sm"
+                                          : "text-slate-300 dark:text-slate-700"
+                                      }`}
+                                    />
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Comment textarea */}
+                          <textarea
+                            rows={3}
+                            value={editComment}
+                            onChange={(e) => setEditComment(e.target.value)}
+                            placeholder="What did you like or dislike? How is the quality, sound, battery, and fit?"
+                            className="w-full px-3 py-2.5 text-xs rounded-xl bg-[var(--surface-elevated)] border border-[var(--border-color)] text-[var(--foreground)] placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all resize-none"
+                          />
+
+                          {/* Image upload / previews */}
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                                <ImagePlus className="w-3.5 h-3.5 text-primary" />
+                                Add Photos <span className="text-[10px] font-normal text-slate-400">(optional, max 5)</span>
+                              </label>
+                              <span className="text-[10px] text-slate-400">{editImages.length}/5</span>
+                            </div>
+
+                            {editImages.length > 0 && (
+                              <div className="flex flex-wrap gap-2">
+                                {editImages.map((img, idx) => (
+                                  <div key={idx} className="relative w-16 h-16 rounded-xl overflow-hidden border border-[var(--border-color)] group">
+                                    <img src={img} alt={`Edit photo ${idx + 1}`} className="w-full h-full object-cover" />
+                                    <button
+                                      type="button"
+                                      onClick={() => setEditImages((prev) => prev.filter((_, i) => i !== idx))}
+                                      className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity cursor-pointer"
+                                    >
+                                      <X className="w-4 h-4 text-white" />
+                                    </button>
+                                  </div>
+                                ))}
+                                {isUploadingEditImage && (
+                                  <div className="w-16 h-16 rounded-xl border border-dashed border-primary/40 bg-primary/10 flex items-center justify-center">
+                                    <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                            {editImages.length < 5 && (
+                              <label
+                                className={`flex items-center gap-2 px-3 py-2 rounded-xl border border-dashed border-[var(--border-color)] bg-[var(--surface-alt)] hover:border-primary/50 transition-colors cursor-pointer text-xs font-semibold text-primary w-fit ${isUploadingEditImage ? "opacity-50 pointer-events-none" : ""}`}
+                              >
+                                {isUploadingEditImage ? (
+                                  <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Uploading...</>
+                                ) : (
+                                  <><ImagePlus className="w-3.5 h-3.5" /> Add Photo{editImages.length === 0 ? "s" : ""}</>
+                                )}
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  multiple
+                                  className="hidden"
+                                  onChange={handleEditImageUpload}
+                                  disabled={isUploadingEditImage}
+                                />
+                              </label>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-2xl bg-[var(--surface-alt)] dark:bg-[var(--surface)]/60 border border-[var(--border-color)]/80 dark:border-[var(--border-color)] text-xs leading-relaxed text-[var(--foreground)] italic">
+                          "{selectedReview.comment}"
+                        </div>
+                      )}
                     </div>
 
                     {/* Review Images */}
@@ -715,28 +902,55 @@ export default function CustomerReviewsClient({
                   </Modal.Body>
 
                   {/* Modal Footer Actions */}
-                  <Modal.Footer className="flex items-center justify-between gap-3 pt-4 border-t border-[var(--border-color)]">
-                    <Button
-                      size="sm"
-                      variant="danger-soft"
-                      onPress={() => promptDelete(selectedReview)}
-                      onClick={() => promptDelete(selectedReview)}
-                      isDisabled={isDeleting}
-                      className="px-3.5 h-9 rounded-xl font-bold text-xs cursor-pointer inline-flex items-center gap-1.5 touch-manipulation active:scale-95"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Delete Review</span>
-                    </Button>
+                    <Modal.Footer className="flex items-center justify-between gap-2 pt-4 border-t border-[var(--border-color)]">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          onPress={isEditing ? handleSaveEdit : handleStartEditing}
+                          onClick={isEditing ? handleSaveEdit : handleStartEditing}
+                          isDisabled={isSubmittingEdit}
+                          className={`px-4 h-9 rounded-xl font-bold text-xs cursor-pointer inline-flex items-center gap-1.5 touch-manipulation active:scale-95 ${
+                            isEditing
+                              ? "bg-emerald-600 hover:bg-emerald-700"
+                              : "bg-amber-500 hover:bg-amber-600"
+                          }`}
+                        >
+                          {isEditing ? (
+                            <>
+                              <Send className="w-3.5 h-3.5" />
+                              <span>{isSubmittingEdit ? "Saving..." : "Save Changes"}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Edit2 className="w-3.5 h-3.5" />
+                              <span>Edit</span>
+                            </>
+                          )}
+                        </Button>
 
-                    <Button
-                      size="sm"
-                      onPress={() => setIsModalOpen(false)}
-                      onClick={() => setIsModalOpen(false)}
-                      className="px-5 h-9 rounded-xl bg-[var(--surface-elevated)] dark:bg-[var(--surface-elevated)] text-white dark:text-[var(--foreground)] font-bold text-xs cursor-pointer touch-manipulation active:scale-95"
-                    >
-                      Close
-                    </Button>
-                  </Modal.Footer>
+                        <Button
+                          size="sm"
+                          variant="danger-soft"
+                          onPress={() => promptDelete(selectedReview)}
+                          onClick={() => promptDelete(selectedReview)}
+                          isDisabled={isDeleting || isSubmittingEdit}
+                          className="px-3.5 h-9 rounded-xl font-bold text-xs cursor-pointer inline-flex items-center gap-1.5 touch-manipulation active:scale-95"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Delete</span>
+                        </Button>
+                      </div>
+
+                      <Button
+                        size="sm"
+                        onPress={() => setIsModalOpen(false)}
+                        onClick={() => setIsModalOpen(false)}
+                        className="px-4 h-9 rounded-xl bg-[var(--surface-elevated)] dark:bg-[var(--surface-elevated)] text-white dark:text-[var(--foreground)] font-bold text-xs cursor-pointer touch-manipulation active:scale-95"
+                      >
+                        View
+                      </Button>
+                    </Modal.Footer>
                 </>
               )}
             </Modal.Dialog>
