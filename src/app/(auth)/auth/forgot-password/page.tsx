@@ -1,10 +1,16 @@
 import React from "react";
 import { ForgotPasswordForm } from "./ForgotPasswordForm";
+import { getSiteSettings } from "@/lib/api/siteSettings";
 
-export const metadata = {
-  title: "Forgot Password | Electro",
-  description: "Reset your Electro account password.",
-};
+export async function generateMetadata() {
+  const res = await getSiteSettings();
+  const siteName = res?.data?.siteName || "Sparq";
+
+  return {
+    title: "Forgot Password",
+    description: `Reset your ${siteName} account password.`,
+  };
+}
 
 export default function ForgotPasswordPage() {
   return <ForgotPasswordForm />;

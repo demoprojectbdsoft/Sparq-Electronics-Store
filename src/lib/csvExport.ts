@@ -1,5 +1,5 @@
 /**
- * CSV Export Utility for Electro Dashboard Overview Pages
+ * CSV Export Utility for Dashboard Overview Pages
  * 
  * This module handles data transformation, sanitization, and export to CSV format.
  * Features:
@@ -175,7 +175,7 @@ export interface AdminOverviewExportData {
  * 11. Top Performing Products & Profitability Matrix
  * 12. Recent Store Orders Table
  */
-export function exportAdminOverviewCsv(data: AdminOverviewExportData): void {
+export function exportAdminOverviewCsv(data: AdminOverviewExportData, siteName = "Sparq"): void {
   const dateStr = new Date().toISOString().split("T")[0];
   const timestamp = new Date().toLocaleString("en-US", {
     dateStyle: "full",
@@ -185,7 +185,7 @@ export function exportAdminOverviewCsv(data: AdminOverviewExportData): void {
   const rows: (string | number | boolean | null | undefined)[][] = [];
 
   // ── SECTION 1: HEADER & METADATA ──
-  rows.push(["ELECTRO E-COMMERCE - ADMIN OVERVIEW & STORE ANALYTICS REPORT"]);
+  rows.push([`${siteName.toUpperCase()} E-COMMERCE - ADMIN OVERVIEW & STORE ANALYTICS REPORT`]);
   rows.push(["Generated On", timestamp]);
   rows.push(["Data Scope", "Live Real-Time Store Performance & Financial Summary"]);
   rows.push([]); // Blank separator row
@@ -385,7 +385,7 @@ export function exportAdminOverviewCsv(data: AdminOverviewExportData): void {
 
   // Build CSV and initiate download
   const csvText = buildCsvString(rows);
-  triggerCsvDownload(csvText, `electro_admin_overview_${dateStr}.csv`);
+  triggerCsvDownload(csvText, `${siteName.toLowerCase()}_admin_overview_${dateStr}.csv`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -471,7 +471,7 @@ export interface CustomerOverviewExportData {
  * 9. Wishlist Saved Products List
  * 10. Settlement & Transaction History Table
  */
-export function exportCustomerOverviewCsv(data: CustomerOverviewExportData): void {
+export function exportCustomerOverviewCsv(data: CustomerOverviewExportData, siteName = "Sparq"): void {
   const dateStr = new Date().toISOString().split("T")[0];
   const timestamp = new Date().toLocaleString("en-US", {
     dateStyle: "full",
@@ -481,7 +481,7 @@ export function exportCustomerOverviewCsv(data: CustomerOverviewExportData): voi
   const rows: (string | number | boolean | null | undefined)[][] = [];
 
   // ── SECTION 1: HEADER & PROFILE METADATA ──
-  rows.push(["ELECTRO E-COMMERCE - CUSTOMER OVERVIEW & SHOPPING REPORT"]);
+  rows.push([`${siteName.toUpperCase()} E-COMMERCE - CUSTOMER OVERVIEW & SHOPPING REPORT`]);
   rows.push(["Account Owner", data.userName || "Customer"]);
   rows.push(["Membership Tier", data.membershipTier || "Standard Member"]);
   rows.push(["Reward Points Balance", data.rewardPoints ?? 0]);
@@ -648,13 +648,13 @@ export interface TopSellingExportData {
 /**
  * Exports Most Selling & Most Earning Products CSV report across all 4 periods.
  */
-export function exportTopSellingCsv(data: TopSellingExportData): void {
+export function exportTopSellingCsv(data: TopSellingExportData, siteName = "Sparq"): void {
   const dateStr = new Date().toISOString().split("T")[0];
   const timestamp = new Date().toLocaleString("en-US", { dateStyle: "full", timeStyle: "medium" });
 
   const rows: (string | number | boolean | null | undefined)[][] = [];
 
-  rows.push(["SPARQ – MOST SELLING & MOST EARNING PRODUCTS REPORT"]);
+  rows.push([`${siteName.toUpperCase()} – MOST SELLING & MOST EARNING PRODUCTS REPORT`]);
   rows.push(["Generated On", timestamp]);
   rows.push(["Active Period", data.period.toUpperCase()]);
   rows.push(["Sort Metric", data.metric === "units" ? "Units Sold" : "Total Earnings"]);
@@ -693,5 +693,5 @@ export function exportTopSellingCsv(data: TopSellingExportData): void {
   writeSection("YEARLY – Last 365 Days", data.yearly);
 
   const csvText = buildCsvString(rows);
-  triggerCsvDownload(csvText, `Sparq_Top_Selling_Products_${dateStr}.csv`);
+  triggerCsvDownload(csvText, `${siteName.replace(/\s+/g, "_")}_Top_Selling_Products_${dateStr}.csv`);
 }

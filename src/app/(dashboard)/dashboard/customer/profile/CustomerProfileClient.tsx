@@ -43,6 +43,7 @@ export default function CustomerProfileClient({
   const { data: session } = authClient.useSession();
   const { settings, formatPrice } = useSiteSettings();
   const supportEmail = settings.supportEmail || "support@sparq.com";
+  const siteName = settings.siteName || "Sparq";
   const sessionUser = session?.user as { id?: string } | undefined;
 
   // Fetch live DB data on mount to get up-to-date member/points
@@ -434,7 +435,7 @@ export default function CustomerProfileClient({
                 <div className="flex items-center gap-2">
                   <Coins className="w-4 h-4 text-amber-500" />
                   <span className="text-xs font-bold text-[var(--foreground)]">
-                    Electro Reward Points
+                    {siteName} Reward Points
                   </span>
                 </div>
                 <span className="text-sm font-black text-amber-600 dark:text-amber-400">

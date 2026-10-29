@@ -1,6 +1,6 @@
 import { serverFetch } from "../core/server";
+import { withQuery } from "../core/query";
 
 export const getSubCategories = async (categoryId?: string) => {
-  const query = categoryId ? `?categoryId=${categoryId}` : "";
-  return serverFetch(`/subcategories${query}`);
+  return serverFetch(withQuery("/subcategories", { categoryId }));
 };

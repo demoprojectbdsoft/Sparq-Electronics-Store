@@ -3,7 +3,7 @@ import CustomerOrdersClient from "./CustomerOrdersClient";
 import { CustomerOrder, CustomerOrderItem, CustomerWarranty } from "@/types/customerDashboard";
 import { getUserSession } from "@/lib/core/session";
 import { getOrdersByUserId } from "@/lib/api/orders";
-import { getWarranties } from "@/lib/api/warranty";
+import { getMyWarranties } from "@/lib/api/warranty";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -78,6 +78,8 @@ function normalizeCustomerWarranty(w: any): CustomerWarranty {
       image: w?.productId?.image,
       price: w?.productId?.price,
       warrantyPeriodMonths: w?.productId?.warrantyPeriodMonths,
+      warrantyType: w?.productId?.warrantyType,
+      warrantyTerms: w?.productId?.warrantyTerms,
     },
     order: {
       id: orderId,
@@ -181,26 +183,36 @@ export default async function CustomerOrdersPage() {
         ? res
         : [];
 
-      // Fetch all warranties for this user so we can attach them to order items
-      let warrantyByProduct: Record<string, CustomerWarranty> = {};
+      // Fetch every warranty belonging to this user. `/warranties/mine` scopes
+      // the query by the caller's token, unlike the admin-only list endpoint.
+      // Paged because the API caps `limit` at 100.
+      const warrantyByOrderProduct: Record<string, CustomerWarranty> = {};
       try {
-        const wRes = await getWarranties({ userId: user.id, limit: 1000 });
-        const rawWarranties: any[] = Array.isArray(wRes?.data?.warranties)
-          ? wRes.data.warranties
-          : Array.isArray(wRes?.data)
-          ? wRes.data
-          : Array.isArray(wRes)
-          ? wRes
-          : [];
-        for (const w of rawWarranties) {
-          const pid = w?.productId?._id?.toString?.() || w?.productId?.id?.toString?.() || w?.productId?.toString?.();
-          if (pid) warrantyByProduct[pid] = normalizeCustomerWarranty(w);
+        const PAGE_SIZE = 100;
+        const MAX_PAGES = 10;
+        for (let page = 1; page <= MAX_PAGES; page++) {
+          const wRes = await getMyWarranties({ limit: PAGE_SIZE, page });
+          const rawWarranties: any[] = Array.isArray(wRes?.data?.warranties)
+            ? wRes.data.warranties
+            : [];
+          for (const w of rawWarranties) {
+            const warranty = normalizeCustomerWarranty(w);
+            // Keyed by order + product: the same product bought on two orders
+            // must never share a single warranty record.
+            if (warranty.orderId && warranty.productId) {
+              warrantyByOrderProduct[`${warranty.orderId}:${warranty.productId}`] = warranty;
+            }
+          }
+          const totalPages = Number(wRes?.data?.pagination?.totalPages ?? 1);
+          if (rawWarranties.length < PAGE_SIZE || page >= totalPages) break;
         }
       } catch (err) {
         console.error("Failed to fetch warranties:", err);
       }
 
       orders = rawOrders.map((order: any): CustomerOrder => {
+        const orderIdStr: string = order._id?.toString() || order.id || "";
+
         const items: CustomerOrderItem[] = (order.items || []).map(
           (item: any, idx: number) => {
             const prod =
@@ -243,12 +255,11 @@ export default async function CustomerOrdersPage() {
               quantity: item.quantity ?? 1,
               inStock,
               stockQuantity: prod?.stockQuantity,
-              warranty: prodId ? warrantyByProduct[prodId] : undefined,
+              warranty: prodId ? warrantyByOrderProduct[`${orderIdStr}:${prodId}`] : undefined,
             };
           }
         );
 
-        const orderIdStr: string = order._id?.toString() || order.id || "";
         const shortId = orderIdStr.slice(-6).toUpperCase();
 
         const shippingAddr =

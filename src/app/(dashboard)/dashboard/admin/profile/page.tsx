@@ -8,7 +8,7 @@ const INITIAL_ADMIN_PROFILE: AdminProfileData = {
   name: "System Administrator",
   firstName: "System",
   lastName: "Administrator",
-  email: "admin@electro.com",
+  email: "admin@sparq.com",
   phone: "",
   avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80",
   role: "Administrator",

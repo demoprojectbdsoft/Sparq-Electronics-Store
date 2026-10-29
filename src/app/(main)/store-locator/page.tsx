@@ -20,7 +20,7 @@ import { useSiteSettings } from "@/context/SiteSettingsContext";
 const STORES_DATA: StoreLocation[] = [
   {
     id: "london-flagship",
-    name: "Electro Flagship Store",
+    name: "Flagship Store",
     address: "17 Princess Road, Regent's Park",
     city: "London",
     state: "Greater London",
@@ -35,7 +35,7 @@ const STORES_DATA: StoreLocation[] = [
   },
   {
     id: "oxford-street",
-    name: "Electro Oxford Street",
+    name: "Oxford Street",
     address: "221 Oxford Street",
     city: "London",
     state: "Greater London",
@@ -50,7 +50,7 @@ const STORES_DATA: StoreLocation[] = [
   },
   {
     id: "westfield-stratford",
-    name: "Electro Westfield Stratford",
+    name: "Westfield Stratford",
     address: "Montfichet Road, Olympic Park",
     city: "London",
     state: "Greater London",
@@ -65,7 +65,7 @@ const STORES_DATA: StoreLocation[] = [
   },
   {
     id: "manchester-arndale",
-    name: "Electro Manchester Arndale",
+    name: "Manchester Arndale",
     address: "Exchange Court, Market Street",
     city: "Manchester",
     state: "Greater Manchester",
@@ -86,16 +86,23 @@ export default function StoreLocatorPage() {
   const mainAddress = settings.address || "17 Princess Road, London, Greater London NW1 8JR, UK";
   const mainPhone = settings.supportPhone || "(800) 8001-8588";
 
-  const allStores = useMemo<StoreLocation[]>(() => [
-    {
-      ...STORES_DATA[0],
-      name: `${siteName} Flagship Store`,
+  // Store names are stored as branches only; the brand prefix comes from settings
+  // so a rename in the admin panel flows through every outlet automatically.
+  const allStores = useMemo<StoreLocation[]>(() => {
+    const named = STORES_DATA.map((store) => ({
+      ...store,
+      name: `${siteName} ${store.name}`,
+    }));
+
+    named[0] = {
+      ...named[0],
       address: mainAddress,
       phone: mainPhone,
-      hours: settings.openingHours || STORES_DATA[0].hours,
-    },
-    ...STORES_DATA.slice(1),
-  ], [siteName, mainAddress, mainPhone, settings.openingHours]);
+      hours: settings.openingHours || named[0].hours,
+    };
+
+    return named;
+  }, [siteName, mainAddress, mainPhone, settings.openingHours]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStoreId, setSelectedStoreId] = useState<string>(allStores[0].id);
@@ -131,7 +138,7 @@ export default function StoreLocatorPage() {
             Store <span className="text-gradient-primary">Locator</span>
           </h1>
           <p className="text-sm md:text-base text-[var(--foreground-muted)]">
-            Find an Electro retail outlet near you to experience the latest gadgets, pick up online orders, or get instant technical support.
+            Find a {siteName} retail outlet near you to experience the latest gadgets, pick up online orders, or get instant technical support.
           </p>
         </div>
 

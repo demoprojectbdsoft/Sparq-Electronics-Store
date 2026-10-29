@@ -177,6 +177,7 @@ export default function CustomerSettingsClient({
 }: CustomerSettingsClientProps) {
   const [activeTab, setActiveTab] = useState("preferences");
   const { settings: siteSettings, updateSettings } = useSiteSettings();
+  const siteName = siteSettings.siteName || "Sparq";
 
   // Preferences State — currency defaults to site-wide currency from backend
   const [currency, setCurrency] = useState(
@@ -311,7 +312,8 @@ export default function CustomerSettingsClient({
   const handleExportData = () => {
     toast.success("Preparing your account data archive (orders, profile, preferences)...");
     setTimeout(() => {
-      toast.info("Account data downloaded: electro_user_data.json");
+      const slug = siteName.toLowerCase().replace(/\s+/g, "-");
+      toast.info(`Account data downloaded: ${slug}_user_data.json`);
     }, 1200);
   };
 
@@ -548,7 +550,7 @@ export default function CustomerSettingsClient({
                 <div className="p-4 rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] flex items-center justify-between">
                   <div>
                     <p className="font-bold text-[var(--foreground)]">
-                      Electro Weekly Tech Digest &amp; Security Alerts
+                      {siteName} Weekly Tech Digest &amp; Security Alerts
                     </p>
                     <p className="text-[var(--foreground-muted)] mt-0.5">
                       Curated hardware reviews and important account safety notifications.
@@ -738,7 +740,7 @@ export default function CustomerSettingsClient({
                     Active Login Sessions
                   </h3>
                   <p className="text-xs text-[var(--foreground-muted)]">
-                    Devices currently signed into your Electro customer account.
+                    Devices currently signed into your {siteName} customer account.
                   </p>
                 </div>
 

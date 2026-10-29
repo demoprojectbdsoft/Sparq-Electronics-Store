@@ -1,4 +1,5 @@
 import { serverFetch } from "../core/server";
+import { withQuery } from "../core/query";
 
 /**
  * Read-only warranty API helpers. Mutations live in `@/lib/action/warranty`.
@@ -7,19 +8,11 @@ import { serverFetch } from "../core/server";
 export const getWarranties = async (
   params?: Record<string, string | number | boolean | undefined>
 ) => {
-  const query = new URLSearchParams();
-  if (params) {
-    Object.entries(params).forEach(([key, value]) => {
-      if (value !== undefined && value !== null && value !== "") {
-        query.set(key, String(value));
-      }
-    });
-  }
-  return serverFetch(`/warranties?${query.toString()}`, true);
+  return serverFetch(withQuery("/warranties", params), true);
 };
 
-export const getMyWarranties = async () => {
-  return serverFetch(`/warranties/mine`, true);
+export const getMyWarranties = async (params?: { page?: number; limit?: number }) => {
+  return serverFetch(withQuery("/warranties/mine", params), true);
 };
 
 /**

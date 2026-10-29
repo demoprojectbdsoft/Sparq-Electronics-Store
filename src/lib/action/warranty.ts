@@ -2,6 +2,7 @@
 
 import { serverMutation } from "../core/server";
 import { getUserSession } from "../core/session";
+import { isAdminRole } from "../core/roles";
 
 /**
  * Customer: submit a warranty claim for one of their own warranties.
@@ -31,8 +32,7 @@ export const adminUpdateClaim = async (
   }
 ) => {
   const user = await getUserSession();
-  const role = ((user as { role?: string })?.role || "").toLowerCase();
-  if (role !== "admin" && role !== "demoadmin") {
+  if (!isAdminRole(user)) {
     return { success: false, message: "Admin access required." };
   }
   return serverMutation(`/warranties/claim/${warrantyId}`, data, "PATCH");

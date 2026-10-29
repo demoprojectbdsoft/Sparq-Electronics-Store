@@ -235,7 +235,7 @@ export default function ProductDetailsPage({
     const currentUrl = typeof window !== "undefined" ? window.location.href : "";
     const shareData = {
       title: product.title,
-      text: `Check out ${product.title} on Electro!`,
+      text: `Check out ${product.title} on ${settings.siteName || "Sparq"}!`,
       url: currentUrl,
     };
 

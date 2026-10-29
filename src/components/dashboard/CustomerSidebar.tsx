@@ -21,13 +21,13 @@ import {
 import { authClient } from "@/lib/auth-client";
 import { toast } from "react-toastify";
 import SparqLogo from "@/components/shared/SparqLogo";
+import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 const CUSTOMER_NAV_ITEMS = [
   { name: "Overview", href: "/dashboard/customer", icon: LayoutDashboard },
   { name: "Wishlist", href: "/dashboard/customer/wishlist", icon: Heart },
   { name: "My Orders", href: "/dashboard/customer/orders", icon: ShoppingBag },
   { name: "My Reviews", href: "/dashboard/customer/reviews", icon: Star },
-  { name: "Warranties", href: "/dashboard/customer/warranties", icon: ShieldCheck },
   { name: "Transactions", href: "/dashboard/customer/transactions", icon: CreditCard },
 ];
 
@@ -62,6 +62,8 @@ export default function CustomerSidebar({ isOpen, onClose }: CustomerSidebarProp
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = authClient.useSession();
+  const { settings } = useSiteSettings();
+  const siteName = settings.siteName || "Sparq";
 
   // Session-level user for identity (name, email, id)
   const sessionUser = session?.user as {
@@ -228,7 +230,7 @@ export default function CustomerSidebar({ isOpen, onClose }: CustomerSidebarProp
                   {memberTier}
                 </p>
                 <p className="text-[10px] text-[var(--brand-flat)] font-semibold mt-1">
-                  {userPoints} Sparq Pts
+                  {userPoints} {siteName} Pts
                 </p>
               </div>
             </div>

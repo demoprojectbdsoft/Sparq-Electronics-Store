@@ -118,7 +118,7 @@ export default function CustomerOverviewClient({
   const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<CustomerOrder | null>(null);
   const [activeSpendingView, setActiveSpendingView] = useState<"both" | "spending" | "orders">("both");
   const [showSuspendedAlert, setShowSuspendedAlert] = useState(false);
-  const { formatPrice, currencySymbol } = useSiteSettings();
+  const { settings, formatPrice, currencySymbol } = useSiteSettings();
 
   const router = useRouter();
   const { data: session } = authClient.useSession();
@@ -204,7 +204,7 @@ export default function CustomerOverviewClient({
         recentOrders,
         wishlistItems: wishlist,
         recentTransactions,
-      });
+      }, settings.siteName);
 
       toast.success("Customer Overview CSV report exported successfully!");
     } catch (error) {

@@ -18,6 +18,7 @@ import MobileCategories from "./MobileCategories";
 import { ThemeSwitch } from "./Switcher";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "react-toastify";
+import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 const PAGE_LINKS = [
   { label: "About Us", href: "/about", icon: Info, color: "text-primary" },
@@ -37,6 +38,8 @@ export default function MobileMenuContent({
   onClose,
 }: MobileMenuContentProps) {
   const router = useRouter();
+  const { settings } = useSiteSettings();
+  const siteName = settings.siteName || "Sparq";
 
   const { data: session } = authClient.useSession();
   const user = session?.user;
@@ -139,7 +142,7 @@ export default function MobileMenuContent({
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-bold text-[var(--foreground)] truncate">
-                  Welcome to Sparq
+                  Welcome to {siteName}
                 </p>
                 <p className="text-[10px] text-[var(--foreground-muted)] truncate">
                   Sign in to access your orders

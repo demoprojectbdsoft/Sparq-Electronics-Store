@@ -8,6 +8,8 @@ let cachedMongoClient: MongoClient | null = null;
 
 async function getMongoSettings() {
   const uri = process.env.MONGODB_URI;
+  // The Atlas database is still physically named `electro`; renaming it here
+  // without migrating the data would silently point at an empty database.
   const dbName = process.env.DATABASE || "electro";
   if (!uri) return null;
 

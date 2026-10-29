@@ -2,20 +2,16 @@
 
 import { serverFetch, serverMutation } from "../core/server";
 import { getUserSession } from "../core/session";
+import { adminBlockedResult } from "../core/roles";
+import { withQuery } from "../core/query";
 
 export const addToWishlist = async (productId: string) => {
   const user = await getUserSession();
   if (!user?.id) return null;
-  const role = ((user as { role?: string })?.role || "").toLowerCase();
-  if (role === "admin" || role === "demoadmin") {
-    return {
-      success: false,
-      message:
-        role === "demoadmin"
-          ? "Demo admin cannot add products to wishlist!"
-          : "Admin cannot add products to wishlist!",
-    };
-  }
+
+  const blocked = adminBlockedResult(user, "add products to wishlist");
+  if (blocked) return blocked;
+
   return serverMutation("/wishlist", { userId: user.id, productId });
 };
 
@@ -28,6 +24,6 @@ export const removeFromWishlist = async (productId: string) => {
 export const isWishlisted = async (productId: string) => {
   const user = await getUserSession();
   if (!user?.id) return { isWishlisted: false };
-  const res = await serverFetch(`/wishlist/is-wishlisted?userId=${user.id}&productId=${productId}`, true);
+  const res = await serverFetch(withQuery("/wishlist/is-wishlisted", { userId: user.id, productId }), true);
   return res?.data || { isWishlisted: false };
 };

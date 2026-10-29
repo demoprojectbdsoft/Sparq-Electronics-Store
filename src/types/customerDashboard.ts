@@ -114,6 +114,8 @@ export interface CustomerWarranty {
     image?: string;
     price?: number;
     warrantyPeriodMonths?: number;
+    warrantyType?: string;
+    warrantyTerms?: string;
   };
   order?: {
     id?: string;

@@ -1252,7 +1252,7 @@ export default function CheckoutClient({
                     {currentPaymentOption.name} Gateway
                   </h3>
                   <p className="text-[10px] text-white/80 font-medium">
-                    Electro E-Commerce
+                    {settings.siteName || "Sparq"} E-Commerce
                   </p>
                 </div>
               </div>

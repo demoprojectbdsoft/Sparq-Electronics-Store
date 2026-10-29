@@ -101,7 +101,7 @@ export default function OverviewClient({
   yearlyProfitData,
   topSellingByPeriod,
 }: OverviewClientProps) {
-  const { currencySymbol, formatPrice } = useSiteSettings();
+  const { settings, currencySymbol, formatPrice } = useSiteSettings();
   const [revenueMetric, setRevenueMetric] = useState<"both" | "revenue" | "orders">("both");
   const [profitTimeframe, setProfitTimeframe] = useState<"daily" | "weekly" | "monthly" | "yearly">("monthly");
   const [sellingPeriod, setSellingPeriod] = useState<"daily" | "weekly" | "monthly" | "yearly">("monthly");
@@ -145,7 +145,7 @@ export default function OverviewClient({
         paymentMethodData,
         topProducts,
         recentOrders,
-      });
+      }, settings.siteName);
 
       toast.success("Admin Overview CSV report exported successfully!");
     } catch (error) {
@@ -944,7 +944,7 @@ export default function OverviewClient({
                   weekly: topSellingByPeriod.weekly,
                   monthly: topSellingByPeriod.monthly,
                   yearly: topSellingByPeriod.yearly,
-                });
+                }, settings.siteName);
                 toast.success("CSV exported successfully!");
               } catch {
                 toast.error("Failed to export CSV.");

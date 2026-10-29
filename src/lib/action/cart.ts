@@ -2,20 +2,16 @@
 
 import { serverMutation, serverFetch } from "../core/server";
 import { getUserSession } from "../core/session";
+import { adminBlockedResult } from "../core/roles";
+import { withQuery } from "../core/query";
 
 export const addToCart = async (productId: string, quantity = 1) => {
   const user = await getUserSession();
   if (!user?.id) return { success: false, message: "Please log in to add items to your cart" };
-  const role = ((user as { role?: string })?.role || "").toLowerCase();
-  if (role === "admin" || role === "demoadmin") {
-    return {
-      success: false,
-      message:
-        role === "demoadmin"
-          ? "Demo admin cannot add products to cart!"
-          : "Admin cannot add products to cart!",
-    };
-  }
+
+  const blocked = adminBlockedResult(user, "add products to cart");
+  if (blocked) return blocked;
+
   return serverMutation("/cart", { userId: user.id, productId, quantity });
 };
 
@@ -40,7 +36,7 @@ export const clearCart = async () => {
 export const isCarted = async (productId: string) => {
   const user = await getUserSession();
   if (!user?.id) return { isCarted: false, isInCart: false };
-  const res = await serverFetch(`/cart/is-carted?userId=${user.id}&productId=${productId}`, true);
+  const res = await serverFetch(withQuery("/cart/is-carted", { userId: user.id, productId }), true);
   return res?.data || { isCarted: false, isInCart: false };
 };
 

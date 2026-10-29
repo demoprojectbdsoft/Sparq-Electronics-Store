@@ -46,6 +46,12 @@ export default function CartClient({ initialCart, user: initialUser }: CartClien
   const dynamicStandardCost = settings.shipping?.standardDeliveryFee ?? STANDARD_SHIPPING_COST;
   const isFreeShippingGloballyEnabled = settings.shipping?.freeShippingEnabled !== false;
 
+  // Show-only promo codes are derived from the configured brand, so renaming the
+  // store in settings can never leave a stale code in the UI.
+  const siteCode = (settings.siteName || "Sparq").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const promoCode10 = `${siteCode}10`;
+  const promoCode20 = `${siteCode}20`;
+
   const [cart, setCart] = useState<CartData | null>(initialCart || null);
   const [isLoading, setIsLoading] = useState<boolean>(!initialCart && Boolean(user?.id));
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
@@ -267,11 +273,11 @@ export default function CartClient({ initialCart, user: initialUser }: CartClien
 
     setIsApplyingCoupon(true);
     setTimeout(() => {
-      if (code === "ELECTRO10") {
+      if (code === promoCode10) {
         setAppliedCoupon({ code, discountPercent: 10 });
         toast.success("Promo code applied! 10% discount added.");
         setCouponCode("");
-      } else if (code === "ELECTRO20") {
+      } else if (code === promoCode20) {
         setAppliedCoupon({ code, discountPercent: 20 });
         toast.success("Promo code applied! 20% discount added.");
         setCouponCode("");
@@ -284,7 +290,7 @@ export default function CartClient({ initialCart, user: initialUser }: CartClien
         toast.success("Promo code applied! Free shipping unlocked.");
         setCouponCode("");
       } else {
-        setCouponError("Invalid or expired coupon code. Try 'ELECTRO10' or 'SAVE15'");
+        setCouponError(`Invalid or expired coupon code. Try '${promoCode10}' or 'SAVE15'`);
       }
       setIsApplyingCoupon(false);
     }, 400);
@@ -877,7 +883,7 @@ export default function CartClient({ initialCart, user: initialUser }: CartClien
                           setCouponCode(e.target.value);
                           setCouponError(null);
                         }}
-                        placeholder="Enter promo code (e.g. ELECTRO10, SAVE15)"
+                        placeholder={`Enter promo code (e.g. ${promoCode10}, SAVE15)`}
                         className="w-full h-11 px-4 text-xs font-medium rounded-xl bg-[var(--surface-alt)] border border-[var(--border-color)] text-[var(--foreground)] placeholder-[var(--foreground-muted)] focus:outline-hidden focus:border-primary focus:ring-2 focus:ring-primary/20 uppercase"
                       />
                     </div>
@@ -902,10 +908,10 @@ export default function CartClient({ initialCart, user: initialUser }: CartClien
                   <span>Available sample codes:</span>
                   <button
                     type="button"
-                    onClick={() => setCouponCode("ELECTRO10")}
+                    onClick={() => setCouponCode(promoCode10)}
                     className="font-mono px-2 py-0.5 rounded bg-[var(--surface-alt)] hover:bg-primary/10 text-primary border border-[var(--border-color)] cursor-pointer font-bold transition-colors"
                   >
-                    ELECTRO10 (-10%)
+                    {promoCode10} (-10%)
                   </button>
                   <button
                     type="button"

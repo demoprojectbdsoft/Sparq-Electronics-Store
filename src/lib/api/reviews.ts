@@ -1,13 +1,15 @@
 import { serverFetch } from "../core/server"
+import { withQuery } from "../core/query"
 
-export const getReviewsByProductId = async(productId : string) =>{
-    return serverFetch(`/reviews?productId=${productId}`);
+export const getReviewsByProductId = async (productId: string) => {
+  return serverFetch(withQuery("/reviews", { productId }));
 }
 
-export const getReviewsByUserId = async(userId : string) =>{
-    return serverFetch(`/reviews?userId=${userId}`);
+export const getReviewsByUserId = async (userId: string) => {
+  return serverFetch(withQuery("/reviews", { userId }));
 }
 
+/** Admin listing — accepts a pre-built query string from the dashboard. */
 export const getAllReviews = async (query?: string) => {
   return serverFetch(`/reviews${query ? `?${query}` : ""}`, true);
 };

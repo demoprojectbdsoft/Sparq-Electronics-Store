@@ -22,7 +22,7 @@ export interface RealCustomerProfile {
 const DEFAULT_PROFILE: RealCustomerProfile = {
   id: "",
   name: "Valued Customer",
-  email: "customer@electro.com",
+  email: "customer@sparq.com",
   emailVerified: true,
   image: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80",
   role: "customer",

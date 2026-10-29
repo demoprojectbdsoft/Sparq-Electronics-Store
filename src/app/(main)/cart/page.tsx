@@ -5,7 +5,8 @@ import { getUserSession } from "@/lib/core/session";
 import { CartData } from "@/types";
 
 export const metadata = {
-  title: "Shopping Cart | Electro",
+  // The root layout appends "| <siteName>" from settings.
+  title: "Shopping Cart",
   description:
     "View and manage items in your shopping cart, calculate shipping, apply coupons, and proceed to checkout.",
 };

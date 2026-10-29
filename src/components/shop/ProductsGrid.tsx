@@ -35,8 +35,8 @@ export default function ProductsGrid({ products, pagination }: ProductsGridProps
     if (urlMode === "scroll" || urlMode === "pagination") {
       setMode(urlMode);
     } else {
-      const customerPreference = localStorage.getItem("electro_customer_browse_mode");
-      const savedMode = localStorage.getItem("electro_shop_mode");
+      const customerPreference = localStorage.getItem("sparq_customer_browse_mode");
+      const savedMode = localStorage.getItem("sparq_shop_mode");
       if (customerPreference && customerPreference !== "default") {
         setMode(customerPreference as "pagination" | "scroll");
       } else if (savedMode === "scroll" || savedMode === "pagination") {
@@ -52,7 +52,7 @@ export default function ProductsGrid({ products, pagination }: ProductsGridProps
     if (newMode === mode) return;
     setMode(newMode);
     try {
-      localStorage.setItem("electro_shop_mode", newMode);
+      localStorage.setItem("sparq_shop_mode", newMode);
     } catch {
       // ignore
     }

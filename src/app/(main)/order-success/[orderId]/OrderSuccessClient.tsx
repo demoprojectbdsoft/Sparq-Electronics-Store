@@ -62,7 +62,8 @@ export default function OrderSuccessClient({
   orderId,
   initialOrder,
 }: OrderSuccessClientProps) {
-  const { formatPrice } = useSiteSettings();
+  const { settings, formatPrice } = useSiteSettings();
+  const siteName = settings.siteName || "Sparq";
   const [order, setOrder] = useState<Order | null>(initialOrder || null);
   const [isCopiedId, setIsCopiedId] = useState<boolean>(false);
   const [isCopiedTrx, setIsCopiedTrx] = useState<boolean>(false);
@@ -144,7 +145,7 @@ export default function OrderSuccessClient({
         <head>
           <meta charset="utf-8" />
           <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-          <title>Electro-Receipt-${orderId}</title>
+          <title>${siteName}-Receipt-${orderId}</title>
           ${stylesheets}
           <style>
             @page {
@@ -360,7 +361,7 @@ export default function OrderSuccessClient({
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="text-2xl font-black tracking-tight text-gradient-primary">
-                      ELECTRO
+                      {siteName.toUpperCase()}
                     </span>
                     <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-primary/10 text-primary tracking-wider uppercase border border-primary/20">
                       Tax Invoice
@@ -649,7 +650,7 @@ export default function OrderSuccessClient({
 
                 <div className="flex items-center gap-2 text-[10px] text-[var(--foreground-muted)] font-mono text-center">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                  <span>OFFICIAL ELECTRO VERIFIED DIGITAL RECEIPT • #{orderId}</span>
+                  <span>OFFICIAL {siteName.toUpperCase()} VERIFIED DIGITAL RECEIPT • #{orderId}</span>
                 </div>
               </div>
             </div>
