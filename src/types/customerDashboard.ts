@@ -107,6 +107,8 @@ export interface CustomerWarranty {
     | "under_review"
     | "info_requested"
     | "resolved";
+  /** What went wrong, picked from the claim form. */
+  claimProblem?: string;
   claimReason?: string;
   claimDescription?: string;
   claimImages?: string[];

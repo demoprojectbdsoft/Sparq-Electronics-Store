@@ -8,6 +8,8 @@ import {
   Button,
   Input,
   Modal,
+  Select,
+  ListBox,
   TextArea,
 } from "@heroui/react";
 import {
@@ -43,6 +45,12 @@ import { submitWarrantyClaim } from "@/lib/action/warranty";
 import { downloadOrderInvoicePdf } from "@/lib/orderInvoicePdf";
 import OrderStatusBadge from "@/components/shared/OrderStatusBadge";
 import { formatOrderDateTime } from "@/lib/dateTime";
+import {
+  CLAIM_PROBLEM_OPTIONS,
+  claimProblemLabel,
+  formatWarrantyDuration,
+  warrantyTypeLabel,
+} from "@/lib/warranty";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 const STATUS_TABS = ["All Orders", "Confirmed", "Processing", "Shipped", "Delivered", "Cancelled"];
@@ -173,18 +181,6 @@ function warrantyBlockReason(warranty: CustomerWarranty): string {
   }
 }
 
-/** Human label for the coverage type configured on the product. */
-function warrantyTypeLabel(type?: string): string {
-  switch (type) {
-    case "manufacturer-warranty": return "Manufacturer";
-    case "seller-warranty":       return "Seller";
-    case "extended-warranty":     return "Extended";
-    case "other":                 return "Other";
-    case "none":                  return "None";
-    default:                      return type || "—";
-  }
-}
-
 /** One cell in the warranty detail grid. */
 function WarrantyDetail({ label, value }: { label: string; value: string }) {
   return (
@@ -239,6 +235,8 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
   const [selectedWarrantyItem, setSelectedWarrantyItem] = useState<CustomerOrderItem | null>(null);
   const [selectedWarrantyOrderNumber, setSelectedWarrantyOrderNumber] = useState("");
   const [isWarrantyModalOpen, setIsWarrantyModalOpen] = useState(false);
+  // Code from CLAIM_PROBLEM_OPTIONS — what actually went wrong.
+  const [claimProblem, setClaimProblem] = useState<string>("");
   const [claimReason, setClaimReason] = useState("");
   const [claimDescription, setClaimDescription] = useState("");
   const [claimImages, setClaimImages] = useState<string[]>([]);
@@ -254,6 +252,7 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
     setSelectedWarranty(warranty);
     setSelectedWarrantyItem(item);
     setSelectedWarrantyOrderNumber(orderNumber);
+    setClaimProblem("");
     setClaimReason("");
     setClaimDescription("");
     setClaimImages([]);
@@ -294,13 +293,19 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
   };
 
   const handleSubmitClaim = async () => {
-    if (!selectedWarranty || !claimReason.trim() || !claimDescription.trim()) {
+    if (!selectedWarranty) return;
+    if (!claimProblem) {
+      toast.warning("Please choose what went wrong with the product.");
+      return;
+    }
+    if (!claimReason.trim() || !claimDescription.trim()) {
       toast.warning("Please provide a reason and description for your claim.");
       return;
     }
     setIsSubmittingClaim(true);
     try {
       const res = await submitWarrantyClaim(selectedWarranty.id, {
+        problem: claimProblem,
         reason: claimReason.trim(),
         description: claimDescription.trim(),
         images: claimImages,
@@ -312,10 +317,12 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
         // Mirror the claim locally so the row and a reopened modal stay accurate
         // without waiting for a round-trip.
         const submitted = {
+          problem: claimProblem,
           reason: claimReason.trim(),
           description: claimDescription.trim(),
           images: claimImages,
         };
+        setClaimProblem("");
         setClaimReason("");
         setClaimDescription("");
         setClaimImages([]);
@@ -325,6 +332,7 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
             ? {
                 ...prev,
                 status: "claim_submitted",
+                claimProblem: submitted.problem,
                 claimReason: submitted.reason,
                 claimDescription: submitted.description,
                 claimImages: submitted.images,
@@ -341,6 +349,7 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
                     warranty: {
                       ...item.warranty,
                       status: "claim_submitted",
+                      claimProblem: submitted.problem,
                       claimReason: submitted.reason,
                       claimDescription: submitted.description,
                       claimImages: submitted.images,
@@ -1288,12 +1297,10 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                     <WarrantyDetail
-                      label="Coverage"
-                      value={
+                      label="Duration"
+                      value={formatWarrantyDuration(
                         selectedWarranty.product?.warrantyPeriodMonths
-                          ? `${selectedWarranty.product.warrantyPeriodMonths} month${selectedWarranty.product.warrantyPeriodMonths === 1 ? "" : "s"}`
-                          : "—"
-                      }
+                      )}
                     />
                     <WarrantyDetail
                       label="Type"
@@ -1309,17 +1316,31 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
                     />
                   </div>
 
-                  {selectedWarranty.product?.warrantyTerms && (
-                    <p className="text-[11px] leading-relaxed text-[var(--foreground-muted)] p-3 rounded-xl bg-[var(--surface-alt)] border border-[var(--border-color)]">
-                      {selectedWarranty.product.warrantyTerms}
+                  <div className="p-3 rounded-xl bg-[var(--surface-alt)] border border-[var(--border-color)] space-y-1">
+                    <p className="text-[10px] font-bold uppercase text-[var(--foreground-muted)]">
+                      Warranty Terms
                     </p>
-                  )}
+                    {/* Shown even when the product has no terms, so the customer
+                        always knows what is covered before claiming. */}
+                    <p className="text-[11px] leading-relaxed text-[var(--foreground-muted)] whitespace-pre-line">
+                      {selectedWarranty.product?.warrantyTerms ||
+                        "Covers manufacturing defects within the warranty period. Keep your order number as proof of purchase."}
+                    </p>
+                  </div>
 
-                  {(selectedWarranty.claimReason || selectedWarranty.claimDescription) && (
+                  {(selectedWarranty.claimProblem ||
+                    selectedWarranty.claimReason ||
+                    selectedWarranty.claimDescription) && (
                     <div className="p-3.5 rounded-2xl bg-[var(--surface-alt)] border border-[var(--border-color)] space-y-2">
                       <p className="text-[10px] font-bold uppercase text-[var(--foreground-muted)]">
                         Your submitted claim
                       </p>
+                      {selectedWarranty.claimProblem && (
+                        <p className="text-xs text-[var(--foreground)]">
+                          <span className="font-semibold">Problem: </span>
+                          {claimProblemLabel(selectedWarranty.claimProblem)}
+                        </p>
+                      )}
                       {selectedWarranty.claimReason && (
                         <p className="text-xs text-[var(--foreground)]">
                           <span className="font-semibold">Reason: </span>
@@ -1379,6 +1400,36 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
 
                   {activeWarrantyClaimable ? (
                     <div className="space-y-4 pt-1">
+                      <div className="flex flex-col gap-1">
+                        <label className="text-xs font-semibold text-[var(--foreground)]">
+                          Problem
+                        </label>
+                        <Select
+                          aria-label="What went wrong with the product"
+                          selectedKey={claimProblem || null}
+                          onSelectionChange={(key) => setClaimProblem(key ? String(key) : "")}
+                          placeholder="What went wrong?"
+                        >
+                          <Select.Trigger className="h-10 w-full px-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] text-xs font-semibold flex items-center justify-between">
+                            <Select.Value />
+                            <Select.Indicator />
+                          </Select.Trigger>
+                          <Select.Popover className="w-full min-w-[240px] p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl">
+                            <ListBox>
+                              {CLAIM_PROBLEM_OPTIONS.map((option) => (
+                                <ListBox.Item
+                                  key={option.value}
+                                  id={option.value}
+                                  textValue={option.label}
+                                  className="text-xs font-medium px-3 py-2 rounded-lg hover:bg-primary/10"
+                                >
+                                  {option.label}
+                                </ListBox.Item>
+                              ))}
+                            </ListBox>
+                          </Select.Popover>
+                        </Select>
+                      </div>
                       <div className="flex flex-col gap-1">
                         <label className="text-xs font-semibold text-[var(--foreground)]">
                           Claim Reason
@@ -1489,6 +1540,7 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
                     isDisabled={
                       isSubmittingClaim ||
                       isUploading ||
+                      !claimProblem ||
                       !claimReason.trim() ||
                       !claimDescription.trim()
                     }

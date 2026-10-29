@@ -59,6 +59,7 @@ function normalizeCustomerWarranty(w: any): CustomerWarranty {
     activationDate: w.activationDate,
     expiryDate: w.expiryDate,
     status: w.status,
+    claimProblem: w.claimProblem,
     claimReason: w.claimReason,
     claimDescription: w.claimDescription,
     claimImages: Array.isArray(w.claimImages) ? w.claimImages : [],
@@ -70,9 +71,12 @@ function normalizeCustomerWarranty(w: any): CustomerWarranty {
       slug: w?.productId?.slug,
       image: w?.productId?.image,
       price: w?.productId?.price,
-      warrantyPeriodMonths: w?.productId?.warrantyPeriodMonths,
-      warrantyType: w?.productId?.warrantyType,
-      warrantyTerms: w?.productId?.warrantyTerms,
+      // The product's current terms win, but the copy saved on the warranty is
+      // used when the product was edited or deleted.
+      warrantyPeriodMonths:
+        w?.productId?.warrantyPeriodMonths ?? w?.warrantyPeriodMonths,
+      warrantyType: w?.productId?.warrantyType ?? w?.warrantyType,
+      warrantyTerms: w?.productId?.warrantyTerms ?? w?.warrantyTerms,
     },
     order: {
       id: orderId,

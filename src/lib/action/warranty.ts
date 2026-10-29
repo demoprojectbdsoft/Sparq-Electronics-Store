@@ -11,7 +11,13 @@ import { isAdminRole } from "../core/roles";
  */
 export const submitWarrantyClaim = async (
   warrantyId: string,
-  data: { reason: string; description: string; images?: string[] }
+  data: {
+    /** Code from CLAIM_PROBLEM_OPTIONS in lib/warranty.ts. */
+    problem: string;
+    reason: string;
+    description: string;
+    images?: string[];
+  }
 ) => {
   const user = await getUserSession();
   if (!user?.id) {

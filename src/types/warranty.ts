@@ -11,6 +11,11 @@ export interface RawWarranty {
   status: "active" | "expired" | "claim_submitted" | "under_review" | "info_requested" | "resolved";
   activationDate?: string | Date;
   expiryDate: string | Date;
+  // Snapshot of the product's warranty terms, taken at delivery.
+  warrantyType?: string;
+  warrantyPeriodMonths?: number;
+  warrantyTerms?: string;
+  claimProblem?: string;
   claimReason?: string;
   claimDescription?: string;
   claimImages?: string[];
@@ -41,6 +46,11 @@ export interface NormalizedWarranty {
     warrantyTerms?: string;
   };
   order?: { id?: string; orderNumber?: string; orderStatus?: string; totalAmount?: number };
+  // Recorded on the warranty itself, so it survives product edits.
+  warrantyType?: string;
+  warrantyPeriodMonths?: number;
+  warrantyTerms?: string;
+  claimProblem?: string;
   claimReason?: string;
   claimDescription?: string;
   claimImages?: string[];
@@ -65,6 +75,12 @@ export interface NormalizedAdminWarranty {
   activationDate?: string | Date;
   expiryDate: string | Date;
   status: "active" | "expired" | "claim_submitted" | "under_review" | "info_requested" | "resolved";
+  // Warranty terms: from the product when it still exists, otherwise the copy
+  // stored on the record.
+  warrantyType?: string;
+  warrantyPeriodMonths?: number;
+  warrantyTerms?: string;
+  claimProblem?: string;
   claimReason?: string;
   claimDescription?: string;
   claimImages?: string[];
