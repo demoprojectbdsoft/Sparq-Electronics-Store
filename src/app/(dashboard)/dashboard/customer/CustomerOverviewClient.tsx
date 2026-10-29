@@ -32,6 +32,7 @@ import {
   Calendar,
   Tag,
   Download,
+  FileText,
   Activity,
   Award,
   Wallet,
@@ -68,6 +69,7 @@ import {
   CustomerTransaction,
 } from "@/types/customerDashboard";
 import { exportCustomerOverviewCsv } from "@/lib/csvExport";
+import { downloadCustomerOverviewPdf } from "@/lib/dashboardPdf";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 export interface CustomerStatCard {
@@ -117,6 +119,7 @@ export default function CustomerOverviewClient({
   const [wishlist, setWishlist] = useState(initialWishlist);
   const [selectedOrderForTracking, setSelectedOrderForTracking] = useState<CustomerOrder | null>(null);
   const [activeSpendingView, setActiveSpendingView] = useState<"both" | "spending" | "orders">("both");
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [showSuspendedAlert, setShowSuspendedAlert] = useState(false);
   const { settings, formatPrice, currencySymbol } = useSiteSettings();
 
@@ -171,45 +174,48 @@ export default function CustomerOverviewClient({
     toast.info("Item removed from wishlist");
   };
 
-  /**
-   * Handles exporting all Customer Overview data:
-   * - Customer Profile (Name, Tier, Reward Points)
-   * - Key Shopping Stat Cards
-   * - Monthly Spending Activity & Order Velocity (Graph 1)
-   * - Category Affinity Distribution (Graph 2)
-   * - Monthly Spending vs Promo Savings (Graph 3)
-   * - Order Delivery Journey & Status (Graph 4)
-   * - Preferred Payment Methods (Graph 5)
-   * - Recent Orders & Purchased Items Table
-   * - Saved Wishlist Items
-   * - Settlements & Transactions Table
-   * 
-   * Formats into a clean, UTF-8 BOM enabled CSV file with robust escaping to prevent data issues.
-   */
+  // One payload feeds both the CSV and the PDF, so the reports can never disagree.
+  const overviewReport = {
+    userName,
+    membershipTier,
+    rewardPoints,
+    stats,
+    spendingData,
+    categoryData,
+    spendingVsSavingsData,
+    orderStatusData,
+    paymentMethodData,
+    recentOrders,
+    wishlistItems: wishlist,
+    recentTransactions,
+  };
+
+  const exportOptions = { siteName: settings.siteName, currency: settings.currency };
+
+  /** Writes every table to a clean CSV file. */
   const handleExportReport = () => {
     try {
       toast.info("Generating your customer account & shopping CSV report...");
-
-      // Execute the CSV export with all live customer data points
-      exportCustomerOverviewCsv({
-        userName,
-        membershipTier,
-        rewardPoints,
-        stats,
-        spendingData,
-        categoryData,
-        spendingVsSavingsData,
-        orderStatusData,
-        paymentMethodData,
-        recentOrders,
-        wishlistItems: wishlist,
-        recentTransactions,
-      }, { siteName: settings.siteName, currency: settings.currency });
-
+      exportCustomerOverviewCsv(overviewReport, exportOptions);
       toast.success("Customer Overview CSV report exported successfully!");
     } catch (error) {
       console.error("Failed to export customer overview CSV:", error);
       toast.error("Failed to export CSV report. Please try again.");
+    }
+  };
+
+  /** The same numbers, drawn as charts, in one PDF. */
+  const handleExportPdf = async () => {
+    setIsExportingPdf(true);
+    toast.info("Building your PDF report with charts...");
+    try {
+      await downloadCustomerOverviewPdf(overviewReport, exportOptions);
+      toast.success("PDF report downloaded!");
+    } catch (error) {
+      console.error("Failed to export customer overview PDF:", error);
+      toast.error("Failed to build the PDF report. Please try again.");
+    } finally {
+      setIsExportingPdf(false);
     }
   };
 
@@ -258,11 +264,20 @@ export default function CustomerOverviewClient({
           </Link> */}
 
           <Button
+            onClick={handleExportPdf}
+            isDisabled={isExportingPdf}
+            className="self-start sm:self-auto bg-[var(--surface-alt)] text-[var(--foreground)] text-xs font-bold transition-all cursor-pointer h-10 px-4 rounded-xl flex items-center gap-2 border border-[var(--border-color)]"
+          >
+            <FileText className="w-4 h-4" />
+            <span>{isExportingPdf ? "Building PDF..." : "Export PDF"}</span>
+          </Button>
+
+          <Button
             onClick={handleExportReport}
             className="self-start sm:self-auto bg-primary hover:bg-primary-hover text-white text-xs font-bold shadow-md shadow-primary/20 transition-all cursor-pointer h-10 px-4 rounded-xl flex items-center gap-2"
           >
             <Download className="w-4 h-4" />
-            <span>Export Report</span>
+            <span>Export CSV</span>
           </Button>
         </div>
       </div>

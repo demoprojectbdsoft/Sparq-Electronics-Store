@@ -19,6 +19,7 @@ import {
   Clock,
   Sparkles,
   Download,
+  FileText,
   Activity,
   ArrowRight,
   Layers,
@@ -59,6 +60,7 @@ import {
   TopSellingPeriodItem,
 } from "@/types/adminDashboard";
 import { exportAdminOverviewCsv, exportTopSellingCsv } from "@/lib/csvExport";
+import { downloadAdminOverviewPdf } from "@/lib/dashboardPdf";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 interface OverviewClientProps {
@@ -106,6 +108,7 @@ export default function OverviewClient({
   const [profitTimeframe, setProfitTimeframe] = useState<"daily" | "weekly" | "monthly" | "yearly">("monthly");
   const [sellingPeriod, setSellingPeriod] = useState<"daily" | "weekly" | "monthly" | "yearly">("monthly");
   const [sellingMetric, setSellingMetric] = useState<"units" | "earnings">("units");
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   const profitChartData = {
     daily: dailyProfitData,
@@ -114,43 +117,48 @@ export default function OverviewClient({
     yearly: yearlyProfitData,
   }[profitTimeframe];
 
-  /**
-   * Handles exporting all Admin Overview data:
-   * - Key Stat Cards & KPIs
-   * - Profit & Loss Performance Analytics (Daily, Weekly, Monthly, Yearly)
-   * - Monthly Revenue & Order Volume (Graph 1)
-   * - Category Share & Catalog Distribution (Graph 2)
-   * - Order Fulfillment Pipeline (Graph 3)
-   * - Payment Gateways & Revenue Flow (Graph 4)
-   * - Top Performing Products & Profitability Matrix
-   * - Recent Store Orders Table
-   * 
-   * Formats into a clean, UTF-8 BOM enabled CSV file with robust escaping.
-   */
+  // One payload feeds both the CSV and the PDF, so the reports can never disagree.
+  const overviewReport = {
+    stats,
+    kpis,
+    dailyProfitData,
+    weeklyProfitData,
+    monthlyProfitData,
+    yearlyProfitData,
+    revenueData,
+    categoryData,
+    orderStatusData,
+    paymentMethodData,
+    topProducts,
+    recentOrders,
+  };
+
+  const exportOptions = { siteName: settings.siteName, currency: settings.currency };
+
+  /** Writes every table to a clean CSV file. */
   const handleExportAnalytics = () => {
     try {
       toast.info("Generating store performance, profit & sales CSV report...");
-      
-      // Execute the CSV export with all live data points, profit breakdowns & store records
-      exportAdminOverviewCsv({
-        stats,
-        kpis,
-        dailyProfitData,
-        weeklyProfitData,
-        monthlyProfitData,
-        yearlyProfitData,
-        revenueData,
-        categoryData,
-        orderStatusData,
-        paymentMethodData,
-        topProducts,
-        recentOrders,
-      }, { siteName: settings.siteName, currency: settings.currency });
-
+      exportAdminOverviewCsv(overviewReport, exportOptions);
       toast.success("Admin Overview CSV report exported successfully!");
     } catch (error) {
       console.error("Failed to export admin overview CSV:", error);
       toast.error("Failed to export CSV report. Please try again.");
+    }
+  };
+
+  /** The same numbers, drawn as charts, in one PDF. */
+  const handleExportPdf = async () => {
+    setIsExportingPdf(true);
+    toast.info("Building the PDF report with charts...");
+    try {
+      await downloadAdminOverviewPdf(overviewReport, exportOptions);
+      toast.success("PDF report downloaded!");
+    } catch (error) {
+      console.error("Failed to export admin overview PDF:", error);
+      toast.error("Failed to build the PDF report. Please try again.");
+    } finally {
+      setIsExportingPdf(false);
     }
   };
 
@@ -182,11 +190,19 @@ export default function OverviewClient({
 
         <div className="flex items-center gap-2.5">
           <button
+            onClick={handleExportPdf}
+            disabled={isExportingPdf}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-[var(--border-color)] text-xs font-bold text-[var(--foreground)] hover:bg-[var(--surface-alt)] transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            <FileText className="w-4 h-4" />
+            <span>{isExportingPdf ? "Building PDF..." : "Export PDF"}</span>
+          </button>
+          <button
             onClick={handleExportAnalytics}
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-brand-gradient text-[var(--on-grad-text)] text-xs font-bold shadow-xs hover:opacity-95 transition-all cursor-pointer"
           >
             <Download className="w-4 h-4" />
-            <span>Export Analytics</span>
+            <span>Export CSV</span>
           </button>
         </div>
       </div>
@@ -944,7 +960,7 @@ export default function OverviewClient({
                   weekly: topSellingByPeriod.weekly,
                   monthly: topSellingByPeriod.monthly,
                   yearly: topSellingByPeriod.yearly,
-                }, { siteName: settings.siteName, currency: settings.currency });
+                }, exportOptions);
                 toast.success("CSV exported successfully!");
               } catch {
                 toast.error("Failed to export CSV.");
