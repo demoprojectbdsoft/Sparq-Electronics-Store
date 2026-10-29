@@ -145,7 +145,7 @@ export default function OverviewClient({
         paymentMethodData,
         topProducts,
         recentOrders,
-      }, settings.siteName);
+      }, { siteName: settings.siteName, currency: settings.currency });
 
       toast.success("Admin Overview CSV report exported successfully!");
     } catch (error) {
@@ -944,7 +944,7 @@ export default function OverviewClient({
                   weekly: topSellingByPeriod.weekly,
                   monthly: topSellingByPeriod.monthly,
                   yearly: topSellingByPeriod.yearly,
-                }, settings.siteName);
+                }, { siteName: settings.siteName, currency: settings.currency });
                 toast.success("CSV exported successfully!");
               } catch {
                 toast.error("Failed to export CSV.");

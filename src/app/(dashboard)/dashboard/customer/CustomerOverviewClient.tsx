@@ -204,7 +204,7 @@ export default function CustomerOverviewClient({
         recentOrders,
         wishlistItems: wishlist,
         recentTransactions,
-      }, settings.siteName);
+      }, { siteName: settings.siteName, currency: settings.currency });
 
       toast.success("Customer Overview CSV report exported successfully!");
     } catch (error) {
