@@ -223,9 +223,8 @@ export default function CheckoutClient({
   const grandTotal = subtotal + shippingCost;
   const isCartEmpty = items.length === 0;
 
-  // Validation: Shipping form must have all required fields (Only required for Cash on Delivery)
+  // Validation: Shipping form must have all required fields for every payment method
   const isShippingValid = useMemo(() => {
-    if (selectedPaymentMethod !== "cod") return true;
     return (
       shippingForm.fullName.trim().length > 1 &&
       shippingForm.phone.trim().length >= 6 &&
@@ -233,7 +232,7 @@ export default function CheckoutClient({
       shippingForm.city.trim().length >= 2 &&
       shippingForm.postalCode.trim().length >= 2
     );
-  }, [shippingForm, selectedPaymentMethod]);
+  }, [shippingForm]);
 
   // Validation: Payment requirement
   // If COD: ready if shipping is valid
@@ -402,7 +401,7 @@ export default function CheckoutClient({
       return;
     }
 
-    if (selectedPaymentMethod === "cod" && !isShippingValid) {
+    if (!isShippingValid) {
       toast.error("Please complete all required shipping address fields.");
       return;
     }
@@ -425,25 +424,13 @@ export default function CheckoutClient({
         price: Number(item.product?.price || 0),
         image: item.product?.image || "",
       })),
-      ...(selectedPaymentMethod === "cod"
-        ? {
-            shippingAddress: {
-              fullName: shippingForm.fullName.trim(),
-              phone: shippingForm.phone.trim(),
-              address: shippingForm.address.trim(),
-              city: shippingForm.city.trim(),
-              postalCode: shippingForm.postalCode.trim(),
-            },
-          }
-        : {
-            shippingAddress: {
-              fullName: user?.name || "Customer",
-              phone: walletPhone.trim() || (user as { phone?: string })?.phone || "N/A",
-              address: "Digital Delivery / N/A",
-              city: "Online",
-              postalCode: "0000",
-            },
-          }),
+      shippingAddress: {
+        fullName: shippingForm.fullName.trim(),
+        phone: shippingForm.phone.trim(),
+        address: shippingForm.address.trim(),
+        city: shippingForm.city.trim(),
+        postalCode: shippingForm.postalCode.trim(),
+      },
       paymentMethod: selectedPaymentMethod,
       shippingMethod: (isFreeShippingEligible
         ? "free"
@@ -693,7 +680,7 @@ export default function CheckoutClient({
                     <div className="p-3.5 rounded-xl bg-primary/10 border border-primary/20 flex items-center gap-2.5 text-xs text-primary">
                       <Sparkles className="w-4 h-4 shrink-0 text-primary" />
                       <span>
-                        <strong>Instant Digital Checkout:</strong> Physical shipping address is not required for {currentPaymentOption.name} orders.
+                        <strong>Instant Digital Checkout:</strong> Please complete your shipping address below — it is required for {currentPaymentOption.name} orders too.
                       </span>
                     </div>
 
@@ -803,21 +790,20 @@ export default function CheckoutClient({
               </Card.Content>
             </Card>
 
-            {/* ── 2. Shipping Address Section (Only for Cash on Delivery) ── */}
-            {selectedPaymentMethod === "cod" && (
-              <Card className={cardClass}>
-                <Card.Content className="p-5 sm:p-6 md:p-7 space-y-5">
-                  <div className="flex items-center justify-between pb-3 border-b border-[var(--border-color)]">
-                    <h2 className={sectionHeadingClass}>
-                      <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
-                        <MapPin className="w-4 h-4" />
-                      </div>
-                      <span>2. Shipping & Delivery Address</span>
-                    </h2>
-                    <span className="text-[11px] font-semibold text-[var(--foreground-muted)]">
-                      Required for COD <span className="text-rose-500">*</span>
-                    </span>
-                  </div>
+            {/* ── 2. Shipping Address Section (Required for every payment method) ── */}
+            <Card className={cardClass}>
+              <Card.Content className="p-5 sm:p-6 md:p-7 space-y-5">
+                <div className="flex items-center justify-between pb-3 border-b border-[var(--border-color)]">
+                  <h2 className={sectionHeadingClass}>
+                    <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+                      <MapPin className="w-4 h-4" />
+                    </div>
+                    <span>2. Shipping & Delivery Address</span>
+                  </h2>
+                  <span className="text-[11px] font-semibold text-[var(--foreground-muted)]">
+                    Required <span className="text-rose-500">*</span>
+                  </span>
+                </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Full Name */}
@@ -920,7 +906,6 @@ export default function CheckoutClient({
                   </div>
                 </Card.Content>
               </Card>
-            )}
 
             {/* ── 3. Delivery Method Selection (Dynamic from Site Settings) ── */}
             <Card className={cardClass}>
@@ -938,28 +923,41 @@ export default function CheckoutClient({
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                  {/* Standard Delivery — disabled when free shipping kicks in */}
+                  {/* Standard Delivery — auto-free when threshold met, otherwise selectable */}
                   <div
                     role="button"
                     tabIndex={0}
-                    onClick={() => !isFreeShippingEligible && setSelectedShippingMethod("standard")}
+                    onClick={() => setSelectedShippingMethod("standard")}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        if (!isFreeShippingEligible) setSelectedShippingMethod("standard");
+                        setSelectedShippingMethod("standard");
                       }
                     }}
-                    className={`p-4 rounded-xl border transition-all flex flex-col justify-between gap-2.5 select-none ${
+                    className={`p-4 rounded-xl border transition-all flex flex-col justify-between gap-2.5 select-none cursor-pointer ${
                       isFreeShippingEligible
-                        ? "opacity-50 cursor-not-allowed bg-[var(--surface-alt)] border-[var(--border-color)] line-through"
+                        ? "bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300 dark:border-emerald-800/60"
                         : selectedShippingMethod === "standard"
-                          ? "cursor-pointer bg-primary/5 border-primary shadow-sm ring-1 ring-primary/20"
-                          : "cursor-pointer bg-[var(--surface-alt)] border-[var(--border-color)] hover:border-primary/40"
+                          ? "bg-primary/5 border-primary shadow-sm ring-1 ring-primary/20"
+                          : "bg-[var(--surface-alt)] border-[var(--border-color)] hover:border-primary/40"
                     }`}
                   >
                     <div className="flex items-start justify-between">
                       <div>
-                        <p className="text-xs font-bold text-[var(--foreground)]">Standard Delivery</p>
+                        <div className="flex items-center gap-1.5">
+                          <svg className="w-4 h-4 text-[var(--foreground-muted)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h2" />
+                            <path d="M14 18H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h8" />
+                            <circle cx="6" cy="18" r="2" />
+                            <circle cx="18" cy="18" r="2" />
+                          </svg>
+                          <p className="text-xs font-bold text-[var(--foreground)]">Standard Delivery</p>
+                          {isFreeShippingEligible && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded border border-emerald-500/20">
+                              FREE
+                            </span>
+                          )}
+                        </div>
                         <p className="text-[11px] text-[var(--foreground-muted)] mt-0.5">{estimatedDays}</p>
                       </div>
                       <div
@@ -974,7 +972,7 @@ export default function CheckoutClient({
                     </div>
                     <div className="pt-2 border-t border-[var(--border-color)]/60 flex items-center justify-between">
                       <span className="text-[10px] text-[var(--foreground-muted)] font-medium">Fee:</span>
-                      <span className="text-xs font-bold text-[var(--foreground)]">
+                      <span className="text-xs font-bold">
                         {isFreeShippingEligible ? (
                           <span className="text-emerald-600 dark:text-emerald-400 font-bold">FREE</span>
                         ) : (
@@ -983,8 +981,8 @@ export default function CheckoutClient({
                       </span>
                     </div>
                     {isFreeShippingEligible && (
-                      <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">
-                        Unavailable (free applies)
+                      <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                        Auto-applied — order threshold met
                       </span>
                     )}
                   </div>
@@ -1009,6 +1007,14 @@ export default function CheckoutClient({
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="flex items-center gap-1.5">
+                          <svg className="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M4.5 16.5c3 0 7.5-1.5 9.5-4.5l3 3" />
+                            <path d="M19.5 13.5a2.5 2.5 0 1 0 3.5 3.5 2.5 2.5 0 0 0-3.5-3.5Z" />
+                            <path d="M13.5 6.5a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0Z" />
+                            <path d="M16 10a3 3 0 0 1 0 6" />
+                            <path d="M8 14a3 3 0 0 1 0-6" />
+                            <path d="M4.5 16.5 9 12" />
+                          </svg>
                           <p className="text-xs font-bold text-[var(--foreground)]">Express Priority</p>
                           <span className="text-[9px] font-bold px-1.5 py-0.2 bg-amber-500/10 text-amber-500 rounded border border-amber-500/20">Fast</span>
                         </div>
@@ -1191,7 +1197,7 @@ export default function CheckoutClient({
                     )}
                   </Button>
 
-                  {selectedPaymentMethod === "cod" && !isShippingValid && (
+                  {!isShippingValid && (
                     <p className="text-[11px] text-center text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1">
                       <AlertCircle className="w-3.5 h-3.5 shrink-0" />
                       Please fill in all shipping address fields.

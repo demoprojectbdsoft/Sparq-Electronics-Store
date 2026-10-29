@@ -977,9 +977,9 @@ export default function ProductDetailsPage({
               <div className="p-3 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border-color)] text-center hover:border-primary/50 transition-colors shadow-xs">
                 <ShieldCheck className="w-5 h-5 mx-auto text-primary mb-1" />
                 <p className="text-[11px] font-bold text-[var(--foreground)]">
-                  1 Year Warranty
+                  Secure Payment
                 </p>
-                <p className="text-[10px] text-slate-400">Official Brand Coverage</p>
+                <p className="text-[10px] text-slate-400">Encrypted Checkout</p>
               </div>
 
               <div className="p-3 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border-color)] text-center hover:border-primary/50 transition-colors shadow-xs">
@@ -987,7 +987,7 @@ export default function ProductDetailsPage({
                 <p className="text-[11px] font-bold text-[var(--foreground)]">
                   Easy Return
                 </p>
-                <p className="text-[10px] text-slate-400">30-Day Guarantee</p>
+                <p className="text-[10px] text-slate-400">30-Day Return Window</p>
               </div>
             </div>
 
@@ -1053,6 +1053,34 @@ export default function ProductDetailsPage({
                         </span>
                       </div>
                     ))}
+                  {product.warrantyPeriodMonths && product.warrantyPeriodMonths > 0 && (
+                    <>
+                      <div className="py-2.5 grid grid-cols-3">
+                        <span className="font-semibold text-slate-500">Warranty Period</span>
+                        <span className="col-span-2 text-[var(--foreground)] font-medium">
+                          {product.warrantyPeriodMonths} month{product.warrantyPeriodMonths === 1 ? "" : "s"}
+                        </span>
+                      </div>
+                      <div className="py-2.5 grid grid-cols-3">
+                        <span className="font-semibold text-slate-500">Warranty Type</span>
+                        <span className="col-span-2 text-[var(--foreground)] font-medium">
+                          {product.warrantyType === "manufacturer-warranty" ? "Manufacturer Warranty"
+                            : product.warrantyType === "seller-warranty" ? "Seller Warranty"
+                            : product.warrantyType === "extended-warranty" ? "Extended Warranty"
+                            : product.warrantyType === "other" ? "Other"
+                            : "No Warranty"}
+                        </span>
+                      </div>
+                      {product.warrantyTerms && (
+                        <div className="py-2.5 grid grid-cols-3">
+                          <span className="font-semibold text-slate-500">Warranty Terms</span>
+                          <span className="col-span-2 text-[var(--foreground)] font-medium">
+                            {product.warrantyTerms}
+                          </span>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             </TabPanel>

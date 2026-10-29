@@ -32,6 +32,7 @@ import {
   XCircle,
   ArrowUpDown,
   RotateCcw,
+  Shield,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import ImageUploader from "@/components/shared/ImageUploader";
@@ -163,7 +164,6 @@ export default function ProductsClient({
     investPrice: "",
     discountPercentage: "",
     stockQuantity: "",
-    sellCount: "0",
     sku: "",
     description: "",
     image: "",
@@ -173,6 +173,9 @@ export default function ProductsClient({
     badges: new Set<string>(),
     inStock: true,
     isFeatured: false,
+    warrantyPeriodMonths: "",
+    warrantyType: "manufacturer-warranty",
+    warrantyTerms: "",
     offerEndDate: "",
   });
   const [editSpecs, setEditSpecs] = useState<SpecRow[]>([]);
@@ -245,7 +248,6 @@ export default function ProductsClient({
       investPrice: p.investPrice != null ? String(p.investPrice) : "",
       discountPercentage: p.discountPercentage ? String(p.discountPercentage) : "",
       stockQuantity: p.stockQuantity !== undefined ? String(p.stockQuantity) : "",
-      sellCount: p.sellCount !== undefined ? String(p.sellCount) : "0",
       sku: p.sku || "",
       description: p.description || "",
       image: p.image || "",
@@ -255,6 +257,10 @@ export default function ProductsClient({
       badges: badgeSet,
       inStock: p.inStock,
       isFeatured: !!p.isFeatured,
+      warrantyPeriodMonths:
+        p.warrantyPeriodMonths != null ? String(p.warrantyPeriodMonths) : "",
+      warrantyType: p.warrantyType || "manufacturer-warranty",
+      warrantyTerms: p.warrantyTerms || "",
       offerEndDate: p.offerEndDate ? new Date(p.offerEndDate).toISOString() : "",
     });
     setEditSpecs(specs);
@@ -306,7 +312,6 @@ export default function ProductsClient({
       investPrice: editForm.investPrice ? parseFloat(editForm.investPrice) : undefined,
       discountPercentage: editForm.discountPercentage ? parseFloat(editForm.discountPercentage) : undefined,
       stockQuantity: editForm.stockQuantity ? parseInt(editForm.stockQuantity) : 0,
-      sellCount: editForm.sellCount ? parseInt(editForm.sellCount) : 0,
       sku: editForm.sku || undefined,
       description: editForm.description || undefined,
       image: editForm.image,
@@ -316,6 +321,11 @@ export default function ProductsClient({
       badges: Array.from(editForm.badges),
       inStock: hasEditPositiveStock ? true : editForm.inStock,
       isFeatured: editForm.isFeatured,
+      warrantyPeriodMonths: editForm.warrantyPeriodMonths
+        ? parseInt(editForm.warrantyPeriodMonths, 10)
+        : undefined,
+      warrantyType: editForm.warrantyType,
+      warrantyTerms: editForm.warrantyTerms || undefined,
       offerEndDate: editForm.offerEndDate ? new Date(editForm.offerEndDate).toISOString() : undefined,
       specifications: specObj,
     };
@@ -1062,21 +1072,6 @@ export default function ProductsClient({
                         className="w-full h-10 rounded-xl bg-[var(--surface-alt)] dark:bg-[var(--surface)] text-xs font-bold"
                       />
                     </div>
-
-                    <div>
-                      <label className="text-xs font-bold text-[var(--foreground)] block mb-1">
-                        Units Sold
-                      </label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={editForm.sellCount}
-                        onChange={(e) =>
-                          setEditForm((prev) => ({ ...prev, sellCount: e.target.value }))
-                        }
-                        className="w-full h-10 rounded-xl bg-[var(--surface-alt)] dark:bg-[var(--surface)] text-xs font-mono"
-                      />
-                    </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
@@ -1134,6 +1129,77 @@ export default function ProductsClient({
                         </Switch.Content>
                       </Switch>
                     </div>
+                  </div>
+
+                  {/* Warranty Period */}
+                  <div className="pt-2">
+                    <label className="text-xs font-bold text-[var(--foreground)] block mb-1 flex items-center gap-1">
+                      <Shield className="w-3.5 h-3.5 text-primary" /> Warranty Period (months)
+                    </label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="e.g. 12"
+                      value={editForm.warrantyPeriodMonths}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          warrantyPeriodMonths: e.target.value,
+                        }))
+                      }
+                      className="w-full h-10 rounded-xl bg-[var(--surface-alt)] dark:bg-[var(--surface)] text-xs"
+                    />
+                    <p className="text-[10px] text-[var(--foreground-muted)] mt-1">
+                      When a customer buys this product and the order is delivered, a
+                      warranty record is automatically created for the number of months set
+                      here. Leave blank or 0 to disable warranty coverage.
+                    </p>
+                  </div>
+
+                  <div className="pt-2">
+                    <label className="text-xs font-bold text-[var(--foreground)] block mb-1 flex items-center gap-1">
+                      <Shield className="w-3.5 h-3.5 text-primary" /> Warranty Type
+                    </label>
+                    <Select
+                      selectedKey={editForm.warrantyType}
+                      onSelectionChange={(key) =>
+                        setEditForm((prev) => ({ ...prev, warrantyType: String(key) }))
+                      }
+                      placeholder="Select warranty type"
+                    >
+                      <Select.Trigger className="w-full cursor-pointer">
+                        <Select.Value />
+                        <Select.Indicator />
+                      </Select.Trigger>
+                      <Select.Popover className="w-56 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl">
+                        <ListBox>
+                          <ListBox.Item id="manufacturer-warranty" textValue="Manufacturer Warranty">Manufacturer Warranty</ListBox.Item>
+                          <ListBox.Item id="seller-warranty" textValue="Seller Warranty">Seller Warranty</ListBox.Item>
+                          <ListBox.Item id="extended-warranty" textValue="Extended Warranty">Extended Warranty</ListBox.Item>
+                          <ListBox.Item id="other" textValue="Other">Other</ListBox.Item>
+                          <ListBox.Item id="none" textValue="No Warranty">No Warranty</ListBox.Item>
+                        </ListBox>
+                      </Select.Popover>
+                    </Select>
+                  </div>
+
+                  <div className="pt-2">
+                    <label className="text-xs font-bold text-[var(--foreground)] block mb-1 flex items-center gap-1">
+                      <Shield className="w-3.5 h-3.5 text-primary" /> Warranty Terms
+                    </label>
+                    <TextArea
+                      placeholder="e.g. Covers manufacturing defects for 12 months from delivery date..."
+                      value={editForm.warrantyTerms}
+                      onChange={(e) =>
+                        setEditForm((prev) => ({ ...prev, warrantyTerms: e.target.value }))
+                      }
+                      rows={3}
+                      className="w-full rounded-xl bg-[var(--surface-alt)] dark:bg-[var(--surface)] text-xs border border-[var(--border-color)] px-3 py-2 resize-none outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition"
+                    />
+                    <p className="text-[10px] text-[var(--foreground-muted)] mt-1">
+                      Optional. Shown to customers on the product page.
+                    </p>
                   </div>
 
                   {/* Deal Countdown End Date Picker */}

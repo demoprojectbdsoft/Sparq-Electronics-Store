@@ -23,6 +23,7 @@ import {
   Upload,
   Link2,
   Loader2,
+  Shield,
 } from "lucide-react";
 import { Category, SubCategory } from "@/types";
 import ImageUploader from "@/components/shared/ImageUploader";
@@ -100,6 +101,9 @@ export default function AddProductClient({
     description: "",
     inStock: true,
     isFeatured: false,
+    warrantyPeriodMonths: "",
+    warrantyType: "manufacturer-warranty",
+    warrantyTerms: "",
     offerEndDate: "",
   });
 
@@ -278,6 +282,11 @@ export default function AddProductClient({
       specifications: Object.keys(specObj).length > 0 ? specObj : undefined,
       inStock: hasPositiveStock ? true : formState.inStock,
       isFeatured: formState.isFeatured,
+      warrantyPeriodMonths: formState.warrantyPeriodMonths
+        ? parseInt(formState.warrantyPeriodMonths, 10)
+        : undefined,
+      warrantyType: formState.warrantyType,
+      warrantyTerms: formState.warrantyTerms || undefined,
       offerEndDate: formState.offerEndDate ? new Date(formState.offerEndDate).toISOString() : undefined,
     };
 
@@ -625,6 +634,90 @@ export default function AddProductClient({
                   <Plus className="w-3.5 h-3.5" />
                   Add Specification
                 </Button>
+              </Card.Content>
+            </Card>
+
+            {/* ── Section: Warranty ── */}
+            <Card className={cardClass}>
+              <Card.Content className="p-6 space-y-4">
+                <h2 className={sectionHeadingClass}>
+                  <Shield className="w-4 h-4 text-primary" />
+                  Warranty
+                </h2>
+
+                <div className={fieldClass}>
+                  <label className={labelClass}>Warranty Period (months)</label>
+                  <Input
+                    name="warrantyPeriodMonths"
+                    type="number"
+                    min="0"
+                    step="1"
+                    placeholder="e.g. 12"
+                    value={formState.warrantyPeriodMonths}
+                    onChange={(e) =>
+                      setFormState((prev) => ({
+                        ...prev,
+                        warrantyPeriodMonths: e.target.value,
+                      }))
+                    }
+                  />
+                  <p className="text-[10px] text-[var(--foreground-muted)] mt-1">
+                    When a customer buys this product and the order is delivered, a
+                    warranty record is automatically created for the number of months set
+                    here. Leave blank or 0 to disable warranty coverage for this product.
+                  </p>
+                </div>
+
+                <div className={fieldClass}>
+                  <label className={labelClass}>Warranty Type</label>
+                  <Select
+                    selectedKey={formState.warrantyType}
+                    onSelectionChange={(key) =>
+                      setFormState((prev) => ({ ...prev, warrantyType: String(key) }))
+                    }
+                    placeholder="Select warranty type"
+                  >
+                    <Select.Trigger className="w-full cursor-pointer">
+                      <Select.Value />
+                      <Select.Indicator />
+                    </Select.Trigger>
+                    <Select.Popover className="w-56 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl">
+                      <ListBox>
+                        <ListBox.Item id="manufacturer-warranty" textValue="Manufacturer Warranty">
+                          Manufacturer Warranty
+                        </ListBox.Item>
+                        <ListBox.Item id="seller-warranty" textValue="Seller Warranty">
+                          Seller Warranty
+                        </ListBox.Item>
+                        <ListBox.Item id="extended-warranty" textValue="Extended Warranty">
+                          Extended Warranty
+                        </ListBox.Item>
+                        <ListBox.Item id="other" textValue="Other">
+                          Other
+                        </ListBox.Item>
+                        <ListBox.Item id="none" textValue="No Warranty">
+                          No Warranty
+                        </ListBox.Item>
+                      </ListBox>
+                    </Select.Popover>
+                  </Select>
+                </div>
+
+                <div className={fieldClass}>
+                  <label className={labelClass}>Warranty Terms</label>
+                  <TextArea
+                    name="warrantyTerms"
+                    placeholder="e.g. Covers manufacturing defects for 12 months from delivery date..."
+                    value={formState.warrantyTerms}
+                    onChange={(e) =>
+                      setFormState((prev) => ({ ...prev, warrantyTerms: e.target.value }))
+                    }
+                    rows={3}
+                  />
+                  <p className="text-[10px] text-[var(--foreground-muted)] mt-1">
+                    Optional. Shown to customers on the product page.
+                  </p>
+                </div>
               </Card.Content>
             </Card>
           </div>

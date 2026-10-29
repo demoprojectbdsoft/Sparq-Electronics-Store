@@ -378,7 +378,7 @@ export default function CartClient({ initialCart, user: initialUser }: CartClien
         </div>
 
         {/* ── Free Shipping Progress Bar Meter ── */}
-        {items.length > 0 && (
+        {items.length > 0 && isFreeShippingGloballyEnabled && (
           <div className="mb-8 p-4 sm:p-5 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border-color)] shadow-xs">
             <div className="flex items-center justify-between text-xs sm:text-sm font-medium mb-2.5">
               <div className="flex items-center gap-2">
@@ -937,9 +937,13 @@ export default function CartClient({ initialCart, user: initialUser }: CartClien
                   {/* Shipping */}
                   <div className="flex items-center justify-between pt-2 border-t border-[var(--border-color)]">
                     <div>
-                      <span className="font-semibold text-[var(--foreground)]">Standard Shipping</span>
+                      <span className="font-semibold text-[var(--foreground)]">
+                        {isFreeShippingEligible ? "Free Shipping" : "Standard Shipping"}
+                      </span>
                       <p className="text-[10px] text-[var(--foreground-muted)]">
-                        Estimated delivery in {settings.shipping?.estimatedDeliveryDays || "2-4 business days"}
+                        {isFreeShippingEligible
+                          ? "Auto-applied at checkout"
+                          : `Estimated delivery in ${settings.shipping?.estimatedDeliveryDays || "2-4 business days"}`}
                       </p>
                     </div>
                     <span className="font-bold text-[var(--foreground)]">
@@ -1034,16 +1038,6 @@ export default function CartClient({ initialCart, user: initialUser }: CartClien
                     <div>
                       <p className="font-bold text-[var(--foreground)]">Fast & Tracked Shipping</p>
                       <p className="text-[10px] text-[var(--foreground-muted)]">Free delivery on orders over $150</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-xs text-[var(--foreground-muted)]">
-                    <div className="w-7 h-7 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                      <RotateCcw className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-[var(--foreground)]">30-Day Hassle-Free Returns</p>
-                      <p className="text-[10px] text-[var(--foreground-muted)]">Money back guarantee on all orders</p>
                     </div>
                   </div>
 

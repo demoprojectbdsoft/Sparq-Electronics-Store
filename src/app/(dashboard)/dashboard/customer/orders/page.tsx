@@ -1,8 +1,9 @@
 import React from "react";
 import CustomerOrdersClient from "./CustomerOrdersClient";
-import { CustomerOrder, CustomerOrderItem } from "@/types/customerDashboard";
+import { CustomerOrder, CustomerOrderItem, CustomerWarranty } from "@/types/customerDashboard";
 import { getUserSession } from "@/lib/core/session";
 import { getOrdersByUserId } from "@/lib/api/orders";
+import { getWarranties } from "@/lib/api/warranty";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,47 @@ function formatTimelineDate(dateValue?: string | Date): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+/** Build a CustomerWarranty record from a raw server warranty document. */
+function normalizeCustomerWarranty(w: any): CustomerWarranty {
+  const productId =
+    w?.productId?._id?.toString?.() ||
+    w?.productId?.id?.toString?.() ||
+    w?.productId?.toString?.() ||
+    "";
+  const orderId =
+    w?.orderId?._id?.toString?.() ||
+    w?.orderId?.id?.toString?.() ||
+    w?.orderId?.toString?.() ||
+    "";
+
+  return {
+    id: w._id?.toString?.() || w.id?.toString?.() || "",
+    productId,
+    orderId,
+    activationDate: w.activationDate,
+    expiryDate: w.expiryDate,
+    status: w.status,
+    claimReason: w.claimReason,
+    claimDescription: w.claimDescription,
+    claimImages: Array.isArray(w.claimImages) ? w.claimImages : [],
+    claimAdminNote: w.claimAdminNote,
+    resolutionDetails: w.resolutionDetails,
+    product: {
+      id: productId,
+      title: w?.productId?.title,
+      slug: w?.productId?.slug,
+      image: w?.productId?.image,
+      price: w?.productId?.price,
+      warrantyPeriodMonths: w?.productId?.warrantyPeriodMonths,
+    },
+    order: {
+      id: orderId,
+      orderNumber: w?.orderId?.orderNumber,
+      orderStatus: w?.orderId?.orderStatus,
+    },
+  };
 }
 
 /** Build complete tracking timeline for all status updates using DB timestamps */
@@ -139,6 +181,25 @@ export default async function CustomerOrdersPage() {
         ? res
         : [];
 
+      // Fetch all warranties for this user so we can attach them to order items
+      let warrantyByProduct: Record<string, CustomerWarranty> = {};
+      try {
+        const wRes = await getWarranties({ userId: user.id, limit: 1000 });
+        const rawWarranties: any[] = Array.isArray(wRes?.data?.warranties)
+          ? wRes.data.warranties
+          : Array.isArray(wRes?.data)
+          ? wRes.data
+          : Array.isArray(wRes)
+          ? wRes
+          : [];
+        for (const w of rawWarranties) {
+          const pid = w?.productId?._id?.toString?.() || w?.productId?.id?.toString?.() || w?.productId?.toString?.();
+          if (pid) warrantyByProduct[pid] = normalizeCustomerWarranty(w);
+        }
+      } catch (err) {
+        console.error("Failed to fetch warranties:", err);
+      }
+
       orders = rawOrders.map((order: any): CustomerOrder => {
         const items: CustomerOrderItem[] = (order.items || []).map(
           (item: any, idx: number) => {
@@ -182,6 +243,7 @@ export default async function CustomerOrdersPage() {
               quantity: item.quantity ?? 1,
               inStock,
               stockQuantity: prod?.stockQuantity,
+              warranty: prodId ? warrantyByProduct[prodId] : undefined,
             };
           }
         );

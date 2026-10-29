@@ -30,6 +30,8 @@ import {
   UserCheck,
   AlertTriangle,
   Maximize2,
+  Shield,
+  FileText,
 } from "lucide-react";
 import ImageGalleryModal from "@/components/shared/ImageGalleryModal";
 import { Product } from "@/types";
@@ -114,6 +116,18 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   const isOfferExpired =
     product.isOfferExpired ||
     (product.offerEndDate && new Date(product.offerEndDate).getTime() <= Date.now());
+
+  // Warranty Type label (dynamic — never a static string)
+  const warrantyTypeLabel =
+    product.warrantyType === "seller-warranty"
+      ? "Seller Warranty"
+      : product.warrantyType === "extended-warranty"
+      ? "Extended Warranty"
+      : product.warrantyType === "other"
+      ? "Other"
+      : product.warrantyType === "none"
+      ? "No Warranty"
+      : "Manufacturer Warranty";
 
   return (
     <div className="space-y-6 max-w-6xl mx-auto pb-10">
@@ -742,6 +756,61 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
                 </div>
               </div>
             </div>
+          </Card>
+
+          {/* Warranty Coverage */}
+          <Card className="bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-3xl p-6 shadow-xs space-y-4">
+            <h2 className="text-sm font-bold text-[var(--foreground)] flex items-center gap-2">
+              <Shield className="w-4 h-4 text-primary" />
+              Warranty Coverage
+            </h2>
+
+            {product.warrantyPeriodMonths && product.warrantyPeriodMonths > 0 ? (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/40">
+                    <Shield className="w-3 h-3" />
+                    Warranty Enabled
+                  </span>
+                  <span className="text-sm font-black text-[var(--foreground)]">
+                    {product.warrantyPeriodMonths} month{product.warrantyPeriodMonths === 1 ? "" : "s"}
+                  </span>
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-lg bg-primary/10 text-primary border border-primary/20 uppercase">
+                    {warrantyTypeLabel}
+                  </span>
+                </div>
+                <p className="text-xs text-[var(--foreground-muted)] leading-relaxed">
+                  When a customer buys this product and the order is delivered, a
+                  warranty record is automatically created for{" "}
+                  <strong className="text-[var(--foreground)]">
+                    {product.warrantyPeriodMonths} month{product.warrantyPeriodMonths === 1 ? "" : "s"}
+                  </strong>{" "}
+                  starting from the delivery date. Customers can submit claims
+                  through their dashboard while the warranty is active.
+                </p>
+                {product.warrantyTerms && (
+                  <div className="pt-3 border-t border-[var(--border-color)]">
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold text-[var(--foreground-muted)] uppercase tracking-wider mb-1.5">
+                      <FileText className="w-3.5 h-3.5" /> Warranty Terms
+                    </div>
+                    <p className="text-xs text-[var(--foreground-muted)] leading-relaxed whitespace-pre-line">
+                      {product.warrantyTerms}
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-[var(--surface-alt)] text-[var(--foreground-muted)] border border-[var(--border-color)]">
+                  <Shield className="w-3 h-3" />
+                  No Warranty
+                </span>
+                <p className="text-xs text-[var(--foreground-muted)]">
+                  This product is not covered by warranty. Set a warranty period in
+                  Quick Edit to enable coverage.
+                </p>
+              </div>
+            )}
           </Card>
         </div>
       </div>

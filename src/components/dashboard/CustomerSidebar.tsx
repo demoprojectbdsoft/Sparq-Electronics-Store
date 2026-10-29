@@ -27,6 +27,7 @@ const CUSTOMER_NAV_ITEMS = [
   { name: "Wishlist", href: "/dashboard/customer/wishlist", icon: Heart },
   { name: "My Orders", href: "/dashboard/customer/orders", icon: ShoppingBag },
   { name: "My Reviews", href: "/dashboard/customer/reviews", icon: Star },
+  { name: "Warranties", href: "/dashboard/customer/warranties", icon: ShieldCheck },
   { name: "Transactions", href: "/dashboard/customer/transactions", icon: CreditCard },
 ];
 

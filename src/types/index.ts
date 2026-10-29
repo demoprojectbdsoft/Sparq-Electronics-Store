@@ -150,6 +150,9 @@ export interface Product {
   description?: string;
   specifications?: Record<string, string>;
   isFeatured?: boolean;
+  warrantyPeriodMonths?: number;
+  warrantyType?: "manufacturer-warranty" | "seller-warranty" | "extended-warranty" | "other" | "none";
+  warrantyTerms?: string;
   offerEndDate?: string | Date;
   createdAt?: string | Date;
   updatedAt?: string | Date;
@@ -268,3 +271,4 @@ export * from "./storeLocator";
 export * from "./shop";
 export * from "./cart";
 export * from "./checkout";
+export * from "./warranty";

@@ -61,6 +61,8 @@ export interface CustomerOrderItem {
   quantity: number;
   inStock?: boolean;
   stockQuantity?: number;
+  /** Warranty record attached to this order item, when one exists. */
+  warranty?: CustomerWarranty;
 }
 
 export interface CustomerOrder {
@@ -85,6 +87,40 @@ export interface CustomerOrder {
   estimatedDelivery?: string;
   shippingAddress: string;
   timeline: OrderTimelineStep[];
+}
+
+export interface CustomerWarranty {
+  id: string;
+  productId: string;
+  orderId: string;
+  activationDate: string | Date;
+  expiryDate: string | Date;
+  status:
+    | "active"
+    | "expired"
+    | "claim_submitted"
+    | "under_review"
+    | "info_requested"
+    | "resolved";
+  claimReason?: string;
+  claimDescription?: string;
+  claimImages?: string[];
+  claimAdminNote?: string;
+  resolutionDetails?: string;
+  product?: {
+    id?: string;
+    title?: string;
+    slug?: string;
+    image?: string;
+    price?: number;
+    warrantyPeriodMonths?: number;
+  };
+  order?: {
+    id?: string;
+    orderNumber?: string;
+    orderStatus?: string;
+    totalAmount?: number;
+  };
 }
 
 export interface CustomerWishlistItem {

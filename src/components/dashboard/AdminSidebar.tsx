@@ -20,6 +20,7 @@ import {
   ArrowLeft,
   LogOut,
   Star,
+  Shield,
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "react-toastify";
@@ -36,6 +37,7 @@ const NAV_ITEMS = [
   { name: "Transactions", href: "/dashboard/admin/transactions", icon: CreditCard },
   { name: "Users", href: "/dashboard/admin/users", icon: Users },
   { name: "Reviews", href: "/dashboard/admin/reviews", icon: Star },
+  { name: "Warranties", href: "/dashboard/admin/warranties", icon: Shield },
   // { name: "Reports", href: "/dashboard/admin/reports", icon: FileText },
 ];
 
