@@ -139,7 +139,7 @@ Switching mode keeps the current filters, search and sort.
 | **Delivery response** | Once an order ships, the customer confirms whether it arrived — see [Orders & delivery](#orders--delivery). |
 | **Buy again** | Re-add a product from order history straight back into the cart. |
 | **Reviews & ratings** | Star rating, written review and up to 5 images (hosted on ImgBB). A product's rating is recalculated from its real reviews. |
-| **Warranties** | Coverage is issued on delivery, with a claim form that accepts images and a status the customer can follow. |
+| **Warranties** | Coverage is issued on delivery and the panel shows its type, duration, terms and dates before claiming. The claim form takes a reason, a description and up to 5 photos, and the claim status stays visible to the customer. |
 | **Invoice download** | Any order can be downloaded as a PDF invoice. |
 
 ---
