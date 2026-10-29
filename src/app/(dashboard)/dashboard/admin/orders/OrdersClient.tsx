@@ -35,6 +35,7 @@ import { Order } from "@/types";
 import { updateOrderStatus } from "@/lib/action/orders";
 import { getOrderStatusStyle } from "@/lib/orderStatusStyles";
 import OrderStatusBadge from "@/components/shared/OrderStatusBadge";
+import { formatOrderDate, formatOrderDateTime } from "@/lib/dateTime";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 const STATUS_OPTIONS = [
@@ -387,13 +388,7 @@ export default function OrdersClient({
                       ? order.userId?.email || ""
                       : "";
                   const itemsCount = order.items?.reduce((sum, item) => sum + (item.quantity || 1), 0) || order.items?.length || 0;
-                  const dateStr = order.createdAt
-                    ? new Date(order.createdAt).toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })
-                    : "Recent";
+                  const dateStr = formatOrderDate(order.createdAt) || "Recent";
 
                   return (
                     <tr
@@ -578,9 +573,7 @@ export default function OrdersClient({
                       </div>
                       <p className="text-xs text-[var(--foreground-muted)] mt-0.5">
                         Placed on{" "}
-                        {selectedOrder.createdAt
-                          ? new Date(selectedOrder.createdAt).toLocaleString()
-                          : "N/A"}
+                        {formatOrderDateTime(selectedOrder.createdAt) || "N/A"}
                       </p>
                     </div>
 
@@ -626,6 +619,9 @@ export default function OrdersClient({
                       const customerDisagrees =
                         selectedOrder.customerResponse === "not_received" ||
                         selectedOrder.customerResponse === "cancelled";
+                      // The customer confirmed the parcel arrived, so the order can
+                      // only be closed as delivered.
+                      const customerConfirmed = selectedOrder.customerResponse === "received";
 
                       // The current stage plus the stages it may move to.
                       const visibleOptions = STATUS_OPTIONS.filter(
@@ -635,11 +631,13 @@ export default function OrdersClient({
                       const disabledKeys: string[] = [currentStatus];
                       if (isResponseLocked) disabledKeys.push("delivered", "cancelled");
                       if (customerDisagrees) disabledKeys.push("delivered");
+                      if (customerConfirmed) disabledKeys.push("cancelled");
 
                       const lockReason = (id: string) => {
                         if (id === currentStatus) return "(Current)";
                         if (isResponseLocked) return "(Awaiting customer)";
                         if (id === "delivered" && customerDisagrees) return "(Customer disagreed)";
+                        if (id === "cancelled" && customerConfirmed) return "(Customer confirmed)";
                         return null;
                       };
 
@@ -773,7 +771,7 @@ export default function OrdersClient({
                                   {selectedOrder.customerResponseAt && (
                                     <p className="text-[10px] text-[var(--foreground-muted)]">
                                       Submitted:{" "}
-                                      {new Date(selectedOrder.customerResponseAt).toLocaleString()}
+                                      {formatOrderDateTime(selectedOrder.customerResponseAt)}
                                     </p>
                                   )}
                                 </div>

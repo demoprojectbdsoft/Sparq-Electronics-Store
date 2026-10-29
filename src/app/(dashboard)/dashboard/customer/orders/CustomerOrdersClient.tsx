@@ -42,6 +42,7 @@ import { addToCart } from "@/lib/action/cart";
 import { submitWarrantyClaim } from "@/lib/action/warranty";
 import { downloadOrderInvoicePdf } from "@/lib/orderInvoicePdf";
 import OrderStatusBadge from "@/components/shared/OrderStatusBadge";
+import { formatOrderDateTime } from "@/lib/dateTime";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 const STATUS_TABS = ["All Orders", "Confirmed", "Processing", "Shipped", "Delivered", "Cancelled"];
@@ -55,6 +56,16 @@ function shippingMethodLabel(method?: CustomerOrder["shippingMethod"]): string {
     case "standard":return "Standard Delivery";
     default:        return "Standard Delivery";
   }
+}
+
+// ── Delivery response rules ──────────────────────────────────────────────────
+
+/** The customer's final answers. Once sent, the response is locked. */
+const FINAL_RESPONSES = ["received", "cancelled"];
+
+/** True when the delivery response can no longer be changed. */
+function isResponseLocked(response?: string | null): boolean {
+  return Boolean(response && FINAL_RESPONSES.includes(response));
 }
 
 // ── Warranty helpers ─────────────────────────────────────────────────────────
@@ -447,6 +458,12 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
   };
 
   const handleOpenResponseModal = (order: CustomerOrder) => {
+    // A received or cancelled answer is final, so there is nothing to edit.
+    if (isResponseLocked(order.customerResponse)) {
+      toast.info("This response is final. Please contact support if it needs to change.");
+      return;
+    }
+
     setResponseModalOrder(order);
     setSelectedResponse(order.customerResponse || "received");
     setResponseNote(order.customerResponseNote || "");
@@ -454,6 +471,14 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
 
   const handleSubmitResponse = async () => {
     if (!responseModalOrder) return;
+
+    // Extra guard: the modal should never open for a locked order.
+    if (isResponseLocked(responseModalOrder.customerResponse)) {
+      toast.info("This response is final. Please contact support if it needs to change.");
+      setResponseModalOrder(null);
+      return;
+    }
+
     setIsSubmittingResponse(true);
 
     try {
@@ -858,22 +883,19 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
                       </div>
                       <div className="text-[11px] text-[var(--foreground-muted)] flex items-center gap-2 self-end sm:self-auto">
                         {order.customerResponseAt && (
-                          <span>
-                            {new Date(order.customerResponseAt).toLocaleDateString(undefined, {
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </span>
+                          <span>{formatOrderDateTime(order.customerResponseAt)}</span>
                         )}
-                        {(order.status === "Shipped" || order.rawStatus === "shipped") && (
-                          <button
-                            onClick={() => handleOpenResponseModal(order)}
-                            className="text-primary hover:underline font-semibold text-[11px] cursor-pointer ml-1"
-                          >
-                            Update
-                          </button>
+                        {order.customerResponse === "not_received" &&
+                          (order.status === "Shipped" || order.rawStatus === "shipped") && (
+                            <button
+                              onClick={() => handleOpenResponseModal(order)}
+                              className="text-primary hover:underline font-semibold text-[11px] cursor-pointer ml-1"
+                            >
+                              Update
+                            </button>
+                          )}
+                        {isResponseLocked(order.customerResponse) && (
+                          <span className="italic ml-1">Final — contact support to change</span>
                         )}
                       </div>
                     </div>

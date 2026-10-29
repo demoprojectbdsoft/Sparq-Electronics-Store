@@ -4,6 +4,7 @@ import { CustomerOrder, CustomerOrderItem, CustomerWarranty } from "@/types/cust
 import { getUserSession } from "@/lib/core/session";
 import { getOrdersByUserId } from "@/lib/api/orders";
 import { getMyWarranties } from "@/lib/api/warranty";
+import { formatOrderDate, formatOrderMoment } from "@/lib/dateTime";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -35,15 +36,7 @@ function mapPaymentMethod(method: string): string {
 
 /** Format timestamp for timeline step */
 function formatTimelineDate(dateValue?: string | Date): string {
-  if (!dateValue) return "";
-  const d = new Date(dateValue);
-  if (isNaN(d.getTime())) return "";
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  return formatOrderMoment(dateValue);
 }
 
 /** Build a CustomerWarranty record from a raw server warranty document. */
@@ -272,13 +265,7 @@ export default async function CustomerOrdersPage() {
         return {
           id: orderIdStr,
           orderNumber: `#ORD-${shortId}`,
-          date: order.createdAt
-            ? new Date(order.createdAt).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })
-            : "",
+          date: formatOrderDate(order.createdAt),
           status,
           rawStatus: order.orderStatus,
           customerResponse: order.customerResponse || null,
