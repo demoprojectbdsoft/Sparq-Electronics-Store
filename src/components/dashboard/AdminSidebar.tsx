@@ -21,6 +21,7 @@ import {
   LogOut,
   Star,
   Shield,
+  Mail,
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "react-toastify";
@@ -38,6 +39,7 @@ const NAV_ITEMS = [
   { name: "Users", href: "/dashboard/admin/users", icon: Users },
   { name: "Reviews", href: "/dashboard/admin/reviews", icon: Star },
   { name: "Warranties", href: "/dashboard/admin/warranties", icon: Shield },
+  { name: "Messages", href: "/dashboard/admin/messages", icon: Mail },
   // { name: "Reports", href: "/dashboard/admin/reports", icon: FileText },
 ];
 

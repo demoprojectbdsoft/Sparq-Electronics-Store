@@ -85,12 +85,12 @@ Public pages anyone can visit.
 | **Product details** (`/shop/[slug]`) | Gallery modal, specifications, warranty terms, live rating and reviews, and add to cart / wishlist / **compare**. |
 | **Compare** (`/compare`) | Up to three products side by side — price, discount, stock, rating, warranty and a full specification matrix. Works for guests. |
 | **Cart** (`/cart`) | Quantity changes, removal, and a running subtotal. |
-| **Checkout** (`/checkout`) | Delivery details, payment method, reward points, and order placement. |
+| **Checkout** (`/checkout`) | Delivery details, payment method, reward points, and order placement. A signed-in customer starts with their **default saved address** filled in and can tick **Save this address for next time**. |
 | **Order success** (`/order-success/[orderId]`) | Confirmation with the points that were spent and the points that will be earned. |
 | **Track order** (`/track-order`) | An order-lookup form with a delivery timeline. The per-order **Track Shipment** view in the customer dashboard is the live one. |
 | **Store locator** (`/store-locator`) | Store locations and contact details. |
 | **About** (`/about`) | Headline, story, headquarters note, **opening hours**, contact channels and call-to-action — all editable from **Site Settings → Contact & Socials**. |
-| **Services / Contact / Privacy / Terms** | Informational pages, branded from the store settings. The **Contact** page has a working form: it validates the fields on the spot and the API emails the message to the **support** or **contact** address saved in Site Settings, with the visitor's address as the reply-to. |
+| **Services / Contact / Privacy / Terms** | Informational pages, branded from the store settings. The **Contact** page has a working form: it validates the fields on the spot, the API **stores the message** for the admin dashboard, and then emails a copy to the **support** or **contact** address saved in Site Settings, with the visitor's address as the reply-to. |
 | **Maintenance** (`/maintenance`) | Shown while the store is paused. See [Maintenance Mode](#-maintenance-mode). |
 | **Forbidden** (`/forbidden`) | Shown when a signed-in user opens a dashboard that is not theirs. |
 
@@ -133,6 +133,7 @@ Switching mode keeps the current filters, search and sort.
 | **Cart & wishlist** | Stored per user in the database, so they follow the customer across devices. |
 | **Compare** | Kept in the browser's `localStorage` (max 3 products) so guests can use it, and the navbar shows a live count. |
 | **Checkout** | Cash on Delivery, or a mobile wallet (bKash / Rocket / Nagad) with an OTP step and a transaction id. A shipping address is required only for Cash on Delivery. |
+| **Saved addresses** | A customer can keep up to 5 shipping addresses. Checkout pre-fills from the default one and offers the rest as one-tap picks; the profile page lists them with **make default** and **remove**. Saving the same address twice is ignored, and the last remaining address cannot be lost by removing the default — a survivor is promoted instead. |
 | **Reward points** | The customer can pay part of the order with loyalty points — see [Loyalty & membership](#loyalty--membership). |
 | **Product gallery** | A full-screen image gallery on the product page. |
 | **Order tracking** | A Track Order page, plus a per-order **Track Shipment** timeline with carrier, tracking number and estimated delivery. |
@@ -153,7 +154,7 @@ Switching mode keeps the current filters, search and sort.
 | **Transactions** | Every payment record for the customer's orders, with search, status filter and sorting. Each row can be downloaded as a **PDF receipt** showing the receipt number, order, method, amount and status. |
 | **Wishlist** | Saved products, with add-to-cart. |
 | **Reviews** | The reviews they have written, with edit support. |
-| **Profile** | Personal details. |
+| **Profile** | Personal details, plus the **saved addresses** list with make-default and remove. |
 | **Settings** | Preferences, notifications, security and data — see below. |
 
 ### Account settings
@@ -180,6 +181,7 @@ Switching mode keeps the current filters, search and sort.
 | **Users** | Change a user's role and account status, and see their points and membership tier. |
 | **Reviews** | View and moderate every product review. |
 | **Warranties** | Review coverage records and process claims. Status badges (icon + colour) appear in the table and in the modal, and the table shows each record's **type and duration**. Opening one shows the full coverage (type, duration, terms, dates), the claim with its reason, description and evidence photos, and every answer the customer sent after *ask for info*, plus one coloured icon button per action — under review, ask for info, resolve or reject. Every action button locks while a save is in flight, so two decisions can never race. **Email Customer** opens a composer already filled in from the claim (name, product, order, reason, description, latest reply and coverage) and sends it from the dashboard instead of handing the address to a mail app. |
+| **Messages** | Every message written on the contact page, filterable by delivery state and searchable by name, email or subject. Opening one shows the full text and whether the email copy reached the store inbox (and why not, in the provider's own words), with **Reply by email** and delete. Replying happens from the mailbox, because the email copy carries the visitor as the reply-to. |
 | **Settings** | Site settings and branding — see [Site Settings & Branding](#-site-settings--branding). |
 
 ### Order management
@@ -396,7 +398,8 @@ src/
 │   ├── (auth)/auth/            login, register, forgot-password
 │   ├── (dashboard)/dashboard/
 │   │   ├── admin/              overview, products, categories, slider, orders,
-│   │   │                       transactions, users, reviews, warranties, settings
+│   │   │                       transactions, users, reviews, warranties,
+│   │   │                       messages, settings
 │   │   └── customer/           overview, orders, transactions, wishlist,
 │   │                           reviews, analytics, profile, settings
 │   ├── (main)/                 home, shop, cart, checkout, compare,
@@ -412,7 +415,7 @@ src/
 │   ├── shared/                 navbar, footer, status badge, uploader, modals
 │   └── shop/                   product cards, filters, gallery
 ├── lib/
-│   ├── action/                 server actions (cart, orders, reviews, ...)
+│   ├── action/                 server actions (cart, orders, reviews, addresses, ...)
 │   ├── api/                    typed API clients used by server components
 │   ├── core/                   session, roles, server fetch, query helpers
 │   ├── auth.ts                 better-auth configuration
@@ -469,7 +472,7 @@ NEXT_PUBLIC_IMGBB_API_KEY=your_imgbb_api_key
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | For Google login | OAuth credentials. |
 | `NEXT_PUBLIC_IMGBB_API_KEY` | For uploads | Hosts product images, review photos and claim images. |
 
-> ✉️ Email is sent by the API, not this app: claims, claim updates, issued coverage and contact-page messages all go out through the **server's** mailer — either Resend (`RESEND_API_KEY` + a verified sender in `MAIL_FROM`) or your own mailbox over SMTP (`SMTP_USER` + `SMTP_PASS`, which needs no domain). See the [backend README](https://github.com/demoprojectbdsoft/Sparq-Server#environment-variables) — the store name and both inboxes are read from **Site Settings → Contact & Socials** (`siteName`, `supportEmail`, `contactEmail`). Without a configured sender the app still works: the contact form simply reports that the message could not be sent.
+> ✉️ Email is sent by the API, not this app: claims, claim updates, issued coverage and contact-page messages all go out through the **server's** mailer — through **Brevo** (`BREVO_API_KEY`, which needs only a confirmed sender address, never a domain, and logs every send), your own mailbox over SMTP (`SMTP_USER` + `SMTP_PASS`), or **Resend** (`RESEND_API_KEY` + a verified domain in `MAIL_FROM`), in that order. See the [backend README](https://github.com/demoprojectbdsoft/Sparq-Server#environment-variables) — the store name and both inboxes are read from **Site Settings → Contact & Socials** (`siteName`, `supportEmail`, `contactEmail`). Without a configured sender the app still works: a contact message is **stored** anyway and shows up under Admin → **Messages** marked as not emailed.
 
 > ⚠️ Never commit `.env.local`. `NEXT_PUBLIC_*` values are baked in at build time — rebuild after changing one.
 
@@ -513,7 +516,8 @@ Open [http://localhost:3000](http://localhost:3000).
 | Loyalty points: earning, redemption at checkout, refunds | ✅ Complete |
 | Order tracking, delivery response and invoice PDF | ✅ Complete |
 | Warranty coverage, claims, replies and admin email | ✅ Complete |
-| Contact page form that emails the store | ✅ Complete |
+| Contact page form that stores the message and emails the store | ✅ Complete |
+| Saved shipping addresses with a default and a profile list | ✅ Complete |
 | Reviews with image uploads and rating recalculation | ✅ Complete |
 | Customer dashboard with analytics and data export | ✅ Complete |
 | Admin dashboard with CSV and charted PDF reports | ✅ Complete |
