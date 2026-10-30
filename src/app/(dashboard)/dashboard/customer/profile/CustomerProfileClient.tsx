@@ -16,20 +16,29 @@ import {
   Phone,
   RefreshCw,
   AlertTriangle,
+  MapPin,
+  Bookmark,
+  Trash2,
+  Check,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { authClient } from "@/lib/auth-client";
 import { updateUser } from "@/lib/action/user";
+import { removeAddress, setDefaultAddress } from "@/lib/action/address";
 import ImageUploader from "@/components/shared/ImageUploader";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
+import { SavedAddress } from "@/types";
 import { RealCustomerProfile } from "./page";
 
 interface CustomerProfileClientProps {
   initialProfile: RealCustomerProfile;
+  /** The customer's address book, newest first with the default at the top. */
+  initialAddresses?: SavedAddress[];
 }
 
 export default function CustomerProfileClient({
   initialProfile,
+  initialAddresses = [],
 }: CustomerProfileClientProps) {
   const [profile, setProfile] = useState<RealCustomerProfile>(initialProfile);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -39,6 +48,13 @@ export default function CustomerProfileClient({
   const [phone, setPhone] = useState(initialProfile.phone || "");
   const [bio, setBio] = useState(initialProfile.bio || "");
   const [isSaving, setIsSaving] = useState(false);
+
+  // ── Saved Address Book ─────────────────────────────────────────────────────
+  const [addresses, setAddresses] = useState<SavedAddress[]>(initialAddresses);
+  // The address currently being changed, so only that row shows it is busy.
+  const [busyAddressId, setBusyAddressId] = useState("");
+  // Two-step delete: the first click asks, the second one removes.
+  const [confirmRemoveId, setConfirmRemoveId] = useState("");
 
   const { data: session } = authClient.useSession();
   const { settings, formatPrice } = useSiteSettings();
@@ -167,6 +183,57 @@ export default function CustomerProfileClient({
       toast.error("Failed to update profile.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // ── Saved Address Handlers ────────────────────────────────────────────────
+
+  // Make one address the default; checkout pre-fills from that one.
+  const handleMakeDefault = async (id: string) => {
+    setBusyAddressId(id);
+    try {
+      const res = await setDefaultAddress(id);
+      if (res?.success === false) {
+        toast.error(res?.message || "Could not change the default address.");
+        return;
+      }
+      // Only one address may be the default, so flip the badge locally too.
+      setAddresses((prev) =>
+        prev.map((item) => ({ ...item, isDefault: item._id === id }))
+      );
+      toast.success("Default address updated.");
+    } catch {
+      toast.error("Could not change the default address.");
+    } finally {
+      setBusyAddressId("");
+    }
+  };
+
+  const handleRemoveAddress = async (id: string) => {
+    setBusyAddressId(id);
+    try {
+      const res = await removeAddress(id);
+      if (res?.success === false) {
+        toast.error(res?.message || "Could not remove the address.");
+        return;
+      }
+
+      setAddresses((prev) => {
+        const wasDefault = prev.find((item) => item._id === id)?.isDefault;
+        const remaining = prev.filter((item) => item._id !== id);
+        // The backend promotes a survivor when the default is removed, so the
+        // list on screen keeps the same rule.
+        if (wasDefault && remaining.length > 0) {
+          remaining[0] = { ...remaining[0], isDefault: true };
+        }
+        return remaining;
+      });
+      setConfirmRemoveId("");
+      toast.success("Address removed.");
+    } catch {
+      toast.error("Could not remove the address.");
+    } finally {
+      setBusyAddressId("");
     }
   };
 
@@ -495,6 +562,118 @@ export default function CustomerProfileClient({
           </Card>
         </div>
       </div>
+
+      {/* ── Saved Shipping Addresses ── */}
+      <Card className="bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-2xl p-6 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 className="text-base font-bold text-[var(--foreground)]">
+              Saved Addresses
+            </h3>
+            <p className="text-xs text-[var(--foreground-muted)]">
+              Checkout fills in the default address. Up to 5 can be kept.
+            </p>
+          </div>
+          <Link
+            href="/checkout"
+            className="text-xs font-bold text-primary hover:underline self-start sm:self-auto"
+          >
+            Add one at checkout
+          </Link>
+        </div>
+
+        {addresses.length === 0 ? (
+          <div className="p-6 rounded-xl border border-dashed border-[var(--border-color)] text-center space-y-1.5">
+            <Bookmark className="w-6 h-6 text-[var(--foreground-muted)] mx-auto" />
+            <p className="text-xs font-semibold text-[var(--foreground)]">
+              No saved addresses yet
+            </p>
+            <p className="text-[11px] text-[var(--foreground-muted)]">
+              Tick &quot;Save this address for next time&quot; when you place an order.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {addresses.map((item) => (
+              <div
+                key={item._id}
+                className={`p-4 rounded-xl border space-y-2 ${
+                  item.isDefault
+                    ? "border-primary/40 bg-primary/5"
+                    : "border-[var(--border-color)] bg-[var(--surface-alt)]/40"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5 text-xs font-bold text-[var(--foreground)]">
+                    <MapPin className="w-3.5 h-3.5 text-primary" />
+                    {item.label}
+                  </span>
+                  {item.isDefault && (
+                    <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary/15 text-primary">
+                      Default
+                    </span>
+                  )}
+                </div>
+
+                <div className="text-[11px] text-[var(--foreground-muted)] space-y-0.5">
+                  <p className="font-semibold text-[var(--foreground)]">{item.fullName}</p>
+                  <p>{item.address}</p>
+                  <p>
+                    {item.city} {item.postalCode}
+                  </p>
+                  <p className="flex items-center gap-1 pt-0.5">
+                    <Phone className="w-3 h-3" />
+                    {item.phone}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 pt-1">
+                  {!item.isDefault && (
+                    <button
+                      type="button"
+                      onClick={() => handleMakeDefault(item._id)}
+                      disabled={busyAddressId === item._id}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-primary/10 text-primary hover:bg-primary/20 transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      <Check className="w-3 h-3" />
+                      Make default
+                    </button>
+                  )}
+
+                  {confirmRemoveId === item._id ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveAddress(item._id)}
+                        disabled={busyAddressId === item._id}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-rose-600 text-white hover:bg-rose-700 transition-colors disabled:opacity-50 cursor-pointer"
+                      >
+                        {busyAddressId === item._id ? "Removing..." : "Remove"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmRemoveId("")}
+                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[var(--surface-alt)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] transition-colors cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmRemoveId(item._id)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }

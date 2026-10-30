@@ -32,17 +32,21 @@ import {
   Coins,
   ChevronRight,
   Ban,
+  Bookmark,
+  Plus,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { authClient } from "@/lib/auth-client";
 import { getCartByUserId } from "@/lib/api/cart";
 import { createOrder } from "@/lib/action/orders";
+import { saveAddress } from "@/lib/action/address";
 import {
   CheckoutClientProps,
   CartData,
   CartItem,
   PaymentMethod,
   ShippingAddress,
+  SavedAddress,
 } from "@/types";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 import WalletPaymentModal from "./WalletPaymentModal";
@@ -138,6 +142,7 @@ const PAYMENT_OPTIONS: PaymentOption[] = [
 export default function CheckoutClient({
   initialCart,
   user: initialUser,
+  savedAddresses = [],
 }: CheckoutClientProps) {
   const router = useRouter();
   const { data: clientSession } = authClient.useSession();
@@ -151,14 +156,33 @@ export default function CheckoutClient({
     !initialCart && Boolean(user?.id)
   );
 
+  // ── Saved Address Book ─────────────────────────────────────────────────────
+  // The server sends the book with the default address first, so a returning
+  // customer starts with the form already filled in.
+  const addressBook: SavedAddress[] = savedAddresses;
+
   // ── Shipping Form State ────────────────────────────────────────────────────
-  const [shippingForm, setShippingForm] = useState<ShippingAddress>({
-    fullName: user?.name || "",
-    phone: "",
-    address: "",
-    city: "",
-    postalCode: "",
+  const [shippingForm, setShippingForm] = useState<ShippingAddress>(() => {
+    const preferred = addressBook[0];
+    if (preferred) {
+      return {
+        fullName: preferred.fullName || user?.name || "",
+        phone: preferred.phone,
+        address: preferred.address,
+        city: preferred.city,
+        postalCode: preferred.postalCode,
+      };
+    }
+
+    return { fullName: user?.name || "", phone: "", address: "", city: "", postalCode: "" };
   });
+
+  // `"new"` means the form holds an address that is not in the book.
+  const [selectedAddressId, setSelectedAddressId] = useState<string>(
+    addressBook[0]?._id ?? "new"
+  );
+  // Only asked for an address that is not saved yet.
+  const [saveForNextTime, setSaveForNextTime] = useState<boolean>(true);
 
   // ── Payment Selection State ────────────────────────────────────────────────
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
@@ -303,6 +327,28 @@ export default function CheckoutClient({
     value: string
   ) => {
     setShippingForm((prev) => ({ ...prev, [field]: value }));
+    // Typing means the form no longer matches a saved address exactly.
+    setSelectedAddressId("new");
+  };
+
+  // Copy one saved address into the form, or switch back to a blank entry.
+  const handlePickAddress = (id: string) => {
+    if (id === "new") {
+      setSelectedAddressId("new");
+      return;
+    }
+
+    const picked = addressBook.find((item) => item._id === id);
+    if (!picked) return;
+
+    setShippingForm({
+      fullName: picked.fullName,
+      phone: picked.phone,
+      address: picked.address,
+      city: picked.city,
+      postalCode: picked.postalCode,
+    });
+    setSelectedAddressId(picked._id);
   };
 
   // 1. Validate the typed wallet number + TrxID, then open the gateway modal.
@@ -420,6 +466,22 @@ export default function CheckoutClient({
       const createdOrder = response?.data as { _id: string } | undefined;
       if (!createdOrder?._id) {
         throw new Error("Order couldn't be placed..Please check cart!");
+      }
+
+      // Keep the address for the next order. This runs before the redirect, but
+      // a failure here is only logged: the order itself is already placed.
+      if (user?.id && saveForNextTime && selectedAddressId === "new") {
+        try {
+          await saveAddress({
+            fullName: shippingForm.fullName.trim(),
+            phone: shippingForm.phone.trim(),
+            address: shippingForm.address.trim(),
+            city: shippingForm.city.trim(),
+            postalCode: shippingForm.postalCode.trim(),
+          });
+        } catch (err) {
+          console.error("Could not save the shipping address:", err);
+        }
       }
 
       toast.success("Order placed successfully! Redirecting...");
@@ -793,6 +855,59 @@ export default function CheckoutClient({
                   </span>
                 </div>
 
+                {/* Saved addresses: shown only when the customer has some. */}
+                {user?.id && addressBook.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-semibold text-[var(--foreground-muted)]">
+                      Use a saved address
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {addressBook.map((item) => {
+                        const isActive = selectedAddressId === item._id;
+                        return (
+                          <button
+                            key={item._id}
+                            type="button"
+                            onClick={() => handlePickAddress(item._id)}
+                            className={`text-left px-3 py-2 rounded-xl border transition-all cursor-pointer max-w-[220px] ${
+                              isActive
+                                ? "border-primary bg-primary/10 ring-1 ring-primary/30"
+                                : "border-[var(--border-color)] bg-[var(--surface-alt)] hover:border-primary/50"
+                            }`}
+                          >
+                            <span className={`flex items-center gap-1.5 text-xs font-bold ${isActive ? "text-primary" : "text-[var(--foreground)]"}`}>
+                              <Bookmark className="w-3.5 h-3.5" />
+                              {item.label}
+                              {item.isDefault && (
+                                <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary/15 text-primary">
+                                  Default
+                                </span>
+                              )}
+                            </span>
+                            <span className="block text-[11px] text-[var(--foreground-muted)] truncate">
+                              {item.address}, {item.city}
+                            </span>
+                          </button>
+                        );
+                      })}
+
+                      {/* Escape hatch: type an address that is not in the book. */}
+                      <button
+                        type="button"
+                        onClick={() => handlePickAddress("new")}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                          selectedAddressId === "new"
+                            ? "border-primary bg-primary/10 text-primary ring-1 ring-primary/30"
+                            : "border-[var(--border-color)] bg-[var(--surface-alt)] text-[var(--foreground-muted)] hover:border-primary/50"
+                        }`}
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        New address
+                      </button>
+                    </div>
+                  </div>
+                )}
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {/* Full Name */}
                     <div className={fieldClass}>
@@ -892,6 +1007,28 @@ export default function CheckoutClient({
                       </div>
                     </div>
                   </div>
+
+                {/** Offer to keep the address. Only for a new one: an address that
+                    was picked from the book is already saved. */}
+                {user?.id && selectedAddressId === "new" && (
+                  <label className="flex items-start gap-2.5 p-3 rounded-xl bg-[var(--surface-alt)] border border-[var(--border-color)] cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={saveForNextTime}
+                      onChange={(e) => setSaveForNextTime(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 shrink-0 accent-primary cursor-pointer"
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-xs font-semibold text-[var(--foreground)]">
+                        Save this address for next time
+                      </span>
+                      <span className="block text-[11px] text-[var(--foreground-muted)] mt-0.5">
+                        It is kept in your account, so the next order is one tap. Up to 5
+                        addresses can be saved and you can remove them from your profile.
+                      </span>
+                    </span>
+                  </label>
+                )}
                 </Card.Content>
               </Card>
 

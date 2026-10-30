@@ -1,8 +1,9 @@
 import React from "react";
 import CheckoutClient from "./CheckoutClient";
 import { getCartByUserId } from "@/lib/api/cart";
+import { getSavedAddresses } from "@/lib/api/address";
 import { getUserSession } from "@/lib/core/session";
-import { CartData } from "@/types";
+import { CartData, SavedAddress } from "@/types";
 import { getSiteSettings } from "@/lib/api/siteSettings";
 
 export async function generateMetadata() {
@@ -18,6 +19,7 @@ export async function generateMetadata() {
 export default async function CheckoutPage() {
   const user = await getUserSession();
   let initialCart: CartData | null = null;
+  let savedAddresses: SavedAddress[] = [];
 
   if (user?.id) {
     try {
@@ -28,7 +30,24 @@ export default async function CheckoutPage() {
     } catch {
       // Unauthenticated or backend unavailable during SSR
     }
+
+    try {
+      // The address book only exists for a signed-in customer, so this is
+      // fetched together with the cart and handed to the client as a prop.
+      const res = await getSavedAddresses();
+      if (Array.isArray(res?.data)) {
+        savedAddresses = res.data;
+      }
+    } catch {
+      // No saved addresses is a normal state, not an error worth blocking on
+    }
   }
 
-  return <CheckoutClient initialCart={initialCart} user={user} />;
+  return (
+    <CheckoutClient
+      initialCart={initialCart}
+      user={user}
+      savedAddresses={savedAddresses}
+    />
+  );
 }

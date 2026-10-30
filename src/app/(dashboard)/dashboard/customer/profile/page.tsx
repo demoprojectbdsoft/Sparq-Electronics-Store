@@ -2,6 +2,8 @@ import React from "react";
 import CustomerProfileClient from "./CustomerProfileClient";
 import { getUserSession } from "@/lib/core/session";
 import { getUserById } from "@/lib/api/user";
+import { getSavedAddresses } from "@/lib/api/address";
+import { SavedAddress } from "@/types";
 
 export interface RealCustomerProfile {
   id: string;
@@ -85,5 +87,23 @@ async function getProfileData(): Promise<RealCustomerProfile> {
 
 export default async function CustomerProfilePage() {
   const profileData = await getProfileData();
-  return <CustomerProfileClient initialProfile={profileData} />;
+
+  // The address book is a separate collection, so it is fetched alongside the
+  // profile and handed to the client as a prop.
+  let savedAddresses: SavedAddress[] = [];
+  try {
+    const res = await getSavedAddresses();
+    if (Array.isArray(res?.data)) {
+      savedAddresses = res.data;
+    }
+  } catch {
+    // No saved addresses is a normal state, not a reason to fail the page.
+  }
+
+  return (
+    <CustomerProfileClient
+      initialProfile={profileData}
+      initialAddresses={savedAddresses}
+    />
+  );
 }

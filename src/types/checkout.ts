@@ -10,6 +10,19 @@ export interface ShippingAddress {
   postalCode: string;
 }
 
+/**
+ * An address the customer asked us to keep, so the next order only needs a pick
+ * from a list. Owned by one user and never shared, like the cart.
+ */
+export interface SavedAddress extends ShippingAddress {
+  _id: string;
+  /** A short nickname, e.g. "Home" or "Office". */
+  label: string;
+  /** Only one address is the default; checkout pre-fills from it. */
+  isDefault: boolean;
+  createdAt?: string;
+}
+
 export interface CreateOrderItemPayload {
   productId: string;
   quantity: number;
@@ -82,6 +95,8 @@ export interface Order {
 export interface CheckoutClientProps {
   initialCart?: CartData | null;
   user?: User | null;
+  /** The customer's address book, newest first with the default at the top. */
+  savedAddresses?: SavedAddress[];
 }
 
 export interface OrderSuccessClientProps {
