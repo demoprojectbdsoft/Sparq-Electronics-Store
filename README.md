@@ -226,9 +226,9 @@ Place order ─► validate stock ─► redeem points ─► compute totals ─
 
 - **One call** — placing an order does all of the above in a single backend request, inside one database transaction.
 - **Server-trusted money** — prices, discounts, shipping fees and totals are always computed by the API, never sent from the browser.
-- **Delivery response** — once an order ships, the customer reports *Order Received*, *Still Not Received* or *Cancel Order*, with an optional note. The order then resolves to `delivered` or `cancelled`, and the admin is notified.
-- **On delivery** — payment settles, sell counts increase, loyalty points are credited, the membership tier is re-checked and warranties are issued.
-- **On cancellation** — the transaction is marked failed, warranties are voided, stock is returned, and any points involved are settled in the customer's favour.
+- **Delivery response** — once an order ships, the customer reports *Order Received*, *Still Not Received* or *Cancel Order*, with an optional note. The order then resolves to `delivered` or `cancelled`, and the admin's dashboard only offers the matching next step.
+- **After delivery** — the payment settles, each product's sold count grows, the points worked out at checkout are credited, the membership tier is re-checked, and one warranty per item is issued from the delivery date. Stock was already reduced at checkout.
+- **After cancellation** — the payment is marked failed, the quantity goes back to stock, open warranties expire, and the points are undone: points spent at checkout come back, while points earned only exist on a delivered order and are removed if it is returned.
 - **Suspended accounts** cannot add to the cart or check out.
 
 ### Loyalty & membership
