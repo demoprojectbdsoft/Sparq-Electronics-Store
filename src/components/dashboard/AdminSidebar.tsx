@@ -20,6 +20,7 @@ import {
   Shield,
   Mail,
   Megaphone,
+  Truck,
   type LucideIcon,
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
@@ -49,6 +50,7 @@ const NAV_GROUPS = [
     title: "Sales",
     items: [
       { name: "Orders", href: "/dashboard/admin/orders", icon: ShoppingBag },
+      { name: "Deliveries", href: "/dashboard/admin/deliveries", icon: Truck },
       { name: "Transactions", href: "/dashboard/admin/transactions", icon: CreditCard },
     ],
   },

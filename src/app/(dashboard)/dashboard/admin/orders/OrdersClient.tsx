@@ -29,12 +29,14 @@ import {
   ArrowUpDown,
   RotateCcw,
   AlertTriangle,
+  Truck,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { Order } from "@/types";
 import { updateOrderStatus } from "@/lib/action/orders";
 import { getOrderStatusStyle } from "@/lib/orderStatusStyles";
 import OrderStatusBadge from "@/components/shared/OrderStatusBadge";
+import AssignRiderModal from "@/components/dashboard/admin/AssignRiderModal";
 import { formatOrderDate, formatOrderDateTime } from "@/lib/dateTime";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
@@ -147,6 +149,32 @@ export default function OrdersClient({
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
+  // Shipping is a rider decision now: choosing "shipped" opens the picker, and
+  // the order only leaves the store once a rider has the job.
+  const [assignOrder, setAssignOrder] = useState<Order | null>(null);
+  const [isAssignOpen, setIsAssignOpen] = useState(false);
+
+  const openAssignPicker = (order: Order) => {
+    setAssignOrder(order);
+    setIsAssignOpen(true);
+  };
+
+  const handleAssigned = (orderId: string) => {
+    setOrders((prev) =>
+      prev.map((o) =>
+        (o._id || o.id) === orderId
+          ? { ...o, orderStatus: "shipped" as Order["orderStatus"], status: "shipped" as Order["status"] }
+          : o
+      )
+    );
+    setSelectedOrder((prev) =>
+      prev && (prev._id || prev.id) === orderId
+        ? { ...prev, orderStatus: "shipped" as Order["orderStatus"], status: "shipped" as Order["status"] }
+        : prev
+    );
+    router.refresh();
+  };
+
   // Status badge - colour and icon come from the shared status palette, so a
   // shipped order is never brand-blue text on an amber pill again.
   const getStatusBadge = (status?: string) => <OrderStatusBadge status={status} size="sm" />;
@@ -164,6 +192,14 @@ export default function OrdersClient({
     // The dropdown only offers legal moves and the backend checks them again.
     const orderId = selectedOrder._id || selectedOrder.id;
     if (!orderId) return;
+
+    // "Shipped" without a rider is a parcel nobody is carrying, so that choice
+    // hands over to the picker instead of calling the status endpoint.
+    if (newStatus === "shipped") {
+      openAssignPicker(selectedOrder);
+      return;
+    }
+
     setIsUpdatingStatus(true);
 
     try {
@@ -704,6 +740,34 @@ export default function OrdersClient({
                             </div>
                           </div>
 
+                          {/* The rider owns the last mile, so the store can hand
+                              the job over without touching the order status. */}
+                          {isShipped && (
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border-color)]">
+                              <div className="flex items-start gap-2.5">
+                                <div className="w-7 h-7 rounded-lg bg-[var(--brand-flat)]/10 text-[var(--brand-flat)] flex items-center justify-center shrink-0">
+                                  <Truck className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <p className="text-[11px] font-bold text-[var(--foreground)]">
+                                    Rider on the last mile
+                                  </p>
+                                  <p className="text-[11px] text-[var(--foreground-muted)]">
+                                    The rider closes this order with the customer&apos;s delivery code.
+                                    Hand it to somebody else if they cannot make it.
+                                  </p>
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                onPress={() => openAssignPicker(selectedOrder)}
+                                className="h-9 px-3 rounded-xl bg-[var(--surface-alt)] border border-[var(--border-color)] text-[var(--foreground)] text-[11px] font-bold shrink-0"
+                              >
+                                Assign or hand over
+                              </Button>
+                            </div>
+                          )}
+
                           {/* Customer Response Status Banner */}
                           {isResponseLocked && (
                             <div className="p-3.5 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 text-xs text-amber-900 dark:text-amber-200 flex items-start gap-3 shadow-xs">
@@ -995,6 +1059,32 @@ export default function OrdersClient({
           </Modal.Container>
         </Modal.Backdrop>
       </Modal>
+
+      {/* ── Rider picker: the step that turns "shipped" into somebody's job ── */}
+      <AssignRiderModal
+        isOpen={isAssignOpen}
+        onOpenChange={setIsAssignOpen}
+        order={
+          assignOrder
+            ? {
+                _id: assignOrder._id || assignOrder.id || "",
+                orderNumber: `#ORD-${(assignOrder._id || assignOrder.id || "").slice(-6).toUpperCase()}`,
+                customerName:
+                  (typeof assignOrder.userId === "object"
+                    ? assignOrder.userId?.name
+                    : undefined) || assignOrder.shippingAddress?.fullName,
+                city: assignOrder.shippingAddress?.city,
+                shippingFee: assignOrder.shippingFee,
+                orderStatus: assignOrder.orderStatus || assignOrder.status,
+              }
+            : null
+        }
+        onAssigned={() => {
+          const id = assignOrder?._id || assignOrder?.id;
+          if (id) handleAssigned(id);
+          setAssignOrder(null);
+        }}
+      />
     </div>
   );
 }

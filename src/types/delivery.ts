@@ -21,6 +21,22 @@ export type DeliveryStatus = (typeof DELIVERY_STATUSES)[number];
 /** The status shortcuts the API understands, on top of one exact stage. */
 export type DeliveryStatusFilter = "all" | "active" | "finished" | DeliveryStatus;
 
+/** The rider carrying a delivery, as the store and the buyer see them. */
+export interface DeliveryRider {
+  _id: string;
+  name: string;
+  phone: string;
+  vehicleType: string;
+  vehicleNumber: string;
+}
+
+/** One line of a delivery's own history, oldest first. */
+export interface DeliveryEvent {
+  status: DeliveryStatus;
+  at: string | null;
+  note: string;
+}
+
 export interface DeliveryRecord {
   _id: string;
   orderId: string;
@@ -45,6 +61,96 @@ export interface DeliveryRecord {
   cancelledAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Null on the rider's own lists, filled in for the store and the buyer. */
+  rider: DeliveryRider | null;
+  history: DeliveryEvent[];
+}
+
+/** A rider the store can pick from when it hands out a job. */
+export interface AssignableRider {
+  _id: string;
+  name: string;
+  email: string;
+  phone: string;
+  image: string;
+  availability: "online" | "offline";
+  vehicleType: string;
+  vehicleNumber: string;
+  /** Jobs this rider is carrying right now. */
+  activeJobs: number;
+  completedJobs: number;
+  available: boolean;
+}
+
+export interface AssignableRiderFeed {
+  riders: AssignableRider[];
+  /** The rider who already holds this order's live job, if any. */
+  currentRiderId: string | null;
+  /** The live job itself, so the picker can offer a hand-over. */
+  currentDelivery: { _id: string; status: DeliveryStatus; riderId: string } | null;
+}
+
+/** The numbers at the top of the store's delivery board. */
+export interface AdminDeliveryOverview {
+  statusCounts: Partial<Record<DeliveryStatus, number>>;
+  total: number;
+  active: number;
+  waiting: number;
+  deliveredToday: number;
+  onlineRiders: number;
+  /** Shipped orders with no rider holding them — the store's fix list. */
+  shippedWithoutRider: number;
+  onTheRoad: number;
+}
+
+/** One position ping from the rider's phone. */
+export interface DeliveryLocation {
+  lat: number;
+  lng: number;
+  accuracy: number | null;
+  heading: number | null;
+  speed: number | null;
+  updatedAt: string;
+  trail: { lat: number; lng: number; at: string | null }[];
+}
+
+export interface DeliveryEta {
+  minutes: number;
+  at: string;
+}
+
+/** The code the buyer reads at the door. Never present in a rider list. */
+export interface DeliveryCode {
+  code: string;
+  expiresAt: string;
+  expired: boolean;
+  verified: boolean;
+  attemptsLeft: number;
+  regenerated: number;
+}
+
+export interface DeliveryTrackingOrder {
+  _id: string;
+  orderNumber: string;
+  status: string;
+  estimatedDelivery: string;
+  shippingMethod: string;
+  address: string;
+  city: string;
+}
+
+/**
+ * The tracking page's single read: the stage, the rider, the newest position,
+ * the short trail, an ETA, and the code the customer will read out.
+ */
+export interface DeliveryTracking {
+  order: DeliveryTrackingOrder;
+  delivery: DeliveryRecord | null;
+  location: DeliveryLocation | null;
+  eta: DeliveryEta | null;
+  otp: (DeliveryCode & { progress: number }) | null;
+  isOwner: boolean;
+  serverTime: string;
 }
 
 /** One point in the rider's daily chart. Every day in the range is present. */
@@ -93,6 +199,8 @@ export interface DeliveryPagination {
 export interface DeliveryFeed {
   deliveries: DeliveryRecord[];
   total: number;
+  /** Offers this rider still has to answer; the sidebar badge reads it. */
+  pendingRequests: number;
   pagination: DeliveryPagination;
 }
 

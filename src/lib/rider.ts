@@ -6,14 +6,29 @@ import type {
 } from "@/types/delivery";
 
 /**
- * The rider screens' shared vocabulary.
+ * The delivery screens' shared vocabulary.
  *
- * Every label, chip colour and stat card lives here, so the overview, the
- * lists and the exports describe a delivery the same way.
+ * Every label, chip colour and stat card lives here, so the rider's lists, the
+ * store's board and the buyer's tracking page describe a delivery the same way.
  */
 
+/** What a rider sees: a fresh offer is waiting on them. */
 export const DELIVERY_STATUS_LABELS: Record<DeliveryStatus, string> = {
   assigned: "Awaiting you",
+  accepted: "Accepted",
+  picked_up: "Picked up",
+  out_for_delivery: "Out for delivery",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+  declined: "Declined",
+};
+
+/**
+ * What everybody else sees. The same stage reads differently from the store's
+ * side or the customer's: nobody is "awaiting me" on those screens.
+ */
+export const DELIVERY_STATUS_NEUTRAL_LABELS: Record<DeliveryStatus, string> = {
+  assigned: "Awaiting rider",
   accepted: "Accepted",
   picked_up: "Picked up",
   out_for_delivery: "Out for delivery",
@@ -42,6 +57,78 @@ export const ACTIVE_DELIVERY_STATUSES: DeliveryStatus[] = [
 
 export function isActiveDelivery(status: DeliveryStatus): boolean {
   return ACTIVE_DELIVERY_STATUSES.includes(status);
+}
+
+/**
+ * The happy path, in order.
+ *
+ * `cancelled` and `declined` are not steps: they are the two ways a job leaves
+ * this line, so a progress bar built from this list can never show them.
+ */
+export const DELIVERY_STAGE_SEQUENCE: DeliveryStatus[] = [
+  "assigned",
+  "accepted",
+  "picked_up",
+  "out_for_delivery",
+  "delivered",
+];
+
+/** A plain-language name for the customer's stepper. */
+export const DELIVERY_STAGE_LABELS: Record<string, string> = {
+  assigned: "Rider assigned",
+  accepted: "Rider accepted",
+  picked_up: "Picked up",
+  out_for_delivery: "On the way",
+  delivered: "Delivered",
+};
+
+/** How far a delivery has come, 0–100, for the progress bar. */
+export function deliveryProgressPercent(status: DeliveryStatus): number {
+  const index = DELIVERY_STAGE_SEQUENCE.indexOf(status);
+  if (index < 0) return 0;
+  return Math.round((index / (DELIVERY_STAGE_SEQUENCE.length - 1)) * 100);
+}
+
+/** Whether a stage has been reached, so the stepper can tick it. */
+export function hasReachedStage(current: DeliveryStatus, stage: DeliveryStatus): boolean {
+  const currentIndex = DELIVERY_STAGE_SEQUENCE.indexOf(current);
+  const stageIndex = DELIVERY_STAGE_SEQUENCE.indexOf(stage);
+  if (currentIndex < 0 || stageIndex < 0) return false;
+  return currentIndex >= stageIndex;
+}
+
+/**
+ * The rider's one next action, or null when there is nothing left to do.
+ *
+ * `delivered` never appears here: a hand-over is confirmed with the customer's
+ * code, not with a button.
+ */
+export function nextRiderStep(
+  status: DeliveryStatus
+): { status: DeliveryStatus; label: string } | null {
+  if (status === "accepted") return { status: "picked_up", label: "Mark picked up" };
+  if (status === "picked_up") return { status: "out_for_delivery", label: "Start delivery" };
+  return null;
+}
+
+/** "18 min left", "2h 05m left", or "" once the window has closed. */
+export function formatTimeLeft(iso: string | null, nowMs: number): string {
+  if (!iso) return "";
+  const leftMs = new Date(iso).getTime() - nowMs;
+  if (!Number.isFinite(leftMs) || leftMs <= 0) return "";
+  const minutes = Math.ceil(leftMs / 60_000);
+  if (minutes < 60) return `${minutes} min left`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ${String(minutes % 60).padStart(2, "0")}m left`;
+}
+
+/** "Arriving in 12 min" for the tracking page. */
+export function formatEta(minutes: number | null | undefined): string {
+  if (!minutes || minutes <= 0) return "Arriving soon";
+  if (minutes < 60) return `Arriving in ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest > 0 ? `Arriving in ${hours}h ${rest}m` : `Arriving in ${hours}h`;
 }
 
 /**
