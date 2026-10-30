@@ -9,6 +9,7 @@ interface AdminWarrantiesPageProps {
   searchParams: Promise<{
     search?: string;
     status?: string;
+    warrantyType?: string;
     sort?: string;
     page?: string;
     limit?: string;
@@ -65,6 +66,8 @@ export default async function AdminWarrantiesPage({ searchParams }: AdminWarrant
     limit,
     search: params?.search,
     status: status === "all" ? undefined : status || "claimed",
+    // "all" warranty types is the same as no warranty-type filter at all.
+    warrantyType: params?.warrantyType === "all" ? undefined : params?.warrantyType,
     sort: params?.sort,
   };
 

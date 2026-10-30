@@ -49,18 +49,19 @@ import {
   hasWarrantyCoverage,
   MAX_WARRANTY_EXTENSIONS,
   totalCoverageMonths,
+  WARRANTY_TYPE_OPTIONS,
   warrantyTypeInfo,
   warrantyTypeLabel,
 } from "@/lib/warranty";
 import type { NormalizedAdminWarranty } from "@/types";
 
 /**
- * Each tab carries the value the API expects. "Claims" is first and is the
- * default view: a warranty nobody has claimed needs no admin work, so it only
- * shows up under "All". "claimed" is a group the server understands — every
- * record that reached claim_submitted, under_review, info_requested or resolved.
+ * Every status the admin can look at. "Claims" is first and is the default
+ * view: a warranty nobody has claimed needs no admin work, so it only shows up
+ * under "All". "claimed" is a group the server understands — every record that
+ * reached claim_submitted, under_review, info_requested or resolved.
  */
-const STATUS_FILTER_TABS = [
+const STATUS_FILTER_OPTIONS = [
   { label: "Claims", value: "claimed" },
   { label: "All", value: "all" },
   { label: "Active", value: "active" },
@@ -69,6 +70,18 @@ const STATUS_FILTER_TABS = [
   { label: "Info Requested", value: "info_requested" },
   { label: "Resolved", value: "resolved" },
   { label: "Expired", value: "expired" },
+];
+
+/**
+ * The warranty types, plus a first entry that clears the filter. Taken from the
+ * shared catalog, so a type added there shows up here with no change.
+ */
+const WARRANTY_TYPE_FILTER_OPTIONS = [
+  { label: "All warranty types", value: "all" },
+  ...WARRANTY_TYPE_OPTIONS.map((option) => ({
+    label: option.label,
+    value: option.value,
+  })),
 ];
 
 const SORT_OPTIONS = [
@@ -229,9 +242,12 @@ export default function AdminWarrantiesClient({
     setWarranties(Array.isArray(initialWarranties) ? initialWarranties : []);
   }, [initialWarranties]);
 
-  // No status in the URL means the page opens on claims, so the first tab is
+  // No status in the URL means the page opens on claims, so the first entry is
   // highlighted without adding a parameter just to say so.
   const currentStatusParam = searchParams.get("status") || "claimed";
+  // "all" is not sent to the server: it only gives the select something to show
+  // while no warranty type has been picked.
+  const currentWarrantyTypeParam = searchParams.get("warrantyType") || "all";
   const currentSearch = searchParams.get("search") || "";
   const currentSort = searchParams.get("sort") || "newest";
   const [searchInput, setSearchInput] = useState(currentSearch);
@@ -474,6 +490,11 @@ export default function AdminWarrantiesClient({
           ? `This warranty has used all ${MAX_WARRANTY_EXTENSIONS} extensions it is allowed.`
           : "";
   const canExtend = extendBlockedReason === "";
+  // The form is only worth showing while another extension is possible. A record
+  // that used all its slots keeps just the history, and one with nothing to
+  // extend at all (sold without coverage, or a returned order) drops the section.
+  const showExtensionHistory = !!selectedWarranty?.extensions?.length;
+  const showExtendSection = canExtend || showExtensionHistory;
 
   return (
     <div className="space-y-6">
@@ -501,28 +522,9 @@ export default function AdminWarrantiesClient({
       </div>
 
       {/* ── Filters ── */}
-      <div className="bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-2xl p-4 md:p-5 shadow-xs space-y-4">
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-3 border-b border-[var(--border-color)]/80">
-          <span className="text-[11px] font-bold text-[var(--foreground-muted)] uppercase tracking-wider mr-1">Status:</span>
-          {STATUS_FILTER_TABS.map((tab) => {
-            const isActive = currentStatusParam === tab.value;
-            return (
-              <button
-                key={tab.value}
-                type="button"
-                onClick={() => updateParams({ status: tab.value })}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                  isActive ? "bg-primary text-white shadow-xs font-bold" : "bg-[var(--surface-alt)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border border-[var(--border-color)]"
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <form onSubmit={handleSearchSubmit} className="relative flex-1 max-w-md flex items-center gap-2">
+      <div className="bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-2xl p-4 md:p-5 shadow-xs">
+        <div className="flex flex-col 2xl:flex-row 2xl:items-end justify-between gap-3">
+          <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-0 max-w-md flex items-center gap-2">
             <div className="relative flex-1">
               <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] z-10" />
               <Input
@@ -536,29 +538,91 @@ export default function AdminWarrantiesClient({
             <Button type="submit" size="sm" className="h-10 px-4 rounded-xl bg-primary text-white font-bold text-xs">Search</Button>
           </form>
 
-          <div className="flex items-center gap-2">
-            <div className="w-48">
-              <Select
-                aria-label="Sort"
-                selectedKey={currentSort}
-                onSelectionChange={(key) => updateParams({ sort: String(key) })}
-              >
-                <Select.Trigger className="h-10 w-full px-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] text-xs font-semibold flex items-center justify-between">
-                  <Select.Value />
-                  <Select.Indicator />
-                </Select.Trigger>
-                <Select.Popover className="w-52 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl">
-                  <ListBox>
-                    {SORT_OPTIONS.map((opt) => (
-                      <ListBox.Item key={opt.key} id={opt.key} textValue={opt.label} className="text-xs font-medium px-3 py-2 rounded-lg hover:bg-primary/10">
-                        {opt.label}
-                      </ListBox.Item>
-                    ))}
-                  </ListBox>
-                </Select.Popover>
-              </Select>
+          {/* One select per filter — status, warranty type and order — each with
+              a small label above it. The old tab strip had to scroll sideways on
+              a laptop; the same choices now sit in a dropdown each. */}
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]">Status</span>
+              <div className="w-[9.5rem]">
+                <Select
+                  aria-label="Status"
+                  selectedKey={currentStatusParam}
+                  onSelectionChange={(key) => updateParams({ status: String(key) })}
+                >
+                  <Select.Trigger className="h-10 w-full px-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] text-xs font-semibold flex items-center justify-between gap-2">
+                    <Select.Value className="truncate" />
+                    <Select.Indicator />
+                  </Select.Trigger>
+                  <Select.Popover className="w-52 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl">
+                    <ListBox>
+                      {STATUS_FILTER_OPTIONS.map((opt) => (
+                        <ListBox.Item key={opt.value} id={opt.value} textValue={opt.label} className="text-xs font-medium px-3 py-2 rounded-lg hover:bg-primary/10">
+                          {opt.label}
+                        </ListBox.Item>
+                      ))}
+                    </ListBox>
+                  </Select.Popover>
+                </Select>
+              </div>
             </div>
-            {(currentSearch || currentStatusParam !== "claimed") && (
+
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]">Warranty Type</span>
+              <div className="w-48">
+                <Select
+                  aria-label="Warranty type"
+                  selectedKey={currentWarrantyTypeParam}
+                  onSelectionChange={(key) =>
+                    // "all" clears the filter instead of being sent to the API.
+                    updateParams({
+                      warrantyType: String(key) === "all" ? undefined : String(key),
+                    })
+                  }
+                >
+                  <Select.Trigger className="h-10 w-full px-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] text-xs font-semibold flex items-center justify-between gap-2">
+                    <Select.Value className="truncate" />
+                    <Select.Indicator />
+                  </Select.Trigger>
+                  <Select.Popover className="w-60 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl">
+                    <ListBox>
+                      {WARRANTY_TYPE_FILTER_OPTIONS.map((opt) => (
+                        <ListBox.Item key={opt.value} id={opt.value} textValue={opt.label} className="text-xs font-medium px-3 py-2 rounded-lg hover:bg-primary/10">
+                          {opt.label}
+                        </ListBox.Item>
+                      ))}
+                    </ListBox>
+                  </Select.Popover>
+                </Select>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]">Sort</span>
+              <div className="w-40">
+                <Select
+                  aria-label="Sort"
+                  selectedKey={currentSort}
+                  onSelectionChange={(key) => updateParams({ sort: String(key) })}
+                >
+                  <Select.Trigger className="h-10 w-full px-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] text-xs font-semibold flex items-center justify-between gap-2">
+                    <Select.Value className="truncate" />
+                    <Select.Indicator />
+                  </Select.Trigger>
+                  <Select.Popover className="w-52 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl">
+                    <ListBox>
+                      {SORT_OPTIONS.map((opt) => (
+                        <ListBox.Item key={opt.key} id={opt.key} textValue={opt.label} className="text-xs font-medium px-3 py-2 rounded-lg hover:bg-primary/10">
+                          {opt.label}
+                        </ListBox.Item>
+                      ))}
+                    </ListBox>
+                  </Select.Popover>
+                </Select>
+              </div>
+            </div>
+
+            {(currentSearch || currentStatusParam !== "claimed" || currentWarrantyTypeParam !== "all") && (
               <Button size="sm" onPress={handleResetFilters} className="h-10 px-3 rounded-xl bg-[var(--surface-alt)] text-xs font-semibold">
                 <RotateCcw className="w-3.5 h-3.5 mr-1" /> Reset
               </Button>
@@ -593,7 +657,7 @@ export default function AdminWarrantiesClient({
                 <tr>
                   <th className="py-3 px-4">Warranty ID</th>
                   <th className="py-3 px-4">Product</th>
-                  <th className="py-3 px-4">Warranty</th>
+                  <th className="py-3 px-4">Warranty Type</th>
                   <th className="py-3 px-4">Customer</th>
                   <th className="py-3 px-4">Expiry</th>
                   <th className="py-3 px-4 text-center">Status</th>
@@ -914,95 +978,113 @@ export default function AdminWarrantiesClient({
 
                     {/* Extending is deliberately separate from the four claim
                         buttons: it changes the calendar, not the claim, and it is
-                        the only fix for a warranty that simply ran out. */}
-                    <div className="space-y-3 border-t border-[var(--border-color)] pt-4">
-                      <h4 className="text-xs font-bold flex items-center gap-2">
-                        <CalendarPlus className="w-4 h-4 text-primary" /> Extend Coverage
-                        {/* The count, so nobody has to guess how many tries are left. */}
-                        <span className="ml-auto text-[10px] font-bold uppercase tracking-wide text-[var(--foreground-muted)]">
-                          {extensionUsageText(usedExtensions)}
-                        </span>
-                      </h4>
+                        the only fix for a warranty that simply ran out.
 
-                      <div className="flex flex-wrap items-end gap-2">
-                        <div className="flex flex-col gap-1 w-28">
-                          <label className="text-[11px] font-semibold text-[var(--foreground)]">
-                            Extra months
-                          </label>
-                          <Input
-                            type="number"
-                            min="1"
-                            max="60"
-                            step="1"
-                            value={extendMonths}
-                            disabled={isExtending || !canExtend}
-                            onChange={(e) => setExtendMonths(e.target.value)}
-                            className="bg-[var(--surface-alt)]"
-                          />
-                        </div>
-                        <div className="flex flex-col gap-1 flex-1 min-w-[180px]">
-                          <label className="text-[11px] font-semibold text-[var(--foreground)]">
-                            Reason (the customer sees this)
-                          </label>
-                          <Input
-                            value={extendReason}
-                            disabled={isExtending || !canExtend}
-                            placeholder="e.g. Repair took three weeks, so we added a month"
-                            maxLength={500}
-                            onChange={(e) => setExtendReason(e.target.value)}
-                            className="bg-[var(--surface-alt)]"
-                          />
-                        </div>
-                        <Button
-                          isDisabled={isExtending || !canExtend}
-                          onPress={handleExtend}
-                          className="h-10 px-4 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-2"
-                        >
-                          {isExtending ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
+                        The section is only rendered when there is something to
+                        show: the form while a slot is free, the history alone
+                        once they are all used. */}
+                    {showExtendSection && (
+                      <div className="space-y-3 border-t border-[var(--border-color)] pt-4">
+                        <h4 className="text-xs font-bold flex items-center gap-2">
+                          {canExtend ? (
+                            <>
+                              <CalendarPlus className="w-4 h-4 text-primary" /> Extend Coverage
+                            </>
                           ) : (
-                            <CalendarPlus className="w-4 h-4" />
+                            <>
+                              <History className="w-4 h-4 text-primary" /> Extension History
+                            </>
                           )}
-                          Extend
-                        </Button>
-                      </div>
+                          {/* The count, so nobody has to guess how many tries are left. */}
+                          <span className="ml-auto text-[10px] font-bold uppercase tracking-wide text-[var(--foreground-muted)]">
+                            {extensionUsageText(usedExtensions)}
+                          </span>
+                        </h4>
 
-                      {!canExtend && (
-                        <p className="text-[11px] font-semibold text-[var(--foreground-muted)]">
-                          {extendBlockedReason}
-                        </p>
-                      )}
-
-                      {/* Every extension already granted, oldest first, so the
-                          extra months can always be explained. */}
-                      {!!selectedWarranty.extensions?.length && (
-                        <div className="space-y-2">
-                          <p className="text-[10px] font-bold uppercase text-[var(--foreground-muted)] flex items-center gap-1.5">
-                            <History className="w-3 h-3" />
-                            Extension history ({usedExtensions} of {MAX_WARRANTY_EXTENSIONS})
-                          </p>
-                          {selectedWarranty.extensions.map((entry, i) => (
-                            <div
-                              key={i}
-                              className="p-2.5 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border-color)]"
-                            >
-                              <p className="text-[11px] font-bold">
-                                +{formatWarrantyDuration(entry.months)} — {formatOrderDate(entry.previousExpiryDate)} → {formatOrderDate(entry.newExpiryDate)}
-                              </p>
-                              {entry.reason && (
-                                <p className="text-[11px] leading-relaxed mt-1 whitespace-pre-line">
-                                  {entry.reason}
-                                </p>
-                              )}
-                              <p className="text-[10px] text-[var(--foreground-muted)] mt-1">
-                                {entry.extendedBy ? `${entry.extendedBy} · ` : ""}
-                                {formatOrderDate(entry.createdAt)}
-                              </p>
+                        {canExtend && (
+                          <div className="flex flex-wrap items-end gap-2">
+                            <div className="flex flex-col gap-1 w-28">
+                              <label className="text-[11px] font-semibold text-[var(--foreground)]">
+                                Extra months
+                              </label>
+                              <Input
+                                type="number"
+                                min="1"
+                                max="60"
+                                step="1"
+                                value={extendMonths}
+                                disabled={isExtending}
+                                onChange={(e) => setExtendMonths(e.target.value)}
+                                className="bg-[var(--surface-alt)]"
+                              />
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                            <div className="flex flex-col gap-1 flex-1 min-w-[180px]">
+                              <label className="text-[11px] font-semibold text-[var(--foreground)]">
+                                Reason (the customer sees this)
+                              </label>
+                              <Input
+                                value={extendReason}
+                                disabled={isExtending}
+                                placeholder="e.g. Repair took three weeks, so we added a month"
+                                maxLength={500}
+                                onChange={(e) => setExtendReason(e.target.value)}
+                                className="bg-[var(--surface-alt)]"
+                              />
+                            </div>
+                            <Button
+                              isDisabled={isExtending}
+                              onPress={handleExtend}
+                              className="h-10 px-4 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-2"
+                            >
+                              {isExtending ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <CalendarPlus className="w-4 h-4" />
+                              )}
+                              Extend
+                            </Button>
+                          </div>
+                        )}
+
+                        {/* Reached only together with the history, because the
+                            whole section is hidden when there is neither. */}
+                        {!canExtend && (
+                          <p className="text-[11px] font-semibold text-[var(--foreground-muted)]">
+                            {extendBlockedReason}
+                          </p>
+                        )}
+
+                        {/* Every extension already granted, oldest first, so the
+                            extra months can always be explained. */}
+                        {showExtensionHistory && (
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-bold uppercase text-[var(--foreground-muted)] flex items-center gap-1.5">
+                              <History className="w-3 h-3" />
+                              Extension history ({usedExtensions} of {MAX_WARRANTY_EXTENSIONS})
+                            </p>
+                            {(selectedWarranty.extensions || []).map((entry, i) => (
+                              <div
+                                key={i}
+                                className="p-2.5 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border-color)]"
+                              >
+                                <p className="text-[11px] font-bold">
+                                  +{formatWarrantyDuration(entry.months)} — {formatOrderDate(entry.previousExpiryDate)} → {formatOrderDate(entry.newExpiryDate)}
+                                </p>
+                                {entry.reason && (
+                                  <p className="text-[11px] leading-relaxed mt-1 whitespace-pre-line">
+                                    {entry.reason}
+                                  </p>
+                                )}
+                                <p className="text-[10px] text-[var(--foreground-muted)] mt-1">
+                                  {entry.extendedBy ? `${entry.extendedBy} · ` : ""}
+                                  {formatOrderDate(entry.createdAt)}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
