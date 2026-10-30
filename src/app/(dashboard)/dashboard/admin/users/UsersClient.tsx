@@ -30,6 +30,8 @@ import {
   ShoppingBag,
   ExternalLink,
   Package,
+  Bike,
+  Store,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { updateUser } from "@/lib/action/user";
@@ -41,6 +43,8 @@ import { useSiteSettings } from "@/context/SiteSettingsContext";
 const ROLE_OPTIONS = [
   { id: "admin", label: "Admin", icon: ShieldCheck, desc: "Full administrative access to the platform" },
   { id: "customer", label: "Customer", icon: UserIcon, desc: "Standard shopper and customer access" },
+  { id: "rider", label: "Rider", icon: Bike, desc: "Delivers assigned orders from the rider dashboard" },
+  { id: "vendor", label: "Vendor", icon: Store, desc: "Seller account, reserved for the marketplace add-on" },
 ];
 
 const STATUS_OPTIONS = [
@@ -48,7 +52,7 @@ const STATUS_OPTIONS = [
   { id: "suspended", label: "Suspended", icon: Ban, desc: "Account is restricted and cannot place orders" },
 ];
 
-const FILTER_TABS = ["All", "Admin", "Customer"];
+const FILTER_TABS = ["All", "Admin", "Customer", "Rider", "Vendor"];
 const STATUS_FILTER_TABS = ["All", "Active", "Suspended"];
 
 const SORT_OPTIONS = [
@@ -580,11 +584,19 @@ export default function UsersClient({
                           className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border ${
                             role === "admin"
                               ? "bg-violet-50 dark:bg-violet-950/70 text-violet-600 dark:text-violet-300 border-violet-200/80 dark:border-violet-800/60"
-                              : "bg-[var(--accent)]/10 dark:bg-[var(--accent)]/10/70 text-primary border-sky-200/80 dark:border-sky-800/60"
+                              : role === "rider"
+                                ? "bg-amber-50 dark:bg-amber-950/70 text-amber-600 dark:text-amber-300 border-amber-200/80 dark:border-amber-800/60"
+                                : role === "vendor"
+                                  ? "bg-teal-50 dark:bg-teal-950/70 text-teal-600 dark:text-teal-300 border-teal-200/80 dark:border-teal-800/60"
+                                  : "bg-[var(--accent)]/10 dark:bg-[var(--accent)]/10/70 text-primary border-sky-200/80 dark:border-sky-800/60"
                           }`}
                         >
                           {role === "admin" ? (
                             <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                          ) : role === "rider" ? (
+                            <Bike className="w-3.5 h-3.5 shrink-0" />
+                          ) : role === "vendor" ? (
+                            <Store className="w-3.5 h-3.5 shrink-0" />
                           ) : (
                             <UserIcon className="w-3.5 h-3.5 shrink-0" />
                           )}
@@ -863,7 +875,7 @@ export default function UsersClient({
                           <Select
                             aria-label="Change Role"
                             placeholder="Select Role"
-                            selectedKey={(selectedUser.role || "customer").toLowerCase() === "admin" ? "admin" : "customer"}
+                            selectedKey={(selectedUser.role || "customer").toLowerCase()}
                             onSelectionChange={(key) => {
                               if (key) {
                                 handleRoleChange(selectedUser._id || selectedUser.id!, String(key));

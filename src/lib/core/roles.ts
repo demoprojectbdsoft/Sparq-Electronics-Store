@@ -21,13 +21,33 @@ export function isAdminRole(user: RoleCarrier): boolean {
   return role === "admin" || role === "demoadmin";
 }
 
-/**
- * Shops are for customers, so admins are blocked from cart/wishlist/review
- * actions. Returns the failure payload to send back, or null when allowed.
- */
-export function adminBlockedResult(user: RoleCarrier, action: string) {
-  if (!isAdminRole(user)) return null;
+export function isRiderRole(user: RoleCarrier): boolean {
+  return roleOf(user) === "rider";
+}
 
-  const who = roleOf(user) === "demoadmin" ? "Demo admin" : "Admin";
+/** Reserved for the seller add-on; the account exists but cannot shop. */
+export function isVendorRole(user: RoleCarrier): boolean {
+  return roleOf(user) === "vendor";
+}
+
+/**
+ * Only a customer shops. Staff, riders and vendors can browse the storefront,
+ * but a cart or a wishlist belongs to a buyer.
+ */
+export function canShop(user: RoleCarrier): boolean {
+  const role = roleOf(user);
+  return role !== "admin" && role !== "demoadmin" && role !== "rider" && role !== "vendor";
+}
+
+/**
+ * The failure payload to send back when a non-shopper taps add-to-cart or
+ * add-to-wishlist, or null when the action is allowed.
+ */
+export function shopperBlockedResult(user: RoleCarrier, action: string) {
+  if (canShop(user)) return null;
+
+  const role = roleOf(user);
+  const who =
+    role === "demoadmin" ? "Demo admin" : role === "admin" ? "Admin" : role === "rider" ? "Riders" : "Vendors";
   return { success: false as const, message: `${who} cannot ${action}!` };
 }

@@ -2,14 +2,14 @@
 
 import { serverFetch, serverMutation } from "../core/server";
 import { getUserSession } from "../core/session";
-import { adminBlockedResult } from "../core/roles";
+import { shopperBlockedResult } from "../core/roles";
 import { withQuery } from "../core/query";
 
 export const addToWishlist = async (productId: string) => {
   const user = await getUserSession();
   if (!user?.id) return null;
 
-  const blocked = adminBlockedResult(user, "add products to wishlist");
+  const blocked = shopperBlockedResult(user, "add products to wishlist");
   if (blocked) return blocked;
 
   return serverMutation("/wishlist", { userId: user.id, productId });

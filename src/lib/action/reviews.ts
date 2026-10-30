@@ -2,13 +2,13 @@
 
 import { serverMutation, serverFetch } from "../core/server";
 import { getUserSession } from "../core/session";
-import { isAdminRole } from "../core/roles";
+import { canShop } from "../core/roles";
 import { withQuery } from "../core/query";
 
 export const addReview = async (data: { productId: string; rating: number; comment: string; images?: string[] }) => {
   const user = await getUserSession();
-  if (isAdminRole(user)) {
-    return { success: false, message: "Admins cannot submit reviews." };
+  if (!canShop(user)) {
+    return { success: false, message: "Only customers can submit reviews." };
   }
   return serverMutation(`/reviews`, { ...data, userId: user?.id, images: data.images ?? [] });
 };

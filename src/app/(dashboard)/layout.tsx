@@ -6,20 +6,27 @@ import { LayoutProps } from "@/types";
 import DashboardNavbar from "@/components/dashboard/DashboardNavbar";
 import AdminSidebar from "@/components/dashboard/AdminSidebar";
 import CustomerSidebar from "@/components/dashboard/CustomerSidebar";
+import RiderSidebar from "@/components/dashboard/RiderSidebar";
 import MobileBottomNav from "@/components/shared/MobileBottomNav";
 
 export default function DashboardLayout({ children }: LayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const pathname = usePathname();
 
-  // If path is under /dashboard/admin, show AdminSidebar, otherwise default to CustomerSidebar
+  // The route decides which workspace is on screen: admin, rider or customer.
   const isAdmin = pathname.startsWith("/dashboard/admin");
+  const isRider = pathname.startsWith("/dashboard/rider");
 
   return (
     <div className="flex min-h-screen bg-[var(--surface-alt)] text-[var(--foreground)] transition-colors duration-200">
       {/* Responsive Collapsible Sidebar */}
       {isAdmin ? (
         <AdminSidebar
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+        />
+      ) : isRider ? (
+        <RiderSidebar
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
         />

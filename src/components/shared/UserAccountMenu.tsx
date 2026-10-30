@@ -76,10 +76,20 @@ export default function UserAccountMenu() {
   };
 
   const isAdminOrDemo = userRole === "admin" || userRole === "demoadmin";
-  const profileHref = `/dashboard/profile`;
-  const dashboardHref = isAdminOrDemo ? `/dashboard/admin` : `/dashboard/${userRole}`;
-  const settingsHref = `/dashboard/settings`;
-  const ordersHref = isAdminOrDemo ? "/dashboard/admin/orders" : "/dashboard/customer/orders";
+  const isRider = userRole === "rider";
+  const profileHref = isRider ? `/dashboard/rider/profile` : `/dashboard/profile`;
+  const dashboardHref = isAdminOrDemo
+    ? `/dashboard/admin`
+    : isRider
+      ? `/dashboard/rider`
+      : `/dashboard/${userRole}`;
+  const settingsHref = isRider ? `/dashboard/rider/settings` : `/dashboard/settings`;
+  const ordersHref = isAdminOrDemo
+    ? "/dashboard/admin/orders"
+    : isRider
+      ? "/dashboard/rider/deliveries"
+      : "/dashboard/customer/orders";
+  const ordersLabel = isRider ? "Deliveries" : "Orders";
 
   // Loading state placeholder
   if (isPending) {
@@ -198,14 +208,14 @@ export default function UserAccountMenu() {
               <span>Dashboard</span>
             </Link>
 
-            {/* Orders */}
+            {/* Orders / Deliveries */}
             <Link
               href={ordersHref}
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[var(--surface-alt)] hover:text-primary transition-colors"
             >
               <ShoppingBag className="w-4 h-4 text-[var(--foreground-muted)]" />
-              <span>Orders</span>
+              <span>{ordersLabel}</span>
             </Link>
 
             {/* Settings */}

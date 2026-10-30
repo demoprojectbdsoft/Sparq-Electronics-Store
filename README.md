@@ -526,6 +526,19 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ---
 
+## 🛵 Rider & Delivery System
+
+A fourth role, `rider`, works the deliveries the admin ships. `vendor` is reserved for the seller add-on.
+
+- **Roles** — `admin`, `customer`, `rider`, `vendor`. An admin changes a role from **Users**; the API re-reads the role from the database on every request, so a change applies immediately instead of waiting for the token to expire.
+- **Access** — riders land on `/dashboard/rider` after login and cannot open admin or customer workspaces; layout guards and backend role checks both enforce it.
+- **Shopping is for customers** — admin, demo admin, riders and vendors cannot add to cart, add to wishlist or post reviews. The action refuses first, and the API refuses again if the request is replayed.
+- **Live tracking** — Leaflet + OpenStreetMap (free) on a transport that works on Vercel: the tracking page refreshes every 8 seconds, and optional Ably keys push the same update instantly.
+
+**Progress:** Phase 1 ✅ roles & RBAC. Phases 2–7 (rider dashboard, assignment, delivery lifecycle, tracking, OTP, hardening) follow.
+
+---
+
 ## 📈 Project Status
 
 | Area | State |
@@ -541,6 +554,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | Saved shipping addresses with a default and a profile list | ✅ Complete |
 | Reviews with image uploads and rating recalculation | ✅ Complete |
 | Customer dashboard with analytics and data export | ✅ Complete |
+| Rider role, rider login redirect and ride/deliver RBAC | 🚧 Phase 1 of 7 |
 | Admin dashboard with CSV and charted PDF reports | ✅ Complete |
 | Site settings: branding, About page copy, opening hours, maintenance mode | ✅ Complete |
 | Demo admin sandbox with daily restore | ✅ Complete |

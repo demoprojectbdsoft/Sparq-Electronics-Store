@@ -2,14 +2,14 @@
 
 import { serverMutation, serverFetch } from "../core/server";
 import { getUserSession } from "../core/session";
-import { adminBlockedResult } from "../core/roles";
+import { shopperBlockedResult } from "../core/roles";
 import { withQuery } from "../core/query";
 
 export const addToCart = async (productId: string, quantity = 1) => {
   const user = await getUserSession();
   if (!user?.id) return { success: false, message: "Please log in to add items to your cart" };
 
-  const blocked = adminBlockedResult(user, "add products to cart");
+  const blocked = shopperBlockedResult(user, "add products to cart");
   if (blocked) return blocked;
 
   return serverMutation("/cart", { userId: user.id, productId, quantity });

@@ -67,7 +67,11 @@ export function LoginForm() {
       });
       if (loginData) {
         toast.success("Authentication Successful!");
-        router.push(callbackUrl);
+        // A rider lands in the delivery workspace; everyone else keeps the
+        // page they were originally sent to.
+        const role = String((loginData.user as { role?: string } | undefined)?.role || "").toLowerCase();
+        const destination = role === "rider" && callbackUrl === "/" ? "/dashboard/rider" : callbackUrl;
+        router.push(destination);
         router.refresh();
       }
       if (error) {

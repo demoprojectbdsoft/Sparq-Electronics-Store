@@ -8,6 +8,7 @@ import { authClient } from "@/lib/auth-client";
 import CartButton from "@/components/shared/CartButton";
 import UserAvatar from "@/components/shared/UserAvatar";
 import NotificationBell from "@/components/dashboard/NotificationBell";
+import { canShop } from "@/lib/core/roles";
 
 import { useTheme } from "next-themes";
 
@@ -25,14 +26,28 @@ export default function DashboardNavbar({ onToggleSidebar }: DashboardNavbarProp
   const { data: session } = authClient.useSession();
   const user = session?.user;
   const isCustomerRoute = pathname.startsWith("/dashboard/customer");
-  const userRole = ((user as { role?: string })?.role || (isCustomerRoute ? "customer" : "admin")).toLowerCase();
+  const isRiderRoute = pathname.startsWith("/dashboard/rider");
+  const userRole = ((user as { role?: string })?.role || (isRiderRoute ? "rider" : isCustomerRoute ? "customer" : "admin")).toLowerCase();
   // The activity feed names other people's orders and accounts, so only the
   // store team gets the bell. Customers keep a clean header.
   const isAdminView = userRole === "admin" || userRole === "demoadmin";
+  const canUserShop = canShop((user as { role?: string | null } | undefined) ?? null);
   const userImage = user?.image || (user as { avatar?: string })?.avatar;
   // No invented name while the session loads: the header names the role and
   // swaps to the real account name the moment it arrives.
-  const displayName = user?.name || (isAdminView ? "Store Admin" : "Customer");
+  const displayName = user?.name || (isAdminView ? "Store Admin" : isRiderRoute ? "Rider" : "Customer");
+  const profileHref = isRiderRoute
+    ? "/dashboard/rider/profile"
+    : isCustomerRoute
+      ? "/dashboard/customer/profile"
+      : "/dashboard/admin/profile";
+  const roleLabel = isAdminView
+    ? userRole === "demoadmin"
+      ? "Demo Admin"
+      : "Store Admin"
+    : userRole === "rider"
+      ? "Rider Account"
+      : "Customer Account";
 
   const isDark = (resolvedTheme || theme) === "dark";
 
@@ -82,8 +97,8 @@ export default function DashboardNavbar({ onToggleSidebar }: DashboardNavbarProp
         {/* Notifications — the activity feed is for the store team only */}
         {isAdminView && <NotificationBell />}
 
-        {/* Cart Item Count & Dollar Total — hidden for admin/demoadmin */}
-        {!isAdminView && (
+        {/* Cart Item Count & Dollar Total — buyers only */}
+        {canUserShop && (
           <CartButton
             showTotal={true}
             className="px-2 py-1.5 rounded-xl hover:bg-[var(--surface-alt)] transition-colors"
@@ -94,7 +109,7 @@ export default function DashboardNavbar({ onToggleSidebar }: DashboardNavbarProp
 
         {/* User Profile Link */}
         <Link
-          href={isCustomerRoute ? "/dashboard/customer/profile" : "/dashboard/admin/profile"}
+          href={profileHref}
           className="flex items-center gap-3 pl-1 hover:opacity-85 transition-opacity"
         >
           <UserAvatar
@@ -108,7 +123,7 @@ export default function DashboardNavbar({ onToggleSidebar }: DashboardNavbarProp
               {displayName}
             </p>
             <p className="text-[10px] text-[var(--foreground-muted)] mt-1 leading-none capitalize">
-              {userRole === "demoadmin" ? "Demo Admin" : userRole === "admin" ? "Store Admin" : "Customer Account"}
+              {roleLabel}
             </p>
           </div>
         </Link>

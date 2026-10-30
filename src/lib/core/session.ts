@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import { auth } from "../auth";
 import { roleOf } from "./roles";
 
-type Role = "admin" | "customer" | "user";
+type Role = "admin" | "customer" | "rider" | "vendor" | "user";
 
 /** Reads the better-auth session for the current request. */
 const readSession = async () => {
