@@ -6,52 +6,17 @@ import WarehouseDeals from "@/components/homepage/WarehouseDeals";
 import TrendingProducts from "@/components/homepage/TrendingProducts";
 import PopularProducts from "@/components/homepage/PopularProducts";
 import NewArrivals from "@/components/homepage/NewArrivals";
-import { Product } from "@/types";
-import { PromoBanner, TabletPromoProps } from "@/types/home";
-import TabletPromoBanner from "@/components/homepage/TabletPromoBanner";
+import { Product, Promo } from "@/types";
+import PromoStrip from "@/components/homepage/PromoStrip";
 import Brand from "@/components/homepage/Brand";
 import { getProducts } from "@/lib/api/products";
 import { getSlides } from "@/lib/api/slides";
+import { getPromos } from "@/lib/api/promos";
 
-// ─── Static data ─────────────────────────────────────────────────────────────
-
-// Homepage promo strips. They link to shop filters (offers, newest) that every
-// store has, so the same banner works whether the catalog sells electronics or
-// anything else.
-const promoBannersData: PromoBanner[] = [
-  {
-    id: "banner-deals",
-    subtitle: "CATCH HOTTEST",
-    highlightText: "DEALS",
-    title: "IN EVERY CATEGORY",
-    href: "/shop?hasOffer=true",
-    image: "https://dezlwerqy1h00.cloudfront.net/Media/Images/Product/Visual/22879_pictures_product_visual_1.png?auto=webp&format=pjpg&quality=100",
-    imageAlt: "Hottest deals",
-    buttonText: "Shop now",
-    priority: true,
-  },
-  {
-    id: "banner-new-arrivals",
-    subtitle: "FRESHLY ADDED",
-    title: "NEW ARRIVALS IN STOCK",
-    href: "/shop?sort=newest",
-    image: "https://i.ibb.co.com/Q3Tpt7Df/industries-consumer-electronics-removebg-preview.png",
-    imageAlt: "New arrivals",
-    buttonText: "See what's new",
-  },
-];
-
-// No fixed category here: the strip promotes the whole catalog, so the link
-// still works after the store switches to a different kind of product.
-const tabletPromoData: TabletPromoProps = {
-  categorySlug: "",
-  titlePrefix: "SHOP AND",
-  highlightText: "SAVE BIG",
-  titleSuffix: "ON TOP PICKS",
-  startingPrice: "79",
-  cents: "99",
-  imageSrc: "https://i.ibb.co.com/zh1qTHwh/Tablets.png",
-};
+// The two promo blocks are not defined here any more: their words, images and
+// links are rows in the `promos` collection, written in Admin → Promo Banners,
+// so the homepage never carries artwork or prices that belong to a different
+// kind of store.
 
 // ─── Per-section async server components ─────────────────────────────────────
 
@@ -84,6 +49,31 @@ async function PopularSection() {
   return <PopularProducts products={products} />;
 }
 
+// Reads the active "tile" banners. They are drawn two per row by PromoBanners.
+async function PromoTilesSection() {
+  const res = await getPromos({ isActive: "true", placement: "tile" });
+  const banners: Promo[] = Array.isArray(res?.data)
+    ? res.data
+    : Array.isArray(res)
+    ? res
+    : [];
+
+  return <PromoBanners banners={banners} />;
+}
+
+// The strip is a single band, so the first active "strip" banner wins
+// (Promo always sorts by `order`, then newest first).
+async function PromoStripSection() {
+  const res = await getPromos({ isActive: "true", placement: "strip" });
+  const banners: Promo[] = Array.isArray(res?.data)
+    ? res.data
+    : Array.isArray(res)
+    ? res
+    : [];
+
+  return <PromoStrip strip={banners[0]} />;
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Home() {
@@ -110,7 +100,10 @@ export default function Home() {
         <NewArrivalsSection />
       </Suspense>
 
-      <PromoBanners banners={promoBannersData} />
+      {/* Promo tiles — the section disappears when no tile is active */}
+      <Suspense fallback={null}>
+        <PromoTilesSection />
+      </Suspense>
 
       {/* Trending Products — shows skeleton while fetching */}
       <Suspense fallback={<TrendingProducts loading />}>
@@ -122,7 +115,11 @@ export default function Home() {
         <PopularSection />
       </Suspense>
 
-      <TabletPromoBanner tabletPromoData={tabletPromoData} />
+      {/* Wide promo strip — also disappears when no strip banner is active */}
+      <Suspense fallback={null}>
+        <PromoStripSection />
+      </Suspense>
+
       <Brand />
     </>
   );

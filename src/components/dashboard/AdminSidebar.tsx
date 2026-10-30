@@ -22,6 +22,7 @@ import {
   Star,
   Shield,
   Mail,
+  Megaphone,
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "react-toastify";
@@ -34,6 +35,7 @@ const NAV_ITEMS = [
   { name: "Categories", href: "/dashboard/admin/categories", icon: FolderTree },
   // { name: "Add Category", href: "/dashboard/admin/categories/add", icon: FolderPlus },
   { name: "Home Slider", href: "/dashboard/admin/home-slider", icon: SlidersHorizontal },
+  { name: "Promo Banners", href: "/dashboard/admin/promo-banners", icon: Megaphone },
   { name: "Orders", href: "/dashboard/admin/orders", icon: ShoppingBag },
   { name: "Transactions", href: "/dashboard/admin/transactions", icon: CreditCard },
   { name: "Users", href: "/dashboard/admin/users", icon: Users },
