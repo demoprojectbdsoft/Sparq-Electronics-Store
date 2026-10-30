@@ -9,6 +9,7 @@ import {
   CircleX,
   ShieldCheck,
   ShoppingBag,
+  Star,
   UserPlus,
   UserX,
 } from "lucide-react";
@@ -43,6 +44,7 @@ const ICONS: Record<AdminActivityType, LucideIcon> = {
   order_cancelled: CircleX,
   warranty: ShieldCheck,
   message: Mail,
+  review: Star,
 };
 
 /** Milliseconds of a stored timestamp, or 0 when it is missing or unreadable. */
@@ -92,6 +94,9 @@ function linkFor(activity: AdminActivity): string {
       return `/dashboard/admin/warranties?status=all${ref ? `&orderId=${ref}` : ""}`;
     case "message":
       return `/dashboard/admin/messages${ref ? `?search=${ref}` : ""}`;
+    case "review":
+      // The reviews list searches by id too, so one line opens one review.
+      return `/dashboard/admin/reviews${ref ? `?search=${ref}` : ""}`;
     default:
       return "/dashboard/admin";
   }

@@ -10,7 +10,8 @@ export type AdminActivityType =
   | "user_deleted"
   | "order_cancelled"
   | "warranty"
-  | "message";
+  | "message"
+  | "review";
 
 /** One line in the admin activity feed, exactly as the API returns it. */
 export interface AdminActivity {
