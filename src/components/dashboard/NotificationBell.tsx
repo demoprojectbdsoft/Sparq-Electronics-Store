@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Bell,
@@ -18,14 +18,17 @@ import { formatOrderDateTime } from "@/lib/dateTime";
 import type { AdminActivity, AdminActivityType } from "@/types";
 
 /**
- * The moment the admin last read the feed, as milliseconds of the API clock.
+ * The ids of the lines the admin has already read.
  *
- * A timestamp instead of an id on purpose: the feed is sorted by time, so
- * "anything newer than this" is the exact question the dot asks.
+ * One id per line, because every line carries its own dot: reading one leaves
+ * the rest untouched. The list is ordered newest first and cut to a limit, so a
+ * long-running browser cannot grow it forever.
  */
-const SEEN_KEY = "sparq:activities:seen-at";
-/** The key the first version of the bell wrote; removed so it cannot linger. */
-const OLD_SEEN_KEY = "sparq:activities:seen";
+const SEEN_IDS_KEY = "sparq:activities:seen-ids";
+/** Keys written by earlier versions of the bell; removed so they cannot linger. */
+const LEGACY_KEYS = ["sparq:activities:seen", "sparq:activities:seen-at"];
+/** How many read ids are remembered; the panel itself only shows the newest few. */
+const SEEN_IDS_LIMIT = 300;
 /** How often the bell asks for new lines while the dashboard is open. */
 const POLL_MS = 60_000;
 /** How often the "3m ago" labels are recomputed, so they never freeze. */
@@ -47,6 +50,19 @@ function timeOf(value: string | undefined): number {
   if (!value) return 0;
   const ms = new Date(value).getTime();
   return Number.isNaN(ms) ? 0 : ms;
+}
+
+/** The ids saved by previous visits, or an empty list when the value is junk. */
+function readSeenIds(): string[] {
+  try {
+    const raw = localStorage.getItem(SEEN_IDS_KEY);
+    const parsed: unknown = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed)
+      ? parsed.filter((id): id is string => typeof id === "string")
+      : [];
+  } catch {
+    return [];
+  }
 }
 
 /**
@@ -98,8 +114,12 @@ function timeAgo(value: string, nowMs: number): string {
 }
 
 /**
- * The admin notification bell: a red dot while something new happened, and a
- * panel of the last few lines that each open the matching screen.
+ * The admin notification bell: a red dot while any line is unread, and a panel
+ * of the last few lines that each open the matching screen.
+ *
+ * Every line has its own dot. Clicking it reads that one line; "Mark all as
+ * read" clears the rest. The bell's dot disappears only once nothing is left
+ * unseen, and the mark is shared between tabs.
  *
  * Only admins and the demo admin see it; the customer dashboard has no bell at
  * all, because this feed names other people's orders and accounts.
@@ -107,27 +127,24 @@ function timeAgo(value: string, nowMs: number): string {
 export default function NotificationBell() {
   const [activities, setActivities] = useState<AdminActivity[]>([]);
   const [isOpen, setIsOpen] = useState(false);
-  // The saved "read up to here" mark, used for the red dot.
-  const [seenAt, setSeenAt] = useState(0);
-  // The mark as it was when the panel opened, so the lines that were unread
-  // stay highlighted while the admin is reading them.
-  const [openSeenAt, setOpenSeenAt] = useState(0);
+  // The ids already read, which decide every dot in sight.
+  const [seenIds, setSeenIds] = useState<string[]>([]);
   // How far this device's clock is ahead of the API clock. Every "3m ago"
   // below is computed against the API clock, via this offset.
   const [clockOffset, setClockOffset] = useState(0);
   // Ticks the labels, so a line shown as "just now" ages without a reload.
   const [now, setNow] = useState(() => Date.now());
   const wrapRef = useRef<HTMLDivElement>(null);
-  // Read inside `load`, which outlives a render, without re-creating it.
-  const isOpenRef = useRef(false);
 
-  useEffect(() => {
-    isOpenRef.current = isOpen;
-  }, [isOpen]);
+  /** Reads the given lines: their dots go, the others keep theirs. */
+  const markSeen = useCallback((ids: string[]) => {
+    if (!ids.length) return;
 
-  const markSeen = useCallback((at: number) => {
-    setSeenAt(at);
-    if (at) localStorage.setItem(SEEN_KEY, String(at));
+    setSeenIds((current) => {
+      const merged = Array.from(new Set([...ids, ...current])).slice(0, SEEN_IDS_LIMIT);
+      localStorage.setItem(SEEN_IDS_KEY, JSON.stringify(merged));
+      return merged;
+    });
   }, []);
 
   const load = useCallback(async () => {
@@ -142,21 +159,9 @@ export default function NotificationBell() {
     if (serverMs) setClockOffset(Date.now() - serverMs);
 
     setActivities(feed.activities);
-
-    const newest = timeOf(feed.activities[0]?.createdAt);
-    if (!newest) return;
-
-    // While the panel is open everything on screen counts as read, including
-    // lines that arrived during the visit.
-    if (isOpenRef.current) {
-      markSeen(newest);
-      return;
-    }
-
-    // Another tab may have read the feed already: the mark is shared.
-    const stored = Number(localStorage.getItem(SEEN_KEY) || 0);
-    setSeenAt(Number.isFinite(stored) ? stored : 0);
-  }, [markSeen]);
+    // Another tab may have read some of these lines already.
+    setSeenIds(readSeenIds());
+  }, []);
 
   // The bell lives in the dashboard navbar, so it refreshes itself instead of
   // asking every page to hand it a list. The first read goes through a timer
@@ -188,13 +193,12 @@ export default function NotificationBell() {
     return () => clearInterval(timer);
   }, []);
 
-  // The old key and the new one must not disagree, and a second tab that reads
-  // the feed has to clear the dot in this one too.
+  // Reading in one tab has to clear the dots in the other ones too.
   useEffect(() => {
-    localStorage.removeItem(OLD_SEEN_KEY);
+    LEGACY_KEYS.forEach((key) => localStorage.removeItem(key));
 
     const onStorage = (event: StorageEvent) => {
-      if (event.key === SEEN_KEY) setSeenAt(Number(event.newValue || 0));
+      if (event.key === SEEN_IDS_KEY) setSeenIds(readSeenIds());
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
@@ -221,29 +225,20 @@ export default function NotificationBell() {
     };
   }, [isOpen]);
 
-  // The feed is newest first, so the first line is the one that decides.
-  const newestAt = timeOf(activities[0]?.createdAt);
-  const hasUnread = newestAt > seenAt;
+  const seenSet = useMemo(() => new Set(seenIds), [seenIds]);
+  const unreadCount = activities.filter((activity) => !seenSet.has(activity._id)).length;
+  const hasUnread = unreadCount > 0;
   // Labels are measured on the API clock, not on this device's clock.
   const nowMs = now - clockOffset;
 
   const toggle = () => {
     const next = !isOpen;
     setIsOpen(next);
-
+    // Opening reads nothing by itself: each line has its own dot to clear.
     if (next) {
-      // Everything visible counts as read, so the dot clears straight away.
-      setOpenSeenAt(seenAt);
-      markSeen(newestAt);
       setNow(Date.now());
       void load();
     }
-  };
-
-  /** Leaving through a line counts as reading the feed too. */
-  const onOpenActivity = () => {
-    setIsOpen(false);
-    markSeen(newestAt);
   };
 
   return (
@@ -251,7 +246,11 @@ export default function NotificationBell() {
       <button
         type="button"
         onClick={toggle}
-        aria-label={hasUnread ? "Notifications, new activity" : "Notifications"}
+        aria-label={
+          hasUnread
+            ? `Notifications, ${unreadCount} unread`
+            : "Notifications, nothing unread"
+        }
         aria-expanded={isOpen}
         aria-haspopup="true"
         className="w-9 h-9 rounded-xl border border-[var(--border-color)] bg-[var(--surface-elevated)] flex items-center justify-center text-[var(--foreground-muted)] hover:bg-[var(--surface-alt)] hover:text-[var(--foreground)] hover:border-[var(--brand-flat)]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-flat)]/35 transition-all relative shadow-2xs cursor-pointer"
@@ -269,10 +268,26 @@ export default function NotificationBell() {
           className="absolute right-0 top-[calc(100%+10px)] z-50 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-[var(--border-color)] bg-[var(--surface-elevated)] shadow-xl overflow-hidden"
         >
           <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-[var(--border-color)]">
-            <p className="text-xs font-bold text-[var(--foreground)]">Recent activity</p>
-            <span className="text-[10px] font-semibold text-[var(--foreground-muted)]">
-              {activities.length ? `Last ${activities.length}` : "Nothing yet"}
-            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-bold text-[var(--foreground)]">Recent activity</p>
+              <p className="text-[10px] font-semibold text-[var(--foreground-muted)]">
+                {activities.length === 0
+                  ? "Nothing yet"
+                  : hasUnread
+                    ? `${unreadCount} unread of ${activities.length}`
+                    : "All read"}
+              </p>
+            </div>
+
+            {hasUnread && (
+              <button
+                type="button"
+                onClick={() => markSeen(activities.map((activity) => activity._id))}
+                className="shrink-0 text-[10px] font-bold text-[var(--brand-flat)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-flat)]/35 rounded px-1 py-0.5 cursor-pointer"
+              >
+                Mark all as read
+              </button>
+            )}
           </div>
 
           {activities.length === 0 ? (
@@ -283,14 +298,18 @@ export default function NotificationBell() {
             <ul className="max-h-80 overflow-y-auto divide-y divide-[var(--border-color)]/60">
               {activities.map((activity) => {
                 const Icon = ICONS[activity.type] || Bell;
-                const isNew = openSeenAt > 0 && timeOf(activity.createdAt) > openSeenAt;
+                // Each line stands alone: only its own click clears its dot.
+                const isUnread = !seenSet.has(activity._id);
 
                 return (
                   <li key={activity._id}>
                     <Link
                       href={linkFor(activity)}
                       role="menuitem"
-                      onClick={onOpenActivity}
+                      onClick={() => {
+                        markSeen([activity._id]);
+                        setIsOpen(false);
+                      }}
                       className="flex gap-3 px-4 py-3 hover:bg-[var(--surface-alt)] transition-colors"
                     >
                       <span className="mt-0.5 w-7 h-7 shrink-0 rounded-lg border border-[var(--border-color)] bg-[var(--surface-alt)] flex items-center justify-center text-[var(--brand-flat)]">
@@ -300,7 +319,7 @@ export default function NotificationBell() {
                       <span className="min-w-0 flex-1">
                         <span
                           className={`block text-xs leading-snug truncate ${
-                            isNew ? "font-bold" : "font-semibold"
+                            isUnread ? "font-bold" : "font-semibold"
                           } text-[var(--foreground)]`}
                         >
                           {activity.title}
@@ -318,8 +337,11 @@ export default function NotificationBell() {
                         </span>
                       </span>
 
-                      {isNew && (
-                        <span className="mt-1.5 w-1.5 h-1.5 shrink-0 rounded-full bg-red-500" />
+                      {isUnread && (
+                        <span
+                          aria-hidden="true"
+                          className="mt-1.5 w-1.5 h-1.5 shrink-0 rounded-full bg-red-500"
+                        />
                       )}
                     </Link>
                   </li>
@@ -331,7 +353,7 @@ export default function NotificationBell() {
           <div className="px-4 py-2.5 border-t border-[var(--border-color)] bg-[var(--surface-alt)]/40">
             <Link
               href="/dashboard/admin"
-              onClick={onOpenActivity}
+              onClick={() => setIsOpen(false)}
               className="text-[11px] font-semibold text-[var(--brand-flat)] hover:underline"
             >
               Go to the dashboard
