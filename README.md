@@ -170,6 +170,8 @@ Switching mode keeps the current filters, search and sort.
 
 ## 🛠️ Admin Dashboard
 
+The sidebar is grouped so a long menu stays readable: **Store** (products, categories, home slider, promo banners), **Sales** (orders, transactions), **People** (users) and **Support** (reviews, warranties, messages), with the overview on its own at the top and the profile/settings links at the bottom. A link stays highlighted on its own sub-pages, and the overview only lights up on the dashboard itself.
+
 | Area | What the admin can do |
 |---|---|
 | **Overview** | Revenue, orders, customers and product summaries, profit charts by day/week/month/year with the most sold and highest-earning products, and a recent-orders table. Exportable to **CSV** and **PDF**. |

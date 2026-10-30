@@ -7,12 +7,9 @@ import {
   ShoppingBag,
   Users,
   Package,
-  PackagePlus,
-  FolderPlus,
   FolderTree,
   SlidersHorizontal,
   CreditCard,
-  FileText,
   User,
   Settings,
   ChevronRight,
@@ -23,32 +20,86 @@ import {
   Shield,
   Mail,
   Megaphone,
+  type LucideIcon,
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "react-toastify";
 import SparqLogo from "@/components/shared/SparqLogo";
 
-const NAV_ITEMS = [
-  { name: "Overview", href: "/dashboard/admin", icon: LayoutDashboard },
-  { name: "Products", href: "/dashboard/admin/products", icon: Package },
-  // { name: "Add Product", href: "/dashboard/admin/products/add", icon: PackagePlus },
-  { name: "Categories", href: "/dashboard/admin/categories", icon: FolderTree },
-  // { name: "Add Category", href: "/dashboard/admin/categories/add", icon: FolderPlus },
-  { name: "Home Slider", href: "/dashboard/admin/home-slider", icon: SlidersHorizontal },
-  { name: "Promo Banners", href: "/dashboard/admin/promo-banners", icon: Megaphone },
-  { name: "Orders", href: "/dashboard/admin/orders", icon: ShoppingBag },
-  { name: "Transactions", href: "/dashboard/admin/transactions", icon: CreditCard },
-  { name: "Users", href: "/dashboard/admin/users", icon: Users },
-  { name: "Reviews", href: "/dashboard/admin/reviews", icon: Star },
-  { name: "Warranties", href: "/dashboard/admin/warranties", icon: Shield },
-  { name: "Messages", href: "/dashboard/admin/messages", icon: Mail },
-  // { name: "Reports", href: "/dashboard/admin/reports", icon: FileText },
+// The menu is split into groups so a long list of links stays readable. The
+// overview leads on its own, then each group is drawn in the order written
+// here.
+const OVERVIEW_ITEM = {
+  name: "Overview",
+  href: "/dashboard/admin",
+  icon: LayoutDashboard,
+};
+
+const NAV_GROUPS = [
+  {
+    title: "Store",
+    items: [
+      { name: "Products", href: "/dashboard/admin/products", icon: Package },
+      { name: "Categories", href: "/dashboard/admin/categories", icon: FolderTree },
+      { name: "Home Slider", href: "/dashboard/admin/home-slider", icon: SlidersHorizontal },
+      { name: "Promo Banners", href: "/dashboard/admin/promo-banners", icon: Megaphone },
+    ],
+  },
+  {
+    title: "Sales",
+    items: [
+      { name: "Orders", href: "/dashboard/admin/orders", icon: ShoppingBag },
+      { name: "Transactions", href: "/dashboard/admin/transactions", icon: CreditCard },
+    ],
+  },
+  {
+    title: "People",
+    items: [{ name: "Users", href: "/dashboard/admin/users", icon: Users }],
+  },
+  {
+    title: "Support",
+    items: [
+      { name: "Reviews", href: "/dashboard/admin/reviews", icon: Star },
+      { name: "Warranties", href: "/dashboard/admin/warranties", icon: Shield },
+      { name: "Messages", href: "/dashboard/admin/messages", icon: Mail },
+    ],
+  },
 ];
 
 const ACCOUNT_ITEMS = [
   { name: "Profile", href: "/dashboard/admin/profile", icon: User },
   { name: "Settings", href: "/dashboard/admin/settings", icon: Settings },
 ];
+
+interface SidebarLinkProps {
+  name: string;
+  href: string;
+  icon: LucideIcon;
+  isActive: boolean;
+  onClose: () => void;
+}
+
+// One menu row. Used by both the grouped links and the account links so they
+// look and behave exactly the same.
+function SidebarLink({ name, href, icon: Icon, isActive, onClose }: SidebarLinkProps) {
+  return (
+    <Link
+      href={href}
+      onClick={onClose}
+      className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
+        isActive
+          ? "bg-brand-gradient text-[var(--on-grad-text)] shadow-xs font-bold border border-transparent"
+          : "text-[var(--foreground-muted)] hover:bg-[var(--surface-alt)] hover:text-[var(--foreground)] border border-transparent hover:border-[var(--border-color)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-flat)]/35"
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <Icon className="w-4 h-4 stroke-[2]" />
+        <span>{name}</span>
+      </div>
+      {isActive && <ChevronRight className="w-3.5 h-3.5 opacity-80" />}
+    </Link>
+  );
+}
 
 interface AdminSidebarProps {
   isOpen: boolean;
@@ -68,6 +119,14 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
       toast.error("Failed to sign out");
     }
   };
+
+  // The overview is the parent of every other admin page, so it only counts as
+  // active on its own path. The rest stay highlighted on their sub-pages, such
+  // as /dashboard/admin/products/add.
+  const isActiveLink = (href: string) =>
+    href === "/dashboard/admin"
+      ? pathname === href
+      : pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <>
@@ -105,34 +164,29 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
             </button>
           </div>
 
-          {/* Main Menu Navigation */}
-          <nav className="space-y-1.5">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] px-3 mb-2 opacity-75">
-              Main Menu
-            </p>
-            {NAV_ITEMS.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
+          {/* Main Menu — the overview leads, then the groups */}
+          <nav className="space-y-5">
+            <SidebarLink
+              {...OVERVIEW_ITEM}
+              isActive={isActiveLink(OVERVIEW_ITEM.href)}
+              onClose={onClose}
+            />
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={onClose}
-                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
-                    isActive
-                      ? "bg-brand-gradient text-[var(--on-grad-text)] shadow-xs font-bold border border-transparent"
-                      : "text-[var(--foreground-muted)] hover:bg-[var(--surface-alt)] hover:text-[var(--foreground)] border border-transparent hover:border-[var(--border-color)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-flat)]/35"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className="w-4 h-4 stroke-[2]" />
-                    <span>{item.name}</span>
-                  </div>
-                  {isActive && <ChevronRight className="w-3.5 h-3.5 opacity-80" />}
-                </Link>
-              );
-            })}
+            {NAV_GROUPS.map((group) => (
+              <div key={group.title} className="space-y-1.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] px-3 mb-2 opacity-75">
+                  {group.title}
+                </p>
+                {group.items.map((item) => (
+                  <SidebarLink
+                    key={item.href}
+                    {...item}
+                    isActive={isActiveLink(item.href)}
+                    onClose={onClose}
+                  />
+                ))}
+              </div>
+            ))}
           </nav>
 
           {/* Account Navigation */}
@@ -140,29 +194,14 @@ export default function AdminSidebar({ isOpen, onClose }: AdminSidebarProps) {
             <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)] px-3 mb-2 opacity-75">
               Account
             </p>
-            {ACCOUNT_ITEMS.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
-
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={onClose}
-                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
-                    isActive
-                      ? "bg-brand-gradient text-[var(--on-grad-text)] shadow-xs font-bold border border-transparent"
-                      : "text-[var(--foreground-muted)] hover:bg-[var(--surface-alt)] hover:text-[var(--foreground)] border border-transparent hover:border-[var(--border-color)]/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-flat)]/35"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className="w-4 h-4 stroke-[2]" />
-                    <span>{item.name}</span>
-                  </div>
-                  {isActive && <ChevronRight className="w-3.5 h-3.5 opacity-80" />}
-                </Link>
-              );
-            })}
+            {ACCOUNT_ITEMS.map((item) => (
+              <SidebarLink
+                key={item.href}
+                {...item}
+                isActive={isActiveLink(item.href)}
+                onClose={onClose}
+              />
+            ))}
           </nav>
         </div>
 
