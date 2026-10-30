@@ -150,7 +150,7 @@ Switching mode keeps the current filters, search and sort.
 | Page | What it offers |
 |---|---|
 | **Overview** | Spend and savings charts, summary stat cards, recent orders with their status and points saved. |
-| **Orders** | Full order history: status badge, timeline, **Track Shipment**, **invoice PDF**, **Buy Again**, warranty cards with claims and replies, and the delivery-response form. The delivery response is final once reported as received or cancelled; *not received* can be updated until it is settled. |
+| **Orders** | Full order history: status badge, timeline, **Track Shipment**, **invoice PDF**, **Buy Again**, warranty cards with claims and replies, and the delivery-response form. The delivery response is final once reported as received or cancelled; *not received* can be updated until it is settled. The toolbar holds a search box, a **status select** with a count per status, a **sort** (newest, oldest, total high or low) and an **Active warranty** switch that keeps only the orders whose coverage is still running. The cards are paged five at a time. |
 | **Transactions** | Every payment record for the customer's orders, with search, status filter and sorting. Each row can be downloaded as a **PDF receipt** showing the receipt number, order, method, amount and status. |
 | **Wishlist** | Saved products, with add-to-cart. |
 | **Reviews** | The reviews they have written, with edit support. |

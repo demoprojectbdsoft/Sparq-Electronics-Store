@@ -69,6 +69,8 @@ export interface CustomerOrder {
   id: string;
   orderNumber: string;
   date: string;
+  /** Raw creation time, so the list can be sorted exactly rather than by the display text. */
+  createdAt?: string;
   status: "Confirmed" | "Processing" | "Shipped" | "Delivered" | "Cancelled" | "Refunded" | "Pending";
   rawStatus?: string;
   customerResponse?: "received" | "not_received" | "cancelled" | null;

@@ -7,6 +7,8 @@ import {
   Card,
   Button,
   Input,
+  Select,
+  ListBox,
   Modal,
   TextArea,
 } from "@heroui/react";
@@ -55,7 +57,19 @@ import {
 } from "@/lib/warranty";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
-const STATUS_TABS = ["All Orders", "Confirmed", "Processing", "Shipped", "Delivered", "Cancelled"];
+/** Options for the status filter, in the order a shopper expects to see them. */
+const STATUS_OPTIONS = ["All Orders", "Confirmed", "Processing", "Shipped", "Delivered", "Cancelled"];
+
+/** Orders shown at once. The cards are tall, so a short page reads better. */
+const ORDERS_PER_PAGE = 5;
+
+/** How the list can be ordered. */
+const SORT_OPTIONS = [
+  { key: "newest", label: "Newest first" },
+  { key: "oldest", label: "Oldest first" },
+  { key: "highest", label: "Total: high to low" },
+  { key: "lowest", label: "Total: low to high" },
+];
 
 /** Human-readable label for the shipping option stored on an order.
  *  Pre-existing orders have no method stored — assume Standard Delivery. */
@@ -116,6 +130,26 @@ function canClaim(warranty: CustomerWarranty | null): boolean {
   if (warranty.status !== "active" && warranty.status !== "info_requested") return false;
   const days = daysUntilExpiry(warranty);
   return days === null || days > 0;
+}
+
+/** True while the coverage is still being honoured: not closed, not past its date. */
+function isWarrantyLive(warranty?: CustomerWarranty | null): boolean {
+  if (!warranty) return false;
+  if (warranty.status === "expired" || warranty.status === "resolved") return false;
+  // The nightly sweep can lag behind the date, so the date is checked here too.
+  const days = daysUntilExpiry(warranty);
+  return days === null || days > 0;
+}
+
+/** An order counts as covered while at least one of its items still is. */
+function orderHasLiveWarranty(order: CustomerOrder): boolean {
+  return order.items.some((item) => isWarrantyLive(item.warranty));
+}
+
+/** Milliseconds since the epoch, used to order the cards; a bad date sorts last. */
+function orderTimestamp(order: CustomerOrder): number {
+  const time = new Date(order.createdAt || order.date).getTime();
+  return Number.isNaN(time) ? 0 : time;
 }
 
 /** True when the form is answering the store's request instead of filing a claim. */
@@ -250,6 +284,11 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
   );
   const [selectedTab, setSelectedTab] = useState("All Orders");
   const [searchQuery, setSearchQuery] = useState("");
+  // Six tabs used to eat the whole toolbar, so the three filters live in one
+  // row: a status select, a sort select and an on/off switch for coverage.
+  const [warrantyOnly, setWarrantyOnly] = useState(false);
+  const [sortBy, setSortBy] = useState("newest");
+  const [page, setPage] = useState(1);
   const [trackingModalOrder, setTrackingModalOrder] = useState<CustomerOrder | null>(null);
 
   // Customer Response State
@@ -387,15 +426,51 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
     }
   };
 
-  const filteredOrders = orders.filter((order) => {
-    const matchesTab =
-      selectedTab === "All Orders" ||
-      order.status.toLowerCase() === selectedTab.toLowerCase();
-    const matchesSearch =
-      order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.items.some((item) => item.name.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesTab && matchesSearch;
-  });
+  // Orders that still carry live coverage, used by the switch and its count.
+  const liveWarrantyCount = orders.filter(orderHasLiveWarranty).length;
+  const query = searchQuery.trim().toLowerCase();
+
+  // Filter first, then order, then cut the page, so the count shown in the
+  // footer always describes what is actually visible.
+  const filteredOrders = orders
+    .filter((order) => {
+      const matchesTab =
+        selectedTab === "All Orders" ||
+        order.status.toLowerCase() === selectedTab.toLowerCase();
+      const matchesSearch =
+        !query ||
+        order.orderNumber.toLowerCase().includes(query) ||
+        order.items.some((item) => item.name.toLowerCase().includes(query));
+      const matchesWarranty = !warrantyOnly || orderHasLiveWarranty(order);
+      return matchesTab && matchesSearch && matchesWarranty;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "oldest":
+          return orderTimestamp(a) - orderTimestamp(b);
+        case "highest":
+          return b.total - a.total;
+        case "lowest":
+          return a.total - b.total;
+        default:
+          return orderTimestamp(b) - orderTimestamp(a);
+      }
+    });
+
+  // The page is clamped rather than reset in an effect, so a filter that shrinks
+  // the list drops the shopper onto the last page instead of an empty one.
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / ORDERS_PER_PAGE));
+  const currentPage = Math.min(page, totalPages);
+  const pageStart = (currentPage - 1) * ORDERS_PER_PAGE;
+  const visibleOrders = filteredOrders.slice(pageStart, pageStart + ORDERS_PER_PAGE);
+
+  // Every filter change goes back to page one, so a narrowed list is never
+  // hidden on a page the shopper happened to be sitting on.
+  const goToPage = (next: number) => {
+    setPage(next);
+    // The cards are tall, so a new page starts from the toolbar again.
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const userRole = ((user as { role?: string })?.role || "").toLowerCase();
   const [loadingItemId, setLoadingItemId] = useState<string | null>(null);
@@ -589,51 +664,127 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
         </Link>
       </div>
 
-      {/* ── Tabs & Search Bar ── */}
-      <div className="space-y-4">
-        {/* Status Tab Filters */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          {STATUS_TABS.map((tab) => {
-            const count =
-              tab === "All Orders"
-                ? orders.length
-                : orders.filter((o) => o.status.toLowerCase() === tab.toLowerCase()).length;
-
-            return (
-              <button
-                key={tab}
-                onClick={() => setSelectedTab(tab)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                  selectedTab === tab
-                    ? "bg-primary text-white shadow-xs font-bold"
-                    : "bg-[var(--surface-alt)] text-[var(--foreground-muted)] hover:bg-[var(--surface-alt)]/80 hover:text-[var(--foreground)] border border-[var(--border-color)]"
-                }`}
-              >
-                <span>{tab}</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                    selectedTab === tab
-                      ? "bg-[var(--surface-elevated)]/20 text-white"
-                      : "bg-[var(--surface-elevated)] text-[var(--foreground-muted)] border border-[var(--border-color)]/50"
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
+      {/* ── Search, Filters & Sort ── */}
+      <div className="flex flex-col lg:flex-row lg:items-center gap-3">
         {/* Search input */}
-        <div className="relative max-w-md">
+        <div className="relative flex-1 w-full max-w-md">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] z-10" />
           <Input
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(1);
+            }}
             placeholder="Search by order number (e.g. #ORD-9582) or product title..."
             className="w-full pl-9 pr-4 h-10 bg-[var(--surface-alt)] border border-[var(--border-color)] focus:border-primary rounded-xl text-xs transition-all text-[var(--foreground)] shadow-xs"
           />
+        </div>
+
+        {/* Status, sort and coverage now share one row instead of a long strip */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="w-40">
+            <Select
+              aria-label="Filter orders by status"
+              selectedKey={selectedTab}
+              onSelectionChange={(key) => {
+                setSelectedTab(String(key ?? "All Orders"));
+                setPage(1);
+              }}
+            >
+              <Select.Trigger className="h-10 w-full px-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] text-xs font-semibold text-[var(--foreground)] flex items-center justify-between gap-1.5 cursor-pointer hover:border-primary transition-colors shadow-xs [&>span]:text-xs [&>span]:font-semibold">
+                <Select.Value className="text-xs font-semibold truncate" />
+                <Select.Indicator className="[&>svg]:w-3.5 [&>svg]:h-3.5 text-[var(--foreground-muted)] shrink-0" />
+              </Select.Trigger>
+              <Select.Popover className="w-56 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl z-50">
+                <ListBox>
+                  {STATUS_OPTIONS.map((tab) => {
+                    // Each option carries its own count, so the old pill badges
+                    // are still readable inside the dropdown.
+                    const count =
+                      tab === "All Orders"
+                        ? orders.length
+                        : orders.filter((o) => o.status.toLowerCase() === tab.toLowerCase()).length;
+
+                    return (
+                      <ListBox.Item
+                        key={tab}
+                        id={tab}
+                        textValue={tab}
+                        className="text-xs font-medium px-3 py-2 rounded-lg hover:bg-primary/10 dark:hover:bg-[var(--surface-alt)] text-[var(--foreground)] cursor-pointer flex items-center justify-between gap-2"
+                      >
+                        <span>{tab}</span>
+                        <span className="flex items-center gap-1.5">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[var(--surface-alt)] border border-[var(--border-color)] text-[var(--foreground-muted)]">
+                            {count}
+                          </span>
+                          <ListBox.ItemIndicator />
+                        </span>
+                      </ListBox.Item>
+                    );
+                  })}
+                </ListBox>
+              </Select.Popover>
+            </Select>
+          </div>
+
+          <div className="w-44">
+            <Select
+              aria-label="Sort orders"
+              selectedKey={sortBy}
+              onSelectionChange={(key) => {
+                setSortBy(String(key ?? "newest"));
+                setPage(1);
+              }}
+            >
+              <Select.Trigger className="h-10 w-full px-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] text-xs font-semibold text-[var(--foreground)] flex items-center justify-between gap-1.5 cursor-pointer hover:border-primary transition-colors shadow-xs [&>span]:text-xs [&>span]:font-semibold">
+                <Select.Value className="text-xs font-semibold truncate" />
+                <Select.Indicator className="[&>svg]:w-3.5 [&>svg]:h-3.5 text-[var(--foreground-muted)] shrink-0" />
+              </Select.Trigger>
+              <Select.Popover className="w-52 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl z-50">
+                <ListBox>
+                  {SORT_OPTIONS.map((opt) => (
+                    <ListBox.Item
+                      key={opt.key}
+                      id={opt.key}
+                      textValue={opt.label}
+                      className="text-xs font-medium px-3 py-2 rounded-lg hover:bg-primary/10 dark:hover:bg-[var(--surface-alt)] text-[var(--foreground)] cursor-pointer flex items-center justify-between"
+                    >
+                      {opt.label}
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  ))}
+                </ListBox>
+              </Select.Popover>
+            </Select>
+          </div>
+
+          {/* Only orders that still carry a warranty */}
+          <button
+            type="button"
+            aria-pressed={warrantyOnly}
+            onClick={() => {
+              setWarrantyOnly((prev) => !prev);
+              setPage(1);
+            }}
+            className={`h-10 px-3.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer border ${
+              warrantyOnly
+                ? "bg-primary text-white border-primary shadow-xs"
+                : "bg-[var(--surface-alt)] text-[var(--foreground-muted)] border-[var(--border-color)] hover:text-[var(--foreground)]"
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Active warranty</span>
+            <span
+              className={`text-[10px] px-1.5 py-0.5 rounded-full ${
+                warrantyOnly
+                  ? "bg-[var(--surface-elevated)]/20 text-white"
+                  : "bg-[var(--surface-elevated)] text-[var(--foreground-muted)] border border-[var(--border-color)]/50"
+              }`}
+            >
+              {liveWarrantyCount}
+            </span>
+          </button>
         </div>
       </div>
 
@@ -650,6 +801,8 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
             <p className="text-xs text-[var(--foreground-muted)]">
               {searchQuery
                 ? "No orders matched your search keyword."
+                : warrantyOnly
+                ? "None of your orders has an active warranty right now."
                 : `You do not have any ${selectedTab !== "All Orders" ? selectedTab.toLowerCase() : ""} orders yet.`}
             </p>
           </div>
@@ -662,7 +815,7 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
         </Card>
       ) : (
         <div className="space-y-5">
-          {filteredOrders.map((order) => (
+          {visibleOrders.map((order) => (
             <Card
               key={order.id}
               className="bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-2xl overflow-hidden shadow-xs space-y-4 p-0"
@@ -956,6 +1109,45 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
               </div>
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* ── Pagination ── */}
+      {filteredOrders.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <p className="text-[var(--foreground-muted)]">
+            Showing{" "}
+            <span className="font-bold text-[var(--foreground)]">
+              {pageStart + 1}–{Math.min(pageStart + ORDERS_PER_PAGE, filteredOrders.length)}
+            </span>{" "}
+            of <span className="font-bold text-[var(--foreground)]">{filteredOrders.length}</span> orders
+          </p>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="secondary"
+                isDisabled={currentPage <= 1}
+                onPress={() => goToPage(currentPage - 1)}
+                className="h-9 px-3 rounded-lg text-xs font-semibold cursor-pointer"
+              >
+                Previous
+              </Button>
+              <span className="px-1 font-semibold text-[var(--foreground-muted)]">
+                Page {currentPage} of {totalPages}
+              </span>
+              <Button
+                size="sm"
+                variant="secondary"
+                isDisabled={currentPage >= totalPages}
+                onPress={() => goToPage(currentPage + 1)}
+                className="h-9 px-3 rounded-lg text-xs font-semibold cursor-pointer"
+              >
+                Next
+              </Button>
+            </div>
+          )}
         </div>
       )}
 

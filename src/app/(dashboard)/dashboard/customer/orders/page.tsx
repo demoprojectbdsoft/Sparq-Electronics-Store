@@ -279,6 +279,8 @@ export default async function CustomerOrdersPage() {
           id: orderIdStr,
           orderNumber: `#ORD-${shortId}`,
           date: formatOrderDate(order.createdAt),
+          // Kept raw so the client can sort by the real timestamp.
+          createdAt: order.createdAt,
           status,
           rawStatus: order.orderStatus,
           customerResponse: order.customerResponse || null,
