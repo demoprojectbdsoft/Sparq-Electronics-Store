@@ -39,6 +39,7 @@ import { toast } from "react-toastify";
 import { authClient } from "@/lib/auth-client";
 import SuspendedAccountModal from "@/components/shared/SuspendedAccountModal";
 import ImageGalleryModal from "@/components/shared/ImageGalleryModal";
+import UserAvatar from "@/components/shared/UserAvatar";
 import { Product, ProductReview, User } from "@/types";
 import ProductNotFound from "./ProductNotFound";
 import { addReview, editReview } from "@/lib/action/reviews";
@@ -1294,19 +1295,12 @@ export default function ProductDetailsPage({
                         {/* Signed-in user identity preview */}
                           <div className="flex items-center justify-between p-2.5 rounded-xl bg-[var(--surface-alt)] border border-[var(--border-color)]">
                             <div className="flex items-center gap-2.5 min-w-0">
-                              <div className="relative w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-primary-hover flex items-center justify-center text-white font-bold text-xs shrink-0 overflow-hidden shadow-xs">
-                                {user.image || (user as { avatar?: string })?.avatar ? (
-                                  <Image
-                                    src={(user.image || (user as { avatar?: string })?.avatar)!}
-                                    alt={user.name || "User"}
-                                    fill
-                                    className="object-cover rounded-full"
-                                    unoptimized
-                                  />
-                                ) : (
-                                  <span>{user.name ? user.name.charAt(0).toUpperCase() : "U"}</span>
-                                )}
-                              </div>
+                              <UserAvatar
+                                src={user.image || (user as { avatar?: string })?.avatar}
+                                name={user.name}
+                                size={32}
+                                className="rounded-full bg-gradient-to-tr from-primary to-primary-hover text-white text-xs shadow-xs"
+                              />
                               <div className="min-w-0">
                                 <p className="text-xs font-bold text-[var(--foreground)] truncate">
                                   {user.name}
@@ -1461,7 +1455,6 @@ export default function ProductDetailsPage({
                       {reviews.map((rev) => {
                         const isLiked = !!likedReviews[rev.id];
                         const helpfulCount = helpfulCounts[rev.id] || 0;
-                        const initial = rev.userName ? rev.userName.charAt(0).toUpperCase() : "U";
 
                         return (
                           <div
@@ -1472,19 +1465,12 @@ export default function ProductDetailsPage({
                               {/* Reviewer Header */}
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2.5">
-                                  <div className="relative w-8 h-8 rounded-full bg-gradient-to-tr from-primary to-primary-hover flex items-center justify-center text-white font-bold text-xs shrink-0 overflow-hidden shadow-xs">
-                                    {rev.userAvatar ? (
-                                      <Image
-                                        src={rev.userAvatar}
-                                        alt={rev.userName}
-                                        fill
-                                        className="object-cover rounded-full"
-                                        unoptimized
-                                      />
-                                    ) : (
-                                      <span>{initial}</span>
-                                    )}
-                                  </div>
+                                  <UserAvatar
+                                    src={rev.userAvatar}
+                                    name={rev.userName}
+                                    size={32}
+                                    className="rounded-full bg-gradient-to-tr from-primary to-primary-hover text-white text-xs shadow-xs"
+                                  />
                                   <div>
                                     <span className="font-bold text-xs text-[var(--foreground)] block leading-tight">
                                       {rev.userName}

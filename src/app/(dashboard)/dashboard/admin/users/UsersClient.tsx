@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useTransition, useCallback } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Card,
@@ -36,6 +35,7 @@ import { toast } from "react-toastify";
 import { updateUser } from "@/lib/action/user";
 import { getUserOrdersAction } from "@/lib/action/orders";
 import { useDemoAdmin } from "@/hooks/useDemoAdmin";
+import UserAvatar from "@/components/shared/UserAvatar";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 const ROLE_OPTIONS = [
@@ -84,62 +84,6 @@ interface UserItem {
 interface UsersClientProps {
   initialUsers: UserItem[];
   pagination: PaginationMeta;
-}
-
-// Safe avatar component that gracefully falls back to initials
-function SafeAvatar({
-  src,
-  name,
-  size = 32,
-  className = "",
-  rounded = "rounded-full",
-}: {
-  src?: string | null;
-  name?: string;
-  size?: number;
-  className?: string;
-  rounded?: string;
-}) {
-  const [hasError, setHasError] = useState(false);
-  const initial = (name || "U").trim().charAt(0).toUpperCase() || "U";
-
-  // Reset error state if image source changes
-  useEffect(() => {
-    setHasError(false);
-  }, [src]);
-
-  const cleanSrc = typeof src === "string" ? src.trim() : "";
-  const isValidSrc =
-    cleanSrc.length > 0 &&
-    cleanSrc !== "undefined" &&
-    cleanSrc !== "null" &&
-    !cleanSrc.includes("[object Object]") &&
-    !hasError;
-
-  if (!isValidSrc) {
-    return (
-      <div
-        className={`flex items-center justify-center bg-gradient-to-tr from-sky-500 to-blue-600 text-white font-bold shrink-0 select-none shadow-xs ${rounded} ${className}`}
-        style={{ width: size, height: size, fontSize: Math.max(10, Math.floor(size * 0.38)) }}
-      >
-        <span>{initial}</span>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className={`relative shrink-0 overflow-hidden shadow-xs ${rounded} ${className}`}
-      style={{ width: size, height: size }}
-    >
-      <img
-        src={cleanSrc}
-        alt={name || "User"}
-        className={`w-full h-full object-cover ${rounded}`}
-        onError={() => setHasError(true)}
-      />
-    </div>
-  );
 }
 
 // Safe product image component that falls back to placeholder
@@ -610,11 +554,11 @@ export default function UsersClient({
                       {/* User Avatar & Name */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-2.5">
-                          <SafeAvatar
+                          <UserAvatar
                             src={avatarUrl}
                             name={name}
                             size={32}
-                            rounded="rounded-full"
+                            className="rounded-full bg-gradient-to-tr from-sky-500 to-blue-600 text-white shadow-xs"
                           />
                           <p className="font-bold text-[var(--foreground)] truncate max-w-[150px] group-hover:text-primary transition-colors">
                             {name}
@@ -793,7 +737,7 @@ export default function UsersClient({
                   {/* Modal Header */}
                   <Modal.Header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border-color)] pb-5">
                     <div className="flex items-center gap-3.5">
-                      <SafeAvatar
+                      <UserAvatar
                         src={
                           selectedUser.image ||
                           selectedUser.avatar ||
@@ -802,7 +746,7 @@ export default function UsersClient({
                         }
                         name={selectedUser.name}
                         size={56}
-                        rounded="rounded-2xl"
+                        className="rounded-2xl bg-gradient-to-tr from-sky-500 to-blue-600 text-white shadow-xs"
                       />
                       <div>
                         <div className="flex items-center gap-2">

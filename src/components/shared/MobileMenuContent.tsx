@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   User,
@@ -15,6 +14,7 @@ import {
 } from "lucide-react";
 import { Category, SubCategory } from "@/types";
 import MobileCategories from "./MobileCategories";
+import UserAvatar from "./UserAvatar";
 import { ThemeSwitch } from "./Switcher";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "react-toastify";
@@ -81,22 +81,12 @@ export default function MobileMenuContent({
           <div className="p-3.5 rounded-2xl bg-[var(--surface-elevated)] border border-[var(--border-color)] shadow-xs space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="relative w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm shadow-xs shrink-0 overflow-hidden">
-                  {user.image || (user as { avatar?: string })?.avatar ? (
-                    <Image
-                      src={user.image || ((user as { avatar?: string })?.avatar as string)}
-                      alt={user.name || "User avatar"}
-                      fill
-                      sizes="40px"
-                      className="object-cover rounded-full"
-                      unoptimized
-                    />
-                  ) : user.name ? (
-                    <span>{user.name.charAt(0).toUpperCase()}</span>
-                  ) : (
-                    <User className="w-4 h-4" />
-                  )}
-                </div>
+                <UserAvatar
+                  src={user.image || (user as { avatar?: string })?.avatar}
+                  name={user.name}
+                  size={40}
+                  className="rounded-full bg-primary text-white text-sm shadow-xs"
+                />
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-[var(--foreground)] truncate">
                     {user.name || "My Account"}

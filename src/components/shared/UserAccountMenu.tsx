@@ -2,7 +2,6 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import {
   User,
@@ -16,6 +15,7 @@ import {
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import { toast } from "react-toastify";
+import UserAvatar from "./UserAvatar";
 
 export default function UserAccountMenu() {
   const router = useRouter();
@@ -28,7 +28,6 @@ export default function UserAccountMenu() {
 
   const userRole = ((user as { role?: string })?.role || "customer").toLowerCase();
   const userImage = user?.image || (user as { avatar?: string })?.avatar;
-  const initial = user?.name ? user.name.charAt(0).toUpperCase() : "U";
   const firstName = user?.name ? user.name.split(" ")[0] : "Account";
 
   // Close dropdown on click outside or escape key
@@ -118,21 +117,13 @@ export default function UserAccountMenu() {
             : "border-[var(--border-color)] hover:border-primary/40 bg-[var(--surface-elevated)]"
         }`}
       >
-        {/* Avatar badge with Next.js Image or Initial */}
-        <div className="relative w-7 h-7 rounded-full bg-primary flex items-center justify-center text-white font-bold text-xs shadow-xs shrink-0 overflow-hidden">
-          {userImage ? (
-            <Image
-              src={userImage}
-              alt={user.name || "User avatar"}
-              fill
-              sizes="28px"
-              className="object-cover rounded-full"
-              unoptimized
-            />
-          ) : (
-            <span>{initial}</span>
-          )}
-        </div>
+        {/* Avatar badge — the photo when it loads, the initial when it cannot */}
+        <UserAvatar
+          src={userImage}
+          name={user.name || "User"}
+          size={28}
+          className="rounded-full bg-primary text-white text-xs shadow-xs"
+        />
 
         {/* Name & Role preview */}
         <div className="text-left hidden lg:block leading-tight">
@@ -161,20 +152,12 @@ export default function UserAccountMenu() {
           {/* Header section with User info */}
           <div className="px-4 py-3 border-b border-[var(--border-color)] bg-[var(--surface-alt)]">
             <div className="flex items-center gap-3">
-              <div className="relative w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm shadow-xs shrink-0 overflow-hidden">
-                {userImage ? (
-                  <Image
-                    src={userImage}
-                    alt={user.name || "User avatar"}
-                    fill
-                    sizes="40px"
-                    className="object-cover rounded-full"
-                    unoptimized
-                  />
-                ) : (
-                  <span>{initial}</span>
-                )}
-              </div>
+              <UserAvatar
+                src={userImage}
+                name={user.name || "User"}
+                size={40}
+                className="rounded-full bg-primary text-white text-sm shadow-xs"
+              />
               <div className="min-w-0 flex-1">
                 <p className="text-xs font-bold text-[var(--foreground)] truncate">
                   {user.name || "User"}

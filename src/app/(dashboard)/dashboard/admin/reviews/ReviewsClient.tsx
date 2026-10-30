@@ -32,6 +32,7 @@ import {
 import { toast } from "react-toastify";
 import { deleteReview } from "@/lib/action/reviews";
 import ImageGalleryModal from "@/components/shared/ImageGalleryModal";
+import UserAvatar from "@/components/shared/UserAvatar";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 const RATING_FILTER_TABS = ["All", "5 Stars", "4 Stars", "3 Stars", "2 Stars", "1 Star"];
@@ -437,20 +438,12 @@ export default function ReviewsClient({
                       {/* Reviewer */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-2">
-                          <div className="relative w-7 h-7 rounded-full bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center text-white font-bold text-[10px] shrink-0 overflow-hidden">
-                            {rev.userAvatar ? (
-                              <Image
-                                src={rev.userAvatar}
-                                alt={rev.userName || "User"}
-                                fill
-                                sizes="28px"
-                                className="object-cover rounded-full"
-                                unoptimized
-                              />
-                            ) : (
-                              <span>{(rev.userName || "U").charAt(0).toUpperCase()}</span>
-                            )}
-                          </div>
+                          <UserAvatar
+                            src={rev.userAvatar}
+                            name={rev.userName}
+                            size={28}
+                            className="rounded-full bg-gradient-to-tr from-amber-500 to-orange-500 text-white text-[10px]"
+                          />
                           <div className="min-w-0 max-w-[130px]">
                             <p className="font-semibold text-[var(--foreground)] truncate">
                               {rev.userName || "Anonymous"}
@@ -681,20 +674,12 @@ export default function ReviewsClient({
                     {/* Reviewer Details */}
                     <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-[var(--surface-alt)]">
                       <div className="flex items-center gap-2.5">
-                        <div className="relative w-9 h-9 rounded-full bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center text-white font-bold text-xs shrink-0 overflow-hidden">
-                          {selectedReview.userAvatar ? (
-                            <Image
-                              src={selectedReview.userAvatar}
-                              alt={selectedReview.userName || "User"}
-                              fill
-                              sizes="36px"
-                              className="object-cover rounded-full"
-                              unoptimized
-                            />
-                          ) : (
-                            <span>{(selectedReview.userName || "U").charAt(0).toUpperCase()}</span>
-                          )}
-                        </div>
+                        <UserAvatar
+                          src={selectedReview.userAvatar}
+                          name={selectedReview.userName}
+                          size={36}
+                          className="rounded-full bg-gradient-to-tr from-amber-500 to-orange-500 text-white text-xs"
+                        />
                         <div>
                           <p className="text-xs font-bold text-[var(--foreground)]">
                             {selectedReview.userName || "Anonymous"}

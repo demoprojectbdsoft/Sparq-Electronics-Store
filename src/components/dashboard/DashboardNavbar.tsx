@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Search, Bell, User, Menu, Sun, Moon } from "lucide-react";
+import { Search, Bell, Menu, Sun, Moon } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import CartButton from "@/components/shared/CartButton";
+import UserAvatar from "@/components/shared/UserAvatar";
 
 import { useTheme } from "next-themes";
 
@@ -16,7 +16,9 @@ interface DashboardNavbarProps {
 
 export default function DashboardNavbar({ onToggleSidebar }: DashboardNavbarProps) {
   const { theme, setTheme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  // next-themes leaves resolvedTheme undefined until the browser has read the
+  // saved theme, so this doubles as the "mounted" flag without an effect.
+  const isThemeKnown = resolvedTheme !== undefined;
   const pathname = usePathname();
 
   const { data: session } = authClient.useSession();
@@ -25,11 +27,6 @@ export default function DashboardNavbar({ onToggleSidebar }: DashboardNavbarProp
   const userRole = ((user as { role?: string })?.role || (isCustomerRoute ? "customer" : "admin")).toLowerCase();
   const userImage = user?.image || (user as { avatar?: string })?.avatar;
   const displayName = user?.name || (userRole === "admin" ? "Alex Rivera" : "Valued Customer");
-  const initial = displayName ? displayName.charAt(0).toUpperCase() : "U";
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
 
   const isDark = (resolvedTheme || theme) === "dark";
 
@@ -62,7 +59,7 @@ export default function DashboardNavbar({ onToggleSidebar }: DashboardNavbarProp
       {/* Controls & Profile */}
       <div className="flex items-center gap-2 sm:gap-3">
         {/* Theme Switcher Toggle */}
-        {mounted && (
+        {isThemeKnown && (
           <button
             onClick={toggleTheme}
             aria-label="Toggle Theme"
@@ -100,20 +97,12 @@ export default function DashboardNavbar({ onToggleSidebar }: DashboardNavbarProp
           href={isCustomerRoute ? "/dashboard/customer/profile" : "/dashboard/admin/profile"}
           className="flex items-center gap-3 pl-1 hover:opacity-85 transition-opacity"
         >
-          <div className="relative w-8 h-8 rounded-full bg-brand-gradient flex items-center justify-center text-[var(--on-grad-text)] font-bold text-xs shadow-xs overflow-hidden shrink-0 ring-2 ring-[var(--brand-flat)]/30">
-            {userImage ? (
-              <Image
-                src={userImage}
-                alt={displayName}
-                fill
-                sizes="32px"
-                className="object-cover rounded-full"
-                unoptimized
-              />
-            ) : (
-              <span>{initial}</span>
-            )}
-          </div>
+          <UserAvatar
+            src={userImage}
+            name={displayName}
+            size={32}
+            className="rounded-full bg-brand-gradient text-[var(--on-grad-text)] text-xs ring-2 ring-[var(--brand-flat)]/30"
+          />
           <div className="hidden sm:block text-left">
             <p className="text-xs font-bold text-[var(--foreground)] leading-none truncate max-w-[120px]">
               {displayName}
