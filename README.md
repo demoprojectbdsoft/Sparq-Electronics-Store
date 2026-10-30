@@ -90,7 +90,7 @@ Public pages anyone can visit.
 | **Track order** (`/track-order`) | An order-lookup form with a delivery timeline. The per-order **Track Shipment** view in the customer dashboard is the live one. |
 | **Store locator** (`/store-locator`) | Store locations and contact details. |
 | **About** (`/about`) | Headline, story, headquarters note, **opening hours**, contact channels and call-to-action — all editable from **Site Settings → Contact & Socials**. |
-| **Services / Contact / Privacy / Terms** | Informational pages, branded from the store settings. |
+| **Services / Contact / Privacy / Terms** | Informational pages, branded from the store settings. The **Contact** page has a working form: it validates the fields on the spot and the API emails the message to the store inbox, with the visitor's address as the reply-to. |
 | **Maintenance** (`/maintenance`) | Shown while the store is paused. See [Maintenance Mode](#-maintenance-mode). |
 | **Forbidden** (`/forbidden`) | Shown when a signed-in user opens a dashboard that is not theirs. |
 
@@ -139,7 +139,7 @@ Switching mode keeps the current filters, search and sort.
 | **Delivery response** | Once an order ships, the customer confirms whether it arrived — see [Orders & delivery](#orders--delivery). |
 | **Buy again** | Re-add a product from order history straight back into the cart. |
 | **Reviews & ratings** | Star rating, written review and up to 5 images (hosted on ImgBB). A product's rating is recalculated from its real reviews. |
-| **Warranties** | Coverage is issued on delivery and the panel shows its type, duration, terms and dates before claiming. The claim form takes a reason, a description and up to 5 photos, and the claim status stays visible to the customer. |
+| **Warranties** | Coverage is issued on delivery and the panel shows its type, duration, terms and dates before claiming. The claim form takes a reason, a description and up to 5 photos; the claim status stays visible to the customer, and when the store asks for more information the same form becomes a **reply form** that keeps a visible thread of everything already sent. |
 | **Invoice download** | Any order can be downloaded as a PDF invoice. |
 
 ---
@@ -149,7 +149,7 @@ Switching mode keeps the current filters, search and sort.
 | Page | What it offers |
 |---|---|
 | **Overview** | Spend and savings charts, summary stat cards, recent orders with their status and points saved. |
-| **Orders** | Full order history: status badge, timeline, **Track Shipment**, **invoice PDF**, **Buy Again**, warranty cards with claims, and the delivery-response form. The delivery response is final once reported as received or cancelled; *not received* can be updated until it is settled. |
+| **Orders** | Full order history: status badge, timeline, **Track Shipment**, **invoice PDF**, **Buy Again**, warranty cards with claims and replies, and the delivery-response form. The delivery response is final once reported as received or cancelled; *not received* can be updated until it is settled. |
 | **Transactions** | Every payment record for the customer's orders, with search, status filter and sorting. Each row can be downloaded as a **PDF receipt** showing the receipt number, order, method, amount and status. |
 | **Wishlist** | Saved products, with add-to-cart. |
 | **Reviews** | The reviews they have written, with edit support. |
@@ -179,7 +179,7 @@ Switching mode keeps the current filters, search and sort.
 | **Transactions** | Platform-wide payment records. |
 | **Users** | Change a user's role and account status, and see their points and membership tier. |
 | **Reviews** | View and moderate every product review. |
-| **Warranties** | Review coverage records and process claims. Status badges (icon + colour) appear in the table and in the modal, and the table shows each record's **type and duration**. Opening one shows the full coverage (type, duration, terms, dates) and the claim with its reason, description and evidence photos, plus one coloured icon button per action — under review, ask for info, resolve or reject. Every action button locks while a save is in flight, so two decisions can never race. Customer emails open the mail app. |
+| **Warranties** | Review coverage records and process claims. Status badges (icon + colour) appear in the table and in the modal, and the table shows each record's **type and duration**. Opening one shows the full coverage (type, duration, terms, dates), the claim with its reason, description and evidence photos, and every answer the customer sent after *ask for info*, plus one coloured icon button per action — under review, ask for info, resolve or reject. Every action button locks while a save is in flight, so two decisions can never race. **Email Customer** opens a composer already filled in from the claim (name, product, order, reason, description, latest reply and coverage) and sends it from the dashboard instead of handing the address to a mail app. |
 | **Settings** | Site settings and branding — see [Site Settings & Branding](#-site-settings--branding). |
 
 ### Order management
@@ -255,11 +255,16 @@ A review holds a star rating, a written message and up to 5 images. Ratings are 
 
 ### Warranties
 
-- Coverage is created automatically when an order is delivered, one per item, using the product's warranty period, type and terms. Those three values are **copied onto the warranty record**, so the coverage still explains itself if the product is edited or deleted later.
+Coverage lives on the server; the dashboard only reads and reacts to it. The [backend README](https://github.com/demoprojectbdsoft/Sparq-Server#warranty-coverage--claims) documents the full pipeline.
+
+- Coverage is created automatically when an order is delivered, one per item, using the product's warranty period, type and terms. Those three values are **copied onto the warranty record**, so the coverage still explains itself if the product is edited or deleted later. A product marked **No warranty** never creates a record.
 - Opening a warranty shows its **type**, **duration**, **terms** and activation/expiry dates, plus the days remaining.
 - While it is active the customer can file one claim: a short reason, a description and up to 5 photos. Claims filed before the form was simplified also carry a problem code, which the customer still sees on their own claim.
-- After a claim is filed, its status is visible to the customer: under review, information requested, resolved or rejected.
-- Cancelling an order voids the coverage it created.
+- The status is always visible: *Claim Submitted*, *Under Review*, *Info Requested*, *Resolved* or *Expired*.
+- **Info Requested is not a dead end.** The same panel turns into a reply form: the reason stays filled in, the reply box starts empty, and every answer is appended to a thread the customer and the admin can both read.
+- **Resolved** shows the outcome the admin wrote, and **Expired** explains why the warranty or claim is closed.
+- Cancelling or returning an order voids the coverage it created.
+- Every step is also emailed (claim, reply, decision, and the issued coverage) when the server has Resend configured.
 
 ### Pricing & slider
 
@@ -464,6 +469,8 @@ NEXT_PUBLIC_IMGBB_API_KEY=your_imgbb_api_key
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | For Google login | OAuth credentials. |
 | `NEXT_PUBLIC_IMGBB_API_KEY` | For uploads | Hosts product images, review photos and claim images. |
 
+> ✉️ Email is sent by the API, not this app: claims, claim updates, issued coverage and contact-page messages all go out through Resend. Set `RESEND_API_KEY`, `MAIL_FROM` and `STORE_INBOX` in the **server** environment (see the [backend README](https://github.com/demoprojectbdsoft/Sparq-Server#environment-variables)). Without them the app still works — the contact form simply reports that the message could not be sent.
+
 > ⚠️ Never commit `.env.local`. `NEXT_PUBLIC_*` values are baked in at build time — rebuild after changing one.
 
 ### Run Locally
@@ -505,7 +512,8 @@ Open [http://localhost:3000](http://localhost:3000).
 | Checkout: COD and mobile wallet with OTP | ✅ Complete |
 | Loyalty points: earning, redemption at checkout, refunds | ✅ Complete |
 | Order tracking, delivery response and invoice PDF | ✅ Complete |
-| Warranty coverage and claim flow | ✅ Complete |
+| Warranty coverage, claims, replies and admin email | ✅ Complete |
+| Contact page form that emails the store | ✅ Complete |
 | Reviews with image uploads and rating recalculation | ✅ Complete |
 | Customer dashboard with analytics and data export | ✅ Complete |
 | Admin dashboard with CSV and charted PDF reports | ✅ Complete |
