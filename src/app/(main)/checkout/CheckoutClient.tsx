@@ -472,13 +472,18 @@ export default function CheckoutClient({
       // a failure here is only logged: the order itself is already placed.
       if (user?.id && saveForNextTime && selectedAddressId === "new") {
         try {
-          await saveAddress({
+          const saved = await saveAddress({
             fullName: shippingForm.fullName.trim(),
             phone: shippingForm.phone.trim(),
             address: shippingForm.address.trim(),
             city: shippingForm.city.trim(),
             postalCode: shippingForm.postalCode.trim(),
           });
+
+          // Most likely reason: the book is already full (5 addresses).
+          if (saved?.success === false) {
+            toast.warning(saved?.message || "This address could not be saved.");
+          }
         } catch (err) {
           console.error("Could not save the shipping address:", err);
         }
