@@ -126,7 +126,7 @@ export interface Product {
   ownerId?: string;
   title: string;
   slug: string;
-  categories: string[]; // e.g. ["Accessories", "Headphone Cases"]
+  categories: string[]; // e.g. ["Accessories", "Gift Sets"]
   // Populated references (present on product detail page)
   categoryId?: { name: string; slug: string; _id?: string; id?: string };
   subCategoryIds?: { name: string; slug: string; _id?: string; id?: string }[];

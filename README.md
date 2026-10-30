@@ -292,6 +292,8 @@ One page, split into tabs, controlling how the whole store looks and behaves. Ch
 | **Contact & Socials** | Support phone, email, address and social links used in the footer and mobile navigation, plus **opening hours** (one day per line) and every line of the **About page**: headline, intro, headquarters note, opening-hours note and call-to-action. Leave a field empty to keep the built-in text. |
 | **System & Security** | Store currency, timezone, footer copyright, the default shop browse mode, and **maintenance mode**. |
 
+**The built-in copy stays topic-neutral.** The storefront ships with wording like *products*, *new arrivals* and *special offers* instead of naming one industry, so switching store type never leaves old text behind. That covers the empty cart, the hero slider placeholder, the homepage promo strips, the store locator, the About page defaults and placeholders, the missing-product page, the sidebar/manifest descriptions and every admin placeholder. Shortcut links point at shop filters (`/shop?sort=newest`, `/shop?hasOffer=true`) instead of fixed category slugs, and a promo strip without a category links to `/shop`, so they keep working whatever the catalog sells.
+
 **The emails follow the same settings.** The API builds every message from this page, so there is nothing to keep in sync by hand:
 
 - `colorPalette.primary` becomes the rule at the top of the card and every button; `primaryDark` colours the heading and `accent` draws the thin rule under it.

@@ -16,11 +16,12 @@ interface ProductNotFoundProps {
 }
 
 export default function ProductNotFound({ slug }: ProductNotFoundProps) {
+  // Straight to the catalog pages that always exist, so the shortcuts work in any
+  // kind of store rather than naming one industry's categories.
   const quickCategories = [
-    { name: "Laptops & Computers", href: "/shop?category=laptops" },
-    { name: "Audio & Headphones", href: "/shop?category=audio" },
-    { name: "Smartphones & Tablets", href: "/shop?category=smartphones" },
-    { name: "Gaming Gear", href: "/shop?category=gaming" },
+    { name: "All Products", href: "/shop" },
+    { name: "New Arrivals", href: "/shop?sort=newest" },
+    { name: "Special Offers", href: "/shop?hasOffer=true" },
   ];
 
   return (

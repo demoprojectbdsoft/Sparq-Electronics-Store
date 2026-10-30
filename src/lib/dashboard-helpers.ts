@@ -385,8 +385,8 @@ export function aggregateAdminDashboard(
         const itemPrice = Number(item.price ?? 0);
         const prodCat =
           typeof item.productId === "object"
-            ? item.productId?.categoryId?.name || item.productId?.category?.name || "Electronics"
-            : "Electronics";
+            ? item.productId?.categoryId?.name || item.productId?.category?.name || "Uncategorized"
+            : "Uncategorized";
         const prodSlug = typeof item.productId === "object" ? item.productId?.slug : undefined;
 
         // Try to get investPrice from populated productId or productMap
@@ -595,7 +595,7 @@ export function aggregateAdminDashboard(
     const shortId = `#ORD-${id.slice(-5).toUpperCase()}`;
     const custName = ord.shippingAddress?.fullName || ord.userId?.name || "Customer";
     const custEmail = ord.userId?.email || "customer@example.com";
-    const firstItem = ord.items?.[0]?.title || "Electronic Item";
+    const firstItem = ord.items?.[0]?.title || "Product";
     const moreItems = (ord.items?.length || 1) > 1 ? ` +${ord.items!.length - 1} more` : "";
     const amtStr = `${currencySymbol}${Number(ord.totalAmount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -830,7 +830,7 @@ export function aggregateCustomerDashboard(
         totalSaved += diff;
         orderSavings += diff;
 
-        const catName = prod?.categoryId?.name || prod?.category?.name || "Electronics";
+        const catName = prod?.categoryId?.name || prod?.category?.name || "Uncategorized";
         if (!categoryMap[catName]) categoryMap[catName] = { count: 0, amount: 0 };
         categoryMap[catName].count += qty;
         categoryMap[catName].amount += itemPrice * qty;

@@ -138,7 +138,7 @@ export default function StoreLocatorPage() {
             Store <span className="text-gradient-primary">Locator</span>
           </h1>
           <p className="text-sm md:text-base text-[var(--foreground-muted)]">
-            Find a {siteName} retail outlet near you to experience the latest gadgets, pick up online orders, or get instant technical support.
+            Find a {siteName} retail outlet near you to browse products in person, pick up online orders, or get instant support.
           </p>
         </div>
 

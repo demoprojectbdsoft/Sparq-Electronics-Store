@@ -15,36 +15,39 @@ import { getSlides } from "@/lib/api/slides";
 
 // ─── Static data ─────────────────────────────────────────────────────────────
 
+// Homepage promo strips. They link to shop filters (offers, newest) that every
+// store has, so the same banner works whether the catalog sells electronics or
+// anything else.
 const promoBannersData: PromoBanner[] = [
   {
-    id: "banner-cameras",
+    id: "banner-deals",
     subtitle: "CATCH HOTTEST",
-    title: "IN CAMERAS CATEGORY",
     highlightText: "DEALS",
-    href: "/shop?category=cameras",
+    title: "IN EVERY CATEGORY",
+    href: "/shop?hasOffer=true",
     image: "https://dezlwerqy1h00.cloudfront.net/Media/Images/Product/Visual/22879_pictures_product_visual_1.png?auto=webp&format=pjpg&quality=100",
-    imageAlt: "Cameras Category Deals",
+    imageAlt: "Hottest deals",
     buttonText: "Shop now",
     priority: true,
   },
   {
-    id: "banner-tablets",
-    subtitle: "TABLETS, SMARTPHONES",
-    title: "AND MORE",
-    href: "/shop?category=tablets-smartphones",
+    id: "banner-new-arrivals",
+    subtitle: "FRESHLY ADDED",
+    title: "NEW ARRIVALS IN STOCK",
+    href: "/shop?sort=newest",
     image: "https://i.ibb.co.com/Q3Tpt7Df/industries-consumer-electronics-removebg-preview.png",
-    imageAlt: "Tablets and Smartphones",
-    pricePrefix: "FROM",
-    priceDollars: "749",
-    priceCents: "99",
+    imageAlt: "New arrivals",
+    buttonText: "See what's new",
   },
 ];
 
+// No fixed category here: the strip promotes the whole catalog, so the link
+// still works after the store switches to a different kind of product.
 const tabletPromoData: TabletPromoProps = {
-  categorySlug: "tablets",
+  categorySlug: "",
   titlePrefix: "SHOP AND",
   highlightText: "SAVE BIG",
-  titleSuffix: "ON HOTTEST TABLETS",
+  titleSuffix: "ON TOP PICKS",
   startingPrice: "79",
   cents: "99",
   imageSrc: "https://i.ibb.co.com/zh1qTHwh/Tablets.png",

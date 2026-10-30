@@ -14,11 +14,11 @@ export const DEFAULT_SITE_SETTINGS: SiteSettingsData = {
   supportPhone: "(800) 8001-8588",
   openingHours: "Mon - Fri: 9:00 AM - 8:00 PM",
   address: "17 Princess Road, London, Greater London NW1 8JR, UK",
-  metaTitle: "Sparq - Premium Electronics Store",
+  metaTitle: "Sparq - Premium Online Store",
   metaDescription:
-    "Sparq - Premium Worldwide Electronics Store with best deals, fast shipping, and top-tier tech products.",
+    "Sparq - Premium Worldwide Store with best deals, fast shipping, and top-quality products.",
   topBarText:
-    "Welcome to Worldwide Electronics Store • Free Express Shipping on $50+",
+    "Welcome to our Worldwide Store • Free Express Shipping on $50+",
   topBarEnabled: true,
   topBarItems: [
     { label: "Store Locator", href: "/store-locator" },
@@ -63,13 +63,13 @@ export const DEFAULT_SITE_SETTINGS: SiteSettingsData = {
   maintenanceMode: false,
   footerCopyright: "",
   about: {
-    headline: "We Provide High Quality Electronics & Tech Gadgets",
+    headline: "We Provide High Quality Products",
     intro: "",
-    headquartersNote: "Official Storefront & Innovation Center",
+    headquartersNote: "Official Storefront & Support Center",
     openingHoursNote: "Live helpline & in-store customer assistance",
     ctaTitle: "Ready to explore our latest arrivals?",
     ctaDescription:
-      "Browse our wide selection of consumer tech, laptops, smartphones, and gaming consoles today.",
+      "Browse our wide selection of new arrivals, bestsellers, and everyday essentials today.",
   },
 };
 

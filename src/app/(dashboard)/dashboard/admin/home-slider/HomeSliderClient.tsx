@@ -807,7 +807,7 @@ export default function HomeSliderClient({
                         onChange={(e) =>
                           setFormData((prev) => ({ ...prev, tabTitle: e.target.value }))
                         }
-                        placeholder="e.g. SO MUCH TO WATCH IN 4K TVS"
+                        placeholder="e.g. SO MUCH TO EXPLORE IN OUR STORE"
                         className="w-full bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl text-xs"
                         required
                       />

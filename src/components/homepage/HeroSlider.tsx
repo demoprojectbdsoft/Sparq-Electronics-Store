@@ -134,10 +134,10 @@ export default function HeroSlider({ initialSlides = [] }: HeroSliderProps) {
           </div>
           <div className="max-w-md space-y-1.5">
             <h3 className="text-xl font-extrabold text-[var(--foreground)]">
-              Discover Exclusive Tech Deals
+              Discover Exclusive Deals
             </h3>
             <p className="text-xs text-[var(--foreground-muted)]">
-              Browse our complete catalog of electronics, gadgets, and top accessories.
+              Browse our complete catalog of products, new arrivals, and top accessories.
             </p>
           </div>
           <Link

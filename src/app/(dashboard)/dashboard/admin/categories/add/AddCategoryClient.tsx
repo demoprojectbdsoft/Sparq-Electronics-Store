@@ -217,7 +217,7 @@ export default function AddCategoryClient({
                     </label>
                     <Input
                       name="name"
-                      placeholder="e.g. Laptops & Computers"
+                      placeholder="e.g. Home & Living"
                       value={categoryData.name}
                       onChange={handleCategoryNameChange}
                       required
@@ -230,7 +230,7 @@ export default function AddCategoryClient({
                     </label>
                     <Input
                       name="slug"
-                      placeholder="laptops-computers"
+                      placeholder="home-living"
                       value={categoryData.slug}
                       onChange={(e) =>
                         setCategoryData((prev) => ({
@@ -391,7 +391,7 @@ export default function AddCategoryClient({
                     </label>
                     <Input
                       name="name"
-                      placeholder="e.g. Gaming Laptops"
+                      placeholder="e.g. Kitchen Essentials"
                       value={subCategoryData.name}
                       onChange={handleSubCategoryNameChange}
                       required
@@ -404,7 +404,7 @@ export default function AddCategoryClient({
                     </label>
                     <Input
                       name="slug"
-                      placeholder="gaming-laptops"
+                      placeholder="kitchen-essentials"
                       value={subCategoryData.slug}
                       onChange={(e) =>
                         setSubCategoryData((prev) => ({

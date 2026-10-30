@@ -601,7 +601,7 @@ export default function CheckoutClient({
               </h2>
               <p className="text-xs md:text-sm text-[var(--foreground-muted)]">
                 You haven&apos;t added any items to your cart yet. Explore our wide
-                range of premium electronics to continue checkout.
+                range of products to continue checkout.
               </p>
             </div>
             <div className="pt-2">

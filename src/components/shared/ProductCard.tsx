@@ -371,7 +371,7 @@ export default function ProductCard({
   };
   // ────────────────────────────────────────────────────────────────────────────
 
-  const categoryText = product.categories?.join(", ") || "Electronics";
+  const categoryText = product.categories?.join(", ") || "Product";
   
   const formattedPrice = formatPrice(product.price);
 

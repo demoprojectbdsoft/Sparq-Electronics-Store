@@ -862,7 +862,7 @@ export default function AdminSettingsClient({
   );
   const [storeType, setStoreType] = useState(current.storeType || "electronics");
   const [metaTitle, setMetaTitle] = useState(
-    current.metaTitle || "Sparq - Premium Electronics Store"
+    current.metaTitle || "Sparq - Premium Online Store"
   );
   const [metaDescription, setMetaDescription] = useState(
     current.metaDescription ||
@@ -2520,7 +2520,7 @@ export default function AdminSettingsClient({
                 type="text"
                 value={aboutHeadline}
                 onChange={(e) => setAboutHeadline(e.target.value)}
-                placeholder="We Provide High Quality Electronics & Tech Gadgets"
+                placeholder="We Provide High Quality Products"
               />
             </div>
 
@@ -2544,7 +2544,7 @@ export default function AdminSettingsClient({
                 type="text"
                 value={aboutHeadquartersNote}
                 onChange={(e) => setAboutHeadquartersNote(e.target.value)}
-                placeholder="Official Storefront & Innovation Center"
+                placeholder="Official Storefront & Support Center"
               />
             </div>
 
@@ -2580,7 +2580,7 @@ export default function AdminSettingsClient({
                 rows={2}
                 value={aboutCtaDescription}
                 onChange={(e) => setAboutCtaDescription(e.target.value)}
-                placeholder="Browse our wide selection of consumer tech, laptops, smartphones, and gaming consoles today."
+                placeholder="Browse our wide selection of new arrivals, bestsellers, and everyday essentials today."
               />
             </div>
           </SettingCard>

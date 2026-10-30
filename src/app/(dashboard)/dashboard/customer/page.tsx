@@ -169,7 +169,7 @@ export default async function CustomerDashboardPage() {
               image: p.image || (Array.isArray(p.additionalImages) && p.additionalImages[0]) || "",
               inStock: p.inStock ?? true,
               rating: p.rating || 5,
-              category: p.category?.name || p.categoryId?.name || "Electronics",
+              category: p.category?.name || p.categoryId?.name || "Uncategorized",
               addedAt: item.createdAt
                 ? new Date(item.createdAt).toLocaleDateString("en-US", {
                     month: "short",

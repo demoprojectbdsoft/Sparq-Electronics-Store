@@ -28,7 +28,7 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
   const cp = data?.colorPalette;
   const siteName = data?.siteName || "Sparq";
   const siteDesc =
-    data?.metaDescription || "Premium Worldwide Electronics & Gadgets Store";
+    data?.metaDescription || "Premium Worldwide Online Store";
 
   // Brand flat color: same derivation as --brand-flat in MaintenanceClient.tsx
   const themeColor = cp?.topBarVia || cp?.primary || "#0284c7";

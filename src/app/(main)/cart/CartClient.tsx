@@ -449,7 +449,7 @@ export default function CartClient({ initialCart, user: initialUser }: CartClien
               Your Shopping Cart is Empty
             </h2>
             <p className="text-[var(--foreground-muted)] text-sm max-w-md mx-auto mb-8 leading-relaxed">
-              Looks like you haven&apos;t added any items to your cart yet. Explore our wide range of top-notch electronics and grab the best deals today!
+              Looks like you haven&apos;t added any items to your cart yet. Explore our wide range of products and grab the best deals today!
             </p>
 
             <div className="flex flex-wrap items-center justify-center gap-4">
@@ -467,18 +467,17 @@ export default function CartClient({ initialCart, user: initialUser }: CartClien
               </Link>
             </div>
 
-            {/* Popular Category Shortcuts */}
+            {/* Shop shortcuts. These link to filters that exist in every store, so
+                they keep working no matter what the site sells. */}
             <div className="mt-12 pt-8 border-t border-[var(--border-color)] w-full">
               <p className="text-xs uppercase tracking-wider font-bold text-[var(--foreground-muted)] mb-4">
-                Popular Categories to Explore
+                Popular Picks to Explore
               </p>
               <div className="flex flex-wrap justify-center gap-2">
                 {[
-                  { name: "Smartphones", href: "/shop?category=smartphones" },
-                  { name: "Laptops & Computers", href: "/shop?category=laptops" },
-                  { name: "Headphones & Audio", href: "/shop?category=headphones" },
-                  { name: "Smartwatches", href: "/shop?category=wearables" },
-                  { name: "Gaming Gear", href: "/shop?category=gaming" },
+                  { name: "All Products", href: "/shop" },
+                  { name: "New Arrivals", href: "/shop?sort=newest" },
+                  { name: "Special Offers", href: "/shop?hasOffer=true" },
                 ].map((cat) => (
                   <Link
                     key={cat.name}
@@ -520,7 +519,7 @@ export default function CartClient({ initialCart, user: initialUser }: CartClien
                     const unitPrice = Number(product?.price) || 0;
                     const lineTotal = unitPrice * item.quantity;
                     const originalPrice = product?.originalPrice ? Number(product.originalPrice) : null;
-                    const primaryCategory = product?.categories?.[0] || "Electronics";
+                    const primaryCategory = product?.categories?.[0] || "Product";
 
                     // Stock calculations — null means the product is not stock-tracked
                     const stockLeft = unitsLeft(product?.stockQuantity);

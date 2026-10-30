@@ -17,12 +17,12 @@ export default function AboutPage() {
   // the text this page shipped with.
   const about = settings.about || {};
   const headline =
-    about.headline?.trim() || "We Provide High Quality Electronics & Tech Gadgets";
+    about.headline?.trim() || "We Provide High Quality Products";
   const intro =
     about.intro?.trim() ||
-    `Welcome to ${siteName}, your number one destination for premium consumer electronics, smart gadgets, computers, audio equipment, and tech accessories. We are dedicated to giving you the best online shopping experience.`;
+    `Welcome to ${siteName}, your number one destination for quality products, everyday essentials, and the brands you trust. We are dedicated to giving you the best online shopping experience.`;
   const headquartersNote =
-    about.headquartersNote?.trim() || "Official Storefront & Innovation Center";
+    about.headquartersNote?.trim() || "Official Storefront & Support Center";
   const openingHours =
     settings.openingHours?.trim() || "Mon - Fri: 9:00 AM - 8:00 PM";
   const openingHoursNote =
@@ -30,7 +30,7 @@ export default function AboutPage() {
   const ctaTitle = about.ctaTitle?.trim() || "Ready to explore our latest arrivals?";
   const ctaDescription =
     about.ctaDescription?.trim() ||
-    "Browse our wide selection of consumer tech, laptops, smartphones, and gaming consoles today.";
+    "Browse our wide selection of new arrivals, bestsellers, and everyday essentials today.";
 
   const features = [
     {

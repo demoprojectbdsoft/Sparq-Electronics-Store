@@ -20,6 +20,11 @@ export default function TabletPromoBanner({ tabletPromoData }: TabletPromoBanner
     cents = "",
     imageSrc = "",
   } = tabletPromoData || {};
+
+  // With no category slug the strip promotes the whole catalog, so the link still
+  // lands on something useful in any store.
+  const href = categorySlug ? `/shop?category=${categorySlug}` : "/shop";
+
   return (
     /* Full-bleed outer wrapper spanning 100% viewport width */
     <section className="w-full bg-linear-to-r from-[var(--surface)] via-primary/5 to-[var(--surface-alt)] border-y border-[var(--border-color)] my-10">
@@ -27,7 +32,7 @@ export default function TabletPromoBanner({ tabletPromoData }: TabletPromoBanner
       {/* Constrained container centered within the full-width strip */}
       <div className="max-w-7xl mx-auto px-4">
         <Link
-          href={`/shop?category=${categorySlug}`}
+          href={href}
           className="group block w-full transition-all duration-300"
         >
           <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-10 py-6 md:py-0 min-h-[140px] md:h-36 relative overflow-hidden">
