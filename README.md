@@ -71,6 +71,7 @@ Sign in (email/password or Google) ─► better-auth creates a session and issu
 - **Role-isolated dashboards** — `dashboard/admin/layout.tsx` and `dashboard/customer/layout.tsx` each require their own role, so one role cannot open the other's dashboard.
 - **Checked on both sides** — the frontend guard is for navigation; the backend repeats the check, so a role check cannot be bypassed through the UI or a hand-made request.
 - **Shared JWT auth** — this app owns authentication and exposes `/api/auth/jwks`; the API verifies tokens against it, with no shared secret and no duplicated user table.
+- **Forgot password** — `sendResetPassword` in `lib/auth.ts` hands better-auth's one-time link to the API, which emails it from the store's own mailbox. The link works once, expires after one hour, and opens `/auth/reset-password`, where the new password is chosen. A reset also signs the account out on every device.
 
 ---
 
@@ -410,7 +411,7 @@ Technical details are in the [server README](https://github.com/demoprojectbdsof
 ```
 src/
 ├── app/
-│   ├── (auth)/auth/            login, register, forgot-password
+│   ├── (auth)/auth/            login, register, forgot-password, reset-password
 │   ├── (dashboard)/dashboard/
 │   │   ├── admin/              overview, products, categories, slider, orders,
 │   │   │                       transactions, users, reviews, warranties,
@@ -474,6 +475,9 @@ DATABASE=your_database_name
 GOOGLE_CLIENT_ID=your_google_client_id
 GOOGLE_CLIENT_SECRET=your_google_client_secret
 
+# Shared with the API, so it can send the password reset email
+INTERNAL_API_KEY=your_long_random_string
+
 # Image uploads (product images, review photos, warranty claims)
 NEXT_PUBLIC_IMGBB_API_KEY=your_imgbb_api_key
 ```
@@ -485,9 +489,10 @@ NEXT_PUBLIC_IMGBB_API_KEY=your_imgbb_api_key
 | `BETTER_AUTH_URL` / `NEXT_PUBLIC_CLIENT_URL` | **Yes** | This app's own URL; used as the token issuer and JWKS host. |
 | `MONGODB_URI` / `DATABASE` | **Yes** | better-auth stores users and sessions here — the same database the API reads. |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | For Google login | OAuth credentials. |
+| `INTERNAL_API_KEY` | For password reset | The same value as the API's `INTERNAL_API_KEY`, sent as `x-internal-key` so the API will email the reset link. |
 | `NEXT_PUBLIC_IMGBB_API_KEY` | For uploads | Hosts product images, review photos and claim images. |
 
-> ✉️ Email is sent by the API, not this app: claims, claim updates, issued coverage and contact-page messages all go out through the **server's** mailer, over **SMTP** from the store's own mailbox (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER` + `SMTP_PASS`, and `MAIL_FROM` set to that same address, e.g. `Sparq <you@gmail.com>`). No domain has to be verified, only an app password from that mailbox. See the [backend README](https://github.com/demoprojectbdsoft/Sparq-Server#environment-variables) — the store name and both inboxes are read from **Site Settings → Contact & Socials** (`siteName`, `supportEmail`, `contactEmail`). Without a configured mailbox the app still works: a contact message is **stored** anyway and shows up under Admin → **Messages** marked as not emailed.
+> ✉️ Email is sent by the API, not this app: claims, claim updates, issued coverage, contact-page messages and the **password reset link** all go out through the **server's** mailer, over **SMTP** from the store's own mailbox (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER` + `SMTP_PASS`, and `MAIL_FROM` set to that same address, e.g. `Sparq <you@gmail.com>`). No domain has to be verified, only an app password from that mailbox. See the [backend README](https://github.com/demoprojectbdsoft/Sparq-Server#environment-variables) — the store name and both inboxes are read from **Site Settings → Contact & Socials** (`siteName`, `supportEmail`, `contactEmail`). Without a configured mailbox the app still works: a contact message is **stored** anyway and shows up under Admin → **Messages** marked as not emailed, and a reset request says plainly that the link could not be sent.
 
 > ⚠️ Never commit `.env.local`. `NEXT_PUBLIC_*` values are baked in at build time — rebuild after changing one.
 

@@ -16,6 +16,7 @@ import {
   AlertDescription,
 } from "@heroui/react";
 import { Mail, ArrowLeft, Send, CheckCircle2 } from "lucide-react";
+import { authClient } from "@/lib/auth-client";
 import SparqLogo from "@/components/shared/SparqLogo";
 
 export function ForgotPasswordForm() {
@@ -28,7 +29,9 @@ export function ForgotPasswordForm() {
     e.preventDefault();
     setError(null);
 
-    if (!email) {
+    const address = email.trim();
+
+    if (!address) {
       setError("Please enter your registered email address.");
       return;
     }
@@ -36,8 +39,21 @@ export function ForgotPasswordForm() {
     setLoading(true);
 
     try {
-      // Simulate API call for password reset email
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // better-auth creates a one-time token and emails the link through the
+      // store API. The reply is the same whether or not the account exists.
+      const { error: requestError } = await authClient.requestPasswordReset({
+        email: address,
+        redirectTo: `${window.location.origin}/auth/reset-password`,
+      });
+
+      if (requestError) {
+        setError(
+          requestError.message ||
+            "The reset link could not be sent. Please try again."
+        );
+        return;
+      }
+
       setSubmitted(true);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to send reset link. Please try again.");
@@ -82,9 +98,9 @@ export function ForgotPasswordForm() {
                   <div className="flex items-start gap-2.5">
                     <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                     <AlertDescription className="text-emerald-800 dark:text-emerald-300 space-y-1">
-                      <p className="font-bold text-sm">Reset link sent!</p>
+                      <p className="font-bold text-sm">Check your inbox</p>
                       <p className="text-xs leading-relaxed">
-                        We have sent password reset instructions to <span className="font-semibold">{email}</span>. Please check your inbox and spam folder.
+                        If an account exists for <span className="font-semibold">{email}</span>, a reset link is on its way. It works once, expires in one hour, and may land in your spam folder.
                       </p>
                     </AlertDescription>
                   </div>
