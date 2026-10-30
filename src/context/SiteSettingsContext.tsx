@@ -58,6 +58,9 @@ export const DEFAULT_SITE_SETTINGS: SiteSettingsData = {
     { platform: "Twitter/X", url: "#" },
     { platform: "Instagram", url: "#" },
   ],
+  // No logos by default: the homepage band stays hidden until the owner adds
+  // the ones their store actually works with.
+  brandLogos: [],
   currency: "USD",
   timezone: "Asia/Dhaka",
   maintenanceMode: false,

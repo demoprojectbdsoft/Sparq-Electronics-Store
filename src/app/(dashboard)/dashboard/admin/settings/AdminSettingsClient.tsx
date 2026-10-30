@@ -51,11 +51,13 @@ import {
   SiteTopBarItem,
   SiteSocialLink,
   SiteColorPalette,
+  SiteBrandLogo,
 } from "@/types";
 import { updateSiteSettings } from "@/lib/action/siteSettings";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 import { getCurrencySymbol } from "@/lib/currency";
 import ImageUploader from "@/components/shared/ImageUploader";
+import { BrandLogoMark } from "@/components/homepage/Brand";
 
 
 // ── Tabs Navigation ───────────────────────────────────────────────────────────
@@ -942,6 +944,13 @@ export default function AdminSettingsClient({
   );
   const [faviconUrl, setFaviconUrl] = useState(current.faviconUrl || "");
 
+  // ── 6b. Homepage Brand Marquee ──
+  // One row per logo that scrolls across the homepage. Empty by default, so a
+  // fresh store never shows brands it does not work with.
+  const [brandLogos, setBrandLogos] = useState<SiteBrandLogo[]>(
+    current.brandLogos || []
+  );
+
   // ── 7. Contact & Socials State ──
   const [supportEmail, setSupportEmail] = useState(
     current.supportEmail || "support@sparq.com"
@@ -1160,6 +1169,15 @@ export default function AdminSettingsClient({
       prev.map((it, i) => (i === idx ? { ...it, [field]: val } : it))
     );
 
+  const addBrandLogo = () =>
+    setBrandLogos((prev) => [...prev, { name: "", logo: "", href: "" }]);
+  const removeBrandLogo = (idx: number) =>
+    setBrandLogos((prev) => prev.filter((_, i) => i !== idx));
+  const updateBrandLogo = (idx: number, patch: Partial<SiteBrandLogo>) =>
+    setBrandLogos((prev) =>
+      prev.map((brand, i) => (i === idx ? { ...brand, ...patch } : brand))
+    );
+
   const topBarGradient = `linear-gradient(to right, ${colors.topBarFrom}, ${colors.topBarVia}, ${colors.topBarTo})`;
 
   // Combine Default Presets with User's Custom Presets
@@ -1218,6 +1236,15 @@ export default function AdminSettingsClient({
             ctaDescription: aboutCtaDescription.trim(),
           },
           socialLinks: socialLinks.filter((s) => s.platform.trim()),
+          // Rows left blank are dropped, so an empty line never becomes a gap
+          // in the scrolling band.
+          brandLogos: brandLogos
+            .map((brand) => ({
+              name: (brand.name || "").trim(),
+              logo: (brand.logo || "").trim(),
+              href: (brand.href || "").trim(),
+            }))
+            .filter((brand) => brand.name || brand.logo),
           currency,
           timezone,
           maintenanceMode,
@@ -2422,6 +2449,94 @@ export default function AdminSettingsClient({
                 </div>
               </div>
             )}
+          </SettingCard>
+
+          {/* Homepage brand marquee */}
+          <SettingCard
+            title="Homepage Brand Marquee"
+            subtitle="The partner and supplier logos that scroll across the homepage"
+            icon={ImageIcon}
+          >
+            <div className="space-y-3">
+              {brandLogos.length === 0 && (
+                <p className="text-[11px] text-[var(--foreground-muted)] bg-[var(--surface-alt)] border border-[var(--border-color)] rounded-xl px-3 py-2">
+                  No brands yet. The whole band stays hidden on the homepage
+                  until you add one.
+                </p>
+              )}
+
+              {brandLogos.map((brand, idx) => (
+                <div
+                  key={idx}
+                  className="rounded-xl border border-[var(--border-color)] bg-[var(--surface-elevated)] p-3 space-y-3"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-[var(--foreground-muted)] shrink-0 w-6">
+                      #{idx + 1}
+                    </span>
+                    <Input
+                      type="text"
+                      value={brand.name}
+                      onChange={(e) =>
+                        updateBrandLogo(idx, { name: e.target.value })
+                      }
+                      placeholder="Brand name (used when no logo is uploaded)"
+                      className="flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeBrandLogo(idx)}
+                      className="p-2 rounded-xl text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors shrink-0 cursor-pointer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <ImageUploader
+                    label="Brand Logo"
+                    value={brand.logo}
+                    onChange={(url) => updateBrandLogo(idx, { logo: url })}
+                    urlPlaceholder="https://.../brand-logo.png"
+                  />
+
+                  <Input
+                    type="text"
+                    value={brand.href || ""}
+                    onChange={(e) =>
+                      updateBrandLogo(idx, { href: e.target.value })
+                    }
+                    placeholder="Link (optional) e.g. /shop?brand=acme"
+                  />
+                </div>
+              ))}
+
+              <Button
+                type="button"
+                onClick={addBrandLogo}
+                className="w-full border-2 border-dashed border-[var(--border-color)] text-[var(--foreground-muted)] hover:border-primary hover:text-primary bg-transparent text-xs font-bold rounded-xl py-2.5 inline-flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                Add Brand Logo
+              </Button>
+
+              {/* Preview of the band with whatever is set right now */}
+              {brandLogos.some((brand) => brand.logo || brand.name) && (
+                <div className="pt-3 border-t border-[var(--border-color)]">
+                  <span className="text-[10px] font-bold tracking-wider text-primary uppercase block mb-2">
+                    Preview
+                  </span>
+                  <div className="p-4 rounded-xl bg-[var(--surface-alt)] border border-[var(--border-color)] overflow-x-auto">
+                    <div className="flex items-center gap-10 min-w-max text-slate-400 dark:text-[var(--foreground-muted)]">
+                      {brandLogos
+                        .filter((brand) => brand.logo || brand.name)
+                        .map((brand, i) => (
+                          <BrandLogoMark key={i} brand={brand} />
+                        ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </SettingCard>
         </div>
       )}

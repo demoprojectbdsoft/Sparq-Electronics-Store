@@ -159,11 +159,13 @@ export interface Product {
   updatedAt?: string | Date;
 }
 
-// ─── Brand ───────────────────────────────────────────────────────────────────
-export interface Brand {
-  id: string;
+// ─── Brand Marquee ───────────────────────────────────────────────────────────
+// One logo in the scrolling band on the homepage. `logo` is an image URL, and
+// when it is empty the `name` is written as plain text instead.
+export interface SiteBrandLogo {
   name: string;
-  renderLogo: () => React.ReactNode;
+  logo: string;
+  href?: string;
 }
 
 // ─── Categories & Subcategories ──────────────────────────────────────────────
@@ -272,6 +274,8 @@ export interface SiteSettingsData {
   typography: SiteTypographyConfig;
   shipping: SiteShippingConfig;
   socialLinks: SiteSocialLink[];
+  /** Logos that scroll across the homepage. Empty hides the whole band. */
+  brandLogos?: SiteBrandLogo[];
   currency: string;
   timezone: string;
   maintenanceMode: boolean;

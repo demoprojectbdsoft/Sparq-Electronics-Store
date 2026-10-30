@@ -289,7 +289,7 @@ One page, split into tabs, controlling how the whole store looks and behaves. Ch
 | **Theme & Palettes** | Industry palettes (jewelry, fashion, restaurant, bakery, coffee, plants, electronics, robotics) with **Preview** and **Save**. A custom palette creator builds a scheme from a seed colour with auto-harmonise and saves it to **My Presets**. Brand colours, light and dark surfaces and the top-bar gradient are all editable. |
 | **Shipping & Delivery** | Free-shipping toggle and threshold, standard and express fees, estimated delivery duration, with a live customer-view preview. |
 | **Top Bar & Layout** | Show or hide the announcement bar, edit its text with live preview, and add custom action links. |
-| **Logos & Media** | Image + Text, Image Only or Text Only; separate light and dark logos for navbar and footer; brand wordmark; favicon by upload or URL (ImgBB). |
+| **Logos & Media** | Image + Text, Image Only or Text Only; separate light and dark logos for navbar and footer; brand wordmark; favicon by upload or URL (ImgBB); and the **homepage brand marquee** — any number of partner logos, each with a name, an uploaded logo and an optional link, with a live preview. An empty list hides the whole band instead of showing brands the store does not work with. |
 | **Contact & Socials** | Support phone, email, address and social links used in the footer and mobile navigation, plus **opening hours** (one day per line) and every line of the **About page**: headline, intro, headquarters note, opening-hours note and call-to-action. Leave a field empty to keep the built-in text. |
 | **System & Security** | Store currency, timezone, footer copyright, the default shop browse mode, and **maintenance mode**. |
 

@@ -1,119 +1,63 @@
 "use client";
 
 import React from "react";
-import { Brand as BrandType } from "@/types";
+import Image from "next/image";
+import Link from "next/link";
 import Marquee from "react-fast-marquee";
+import { useSiteSettings } from "@/context/SiteSettingsContext";
+import { SiteBrandLogo } from "@/types";
 
-const BRANDS: BrandType[] = [
-  {
-    id: "1",
-    name: "Airbnb",
-    renderLogo: () => (
-      <div className="flex items-center gap-1.5 font-bold tracking-tight text-xl text-slate-400 dark:text-[var(--foreground-muted)] hover:text-primary transition-colors">
-        <span className="text-2xl font-black">Δ</span>
-        <span>airbnb</span>
-      </div>
-    ),
-  },
-  {
-    id: "2",
-    name: "Coinbase",
-    renderLogo: () => (
-      <div className="font-semibold text-xl tracking-tighter text-slate-400 dark:text-[var(--foreground-muted)] hover:text-primary transition-colors">
-        coin<span className="font-bold">base</span>
-      </div>
-    ),
-  },
-  {
-    id: "3",
-    name: "Dribbble",
-    renderLogo: () => (
-      <div className="font-serif italic text-2xl tracking-normal text-slate-400 dark:text-[var(--foreground-muted)] hover:text-primary transition-colors">
-        dribbble
-      </div>
-    ),
-  },
-  {
-    id: "4",
-    name: "Instagram",
-    renderLogo: () => (
-      <div className="font-serif text-2xl tracking-wide text-slate-400 dark:text-[var(--foreground-muted)] hover:text-primary transition-colors">
-        Instagram
-      </div>
-    ),
-  },
-  {
-    id: "5",
-    name: "Netflix",
-    renderLogo: () => (
-      <div className="font-black text-2xl tracking-widest uppercase text-slate-400 dark:text-[var(--foreground-muted)] hover:text-primary transition-colors">
-        NETFLIX
-      </div>
-    ),
-  },
-  /* ── Additional Brands ── */
-  {
-    id: "6",
-    name: "Spotify",
-    renderLogo: () => (
-      <div className="flex items-center gap-1 font-extrabold text-2xl tracking-tighter text-slate-400 dark:text-[var(--foreground-muted)] hover:text-primary transition-colors">
-        <span>Spotify</span>
-        <span className="w-1.5 h-1.5 rounded-full bg-current mb-3" />
-      </div>
-    ),
-  },
-  {
-    id: "7",
-    name: "Slack",
-    renderLogo: () => (
-      <div className="font-black text-2xl tracking-tight text-slate-400 dark:text-[var(--foreground-muted)] hover:text-primary transition-colors">
-        #slack
-      </div>
-    ),
-  },
-  {
-    id: "8",
-    name: "Stripe",
-    renderLogo: () => (
-      <div className="font-black text-2xl tracking-tight text-slate-400 dark:text-[var(--foreground-muted)] hover:text-primary transition-colors">
-        stripe
-      </div>
-    ),
-  },
-  {
-    id: "9",
-    name: "Shopify",
-    renderLogo: () => (
-      <div className="font-bold text-xl tracking-wide text-slate-400 dark:text-[var(--foreground-muted)] hover:text-primary transition-colors">
-        shopify<span className="font-light">.</span>
-      </div>
-    ),
-  },
-  {
-    id: "10",
-    name: "Discord",
-    renderLogo: () => (
-      <div className="font-black text-xl tracking-wider uppercase text-slate-400 dark:text-[var(--foreground-muted)] hover:text-primary transition-colors">
-        DISCORD
-      </div>
-    ),
-  },
-  {
-    id: "11",
-    name: "Figma",
-    renderLogo: () => (
-      <div className="font-serif italic text-2xl tracking-tight text-slate-400 dark:text-[var(--foreground-muted)] hover:text-primary transition-colors">
-        Figma
-      </div>
-    ),
-  },
-];
+/**
+ * One logo in the scrolling band.
+ *
+ * A brand can be an uploaded logo, its name written as text, or a logo with a
+ * link. It only becomes a link when the owner typed one, so a logo with no
+ * link is not something to click.
+ */
+export function BrandLogoMark({ brand }: { brand: SiteBrandLogo }) {
+  const mark = brand.logo ? (
+    <Image
+      src={brand.logo}
+      alt={brand.name || "Brand logo"}
+      width={160}
+      height={48}
+      className="max-h-10 md:max-h-12 w-auto object-contain"
+      unoptimized
+    />
+  ) : (
+    <span className="text-xl font-bold tracking-tight whitespace-nowrap">
+      {brand.name}
+    </span>
+  );
 
+  if (!brand.href) return mark;
+
+  return (
+    <Link href={brand.href} className="block">
+      {mark}
+    </Link>
+  );
+}
+
+/**
+ * The band of partner / supplier logos that scrolls across the homepage.
+ *
+ * The list is written in Admin → Settings → Logos & Media → Homepage Brand
+ * Marquee. With nothing added the band hides itself, so a new store never shows
+ * logos of brands it does not work with.
+ */
 export default function Brand() {
+  const { settings } = useSiteSettings();
+
+  // A row with neither a logo nor a name would draw an empty space.
+  const brands = (settings.brandLogos ?? []).filter(
+    (brand) => brand.logo || brand.name
+  );
+
+  if (brands.length === 0) return null;
+
   return (
     <section className="w-full py-8 my-6 border-y border-[var(--border-color)]/80 dark:border-[var(--border-color)] relative bg-[var(--surface-elevated)]/50 dark:bg-[var(--surface-alt)]/50">
-      
-      {/* react-fast-marquee with pause-on-hover */}
       <Marquee
         gradient={false}
         speed={40}
@@ -121,17 +65,16 @@ export default function Brand() {
         className="select-none py-2"
       >
         <div className="flex items-center gap-16 md:gap-24 pr-16 md:pr-24">
-          {BRANDS.map((brand) => (
+          {brands.map((brand, index) => (
             <div
-              key={brand.id}
-              className="flex items-center justify-center grayscale hover:grayscale-0 opacity-70 hover:opacity-100 transition-all duration-300 cursor-pointer shrink-0"
+              key={`${brand.name}-${index}`}
+              className="flex items-center justify-center text-slate-400 dark:text-[var(--foreground-muted)] grayscale hover:grayscale-0 opacity-70 hover:opacity-100 hover:text-primary transition-all duration-300 shrink-0"
             >
-              {brand.renderLogo()}
+              <BrandLogoMark brand={brand} />
             </div>
           ))}
         </div>
       </Marquee>
-
     </section>
   );
 }
