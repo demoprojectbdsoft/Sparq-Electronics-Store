@@ -27,6 +27,8 @@ import {
   type DeliveryPagination,
   type DeliveryRecord,
 } from "@/types/delivery";
+import DeliveryActions from "./DeliveryActions";
+import DeliveryDetailModal from "./DeliveryDetailModal";
 
 interface DeliveryListClientProps {
   scope: "requests" | "deliveries" | "active" | "history";
@@ -61,6 +63,22 @@ export default function DeliveryListClient({
   const [status, setStatus] = useState(filters.status);
   const [sort, setSort] = useState(filters.sort);
   const [limit, setLimit] = useState(String(filters.limit));
+
+  // The row a rider opened, and whether its answer window had already closed.
+  const [detail, setDetail] = useState<DeliveryRecord | null>(null);
+  const [detailExpired, setDetailExpired] = useState(false);
+
+  const openDetail = (delivery: DeliveryRecord) => {
+    setDetail(delivery);
+    setDetailExpired(expiredIds.includes(delivery._id));
+  };
+
+  // A change lands in the database, so the page is re-read rather than patched:
+  // the row's next action is decided by the server, not by this component.
+  const handleChanged = () => {
+    setDetail(null);
+    router.refresh();
+  };
 
   const go = (next: { page?: number; search?: string; status?: string; sort?: string; limit?: string }) => {
     const params = new URLSearchParams();
@@ -227,7 +245,8 @@ export default function DeliveryListClient({
                   <th className="px-4 py-3 font-bold">Fee</th>
                   <th className="px-4 py-3 font-bold">Status</th>
                   <th className="px-4 py-3 font-bold">Assigned</th>
-                  <th className="px-5 py-3 font-bold text-right">Last update</th>
+                  <th className="px-4 py-3 font-bold">Last update</th>
+                  <th className="px-5 py-3 font-bold text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-color)]">
@@ -241,7 +260,13 @@ export default function DeliveryListClient({
                       className="hover:bg-[var(--surface-alt)]/60 transition-colors align-top"
                     >
                       <td className="px-5 py-4 font-bold text-[var(--foreground)] whitespace-nowrap">
-                        {delivery.orderNumber}
+                        <button
+                          type="button"
+                          onClick={() => openDetail(delivery)}
+                          className="hover:text-primary transition-colors cursor-pointer"
+                        >
+                          {delivery.orderNumber}
+                        </button>
                         <span className="block text-[10px] font-medium text-[var(--foreground-muted)]">
                           {delivery.items} item{delivery.items === 1 ? "" : "s"}
                         </span>
@@ -283,10 +308,16 @@ export default function DeliveryListClient({
                         >
                           {DELIVERY_STATUS_LABELS[delivery.status]}
                         </Chip>
-                        {expired && (
-                          <span className="mt-1 flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                        {delivery.status === "assigned" && delivery.expiresAt && (
+                          <span
+                            className={`mt-1 flex items-center gap-1 text-[10px] font-bold ${
+                              expired
+                                ? "text-amber-600 dark:text-amber-400"
+                                : "text-[var(--foreground-muted)]"
+                            }`}
+                          >
                             <Clock className="w-3 h-3" />
-                            Expired
+                            {expired ? "Expired" : `Until ${formatMoment(delivery.expiresAt)}`}
                           </span>
                         )}
                       </td>
@@ -295,8 +326,19 @@ export default function DeliveryListClient({
                         {formatMoment(delivery.createdAt)}
                       </td>
 
-                      <td className="px-5 py-4 text-right text-[var(--foreground-muted)] whitespace-nowrap">
+                      <td className="px-4 py-4 text-[var(--foreground-muted)] whitespace-nowrap">
                         {formatMoment(delivery.updatedAt)}
+                      </td>
+
+                      <td className="px-5 py-4">
+                        <div className="flex items-center justify-end">
+                          <DeliveryActions
+                            delivery={delivery}
+                            expired={expired}
+                            compact
+                            onChanged={handleChanged}
+                          />
+                        </div>
                       </td>
                     </tr>
                   );
@@ -343,9 +385,17 @@ export default function DeliveryListClient({
       {scope === "active" && deliveries.length > 0 && (
         <div className="flex items-center gap-2 text-[11px] text-[var(--foreground-muted)]">
           <PackageCheck className="w-3.5 h-3.5" />
-          Lifecycle actions (picked up, out for delivery, delivered) arrive with the live delivery screen.
+          Open a job to share your live location and close it with the customer&apos;s code.
         </div>
       )}
+
+      <DeliveryDetailModal
+        delivery={detail}
+        isOpen={Boolean(detail)}
+        onOpenChange={(open) => !open && setDetail(null)}
+        expired={detailExpired}
+        onChanged={handleChanged}
+      />
     </div>
   );
 }

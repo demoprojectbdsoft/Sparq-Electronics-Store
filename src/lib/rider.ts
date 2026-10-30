@@ -111,17 +111,6 @@ export function nextRiderStep(
   return null;
 }
 
-/** "18 min left", "2h 05m left", or "" once the window has closed. */
-export function formatTimeLeft(iso: string | null, nowMs: number): string {
-  if (!iso) return "";
-  const leftMs = new Date(iso).getTime() - nowMs;
-  if (!Number.isFinite(leftMs) || leftMs <= 0) return "";
-  const minutes = Math.ceil(leftMs / 60_000);
-  if (minutes < 60) return `${minutes} min left`;
-  const hours = Math.floor(minutes / 60);
-  return `${hours}h ${String(minutes % 60).padStart(2, "0")}m left`;
-}
-
 /** "Arriving in 12 min" for the tracking page. */
 export function formatEta(minutes: number | null | undefined): string {
   if (!minutes || minutes <= 0) return "Arriving soon";

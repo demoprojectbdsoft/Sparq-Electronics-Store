@@ -94,6 +94,7 @@ export default async function DeliveryListPage({ scope, searchParams }: Delivery
   const feed: DeliveryFeed = res?.data ?? {
     deliveries: [],
     total: 0,
+    pendingRequests: 0,
     pagination: { page, limit, total: 0, totalPages: 1 },
   };
 

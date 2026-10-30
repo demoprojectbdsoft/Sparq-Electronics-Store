@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button, Card, Chip } from "@heroui/react";
 import {
   ArrowDownRight,
@@ -41,11 +42,13 @@ import { downloadRiderOverviewPdf } from "@/lib/dashboardPdf";
 import {
   DELIVERY_STATUS_LABELS,
   DELIVERY_STATUS_STYLES,
+  expiredDeliveryIds,
   formatDayLabel,
   formatDistance,
   formatMinutes,
   formatMoment,
 } from "@/lib/rider";
+import DeliveryActions from "@/components/dashboard/rider/DeliveryActions";
 import type {
   DeliveryRecord,
   DeliveryStatus,
@@ -100,7 +103,15 @@ export default function RiderOverviewClient({
   days,
 }: RiderOverviewClientProps) {
   const { settings, currencySymbol, formatPrice } = useSiteSettings();
+  const router = useRouter();
   const [isExportingPdf, setIsExportingPdf] = useState(false);
+
+  // The answer windows that have already closed. Resolved after mount so the
+  // render itself stays pure — the clock only matters once we are on the client.
+  const [expiredIds, setExpiredIds] = useState<string[]>([]);
+  useEffect(() => {
+    setExpiredIds(expiredDeliveryIds(recent));
+  }, [recent]);
 
   const chartData = useMemo(
     () => series.map((point) => ({ ...point, label: formatDayLabel(point.date) })),
@@ -451,7 +462,8 @@ export default function RiderOverviewClient({
                   <th className="px-4 py-3 font-bold">Drop-off</th>
                   <th className="px-4 py-3 font-bold">Fee</th>
                   <th className="px-4 py-3 font-bold">Status</th>
-                  <th className="px-6 py-3 font-bold text-right">Last update</th>
+                  <th className="px-4 py-3 font-bold">Last update</th>
+                  <th className="px-6 py-3 font-bold text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border-color)]">
@@ -490,8 +502,18 @@ export default function RiderOverviewClient({
                           {DELIVERY_STATUS_LABELS[delivery.status]}
                         </Chip>
                       </td>
-                      <td className="px-6 py-3.5 text-right text-[var(--foreground-muted)] whitespace-nowrap">
+                      <td className="px-4 py-3.5 text-[var(--foreground-muted)] whitespace-nowrap">
                         {formatMoment(delivery.updatedAt)}
+                      </td>
+                      <td className="px-6 py-3.5">
+                        <div className="flex items-center justify-end">
+                          <DeliveryActions
+                            delivery={delivery}
+                            expired={expiredIds.includes(delivery._id)}
+                            compact
+                            onChanged={() => router.refresh()}
+                          />
+                        </div>
                       </td>
                     </tr>
                   );
