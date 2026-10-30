@@ -25,12 +25,12 @@ export const submitWarrantyClaim = async (
 };
 
 /**
- * Admin: process a claim — mark under review, request info, resolve, or reject.
+ * Admin: process a claim — mark under review, resolve, or reject.
  */
 export const adminUpdateClaim = async (
   warrantyId: string,
   data: {
-    action: "mark_under_review" | "request_info" | "resolve" | "reject";
+    action: "mark_under_review" | "resolve" | "reject";
     adminNote?: string;
     resolution?: string;
   }

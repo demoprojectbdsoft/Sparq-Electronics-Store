@@ -25,7 +25,6 @@ import {
   Clock,
   Loader2,
   ClipboardCheck,
-  MessageCircleQuestion,
   CheckCircle2,
   XCircle,
   Mail,
@@ -60,7 +59,7 @@ import type { NormalizedAdminWarranty } from "@/types";
  * Every status the admin can look at. "Claims" is first and is the default
  * view: a warranty nobody has claimed needs no admin work, so it only shows up
  * under "All". "claimed" is a group the server understands — every record that
- * reached claim_submitted, under_review, info_requested or resolved.
+ * reached claim_submitted, under_review or resolved.
  */
 const STATUS_FILTER_OPTIONS = [
   { label: "Claims", value: "claimed" },
@@ -68,7 +67,6 @@ const STATUS_FILTER_OPTIONS = [
   { label: "Active", value: "active" },
   { label: "Claim Submitted", value: "claim_submitted" },
   { label: "Under Review", value: "under_review" },
-  { label: "Info Requested", value: "info_requested" },
   { label: "Resolved", value: "resolved" },
   { label: "Expired", value: "expired" },
 ];
@@ -92,7 +90,7 @@ const SORT_OPTIONS = [
 ];
 
 /**
- * The four actions an admin can take on a claim. Each one carries its own icon
+ * The three actions an admin can take on a claim. Each one carries its own icon
  * and colour so the buttons read as different decisions at a glance.
  */
 const CLAIM_ACTIONS = [
@@ -103,14 +101,6 @@ const CLAIM_ACTIONS = [
     icon: ClipboardCheck,
     className:
       "bg-sky-50 text-sky-700 border-sky-200 hover:bg-sky-100 dark:bg-sky-500/15 dark:text-sky-200 dark:border-sky-500/30",
-  },
-  {
-    id: "request_info",
-    label: "Ask For More Info",
-    hint: "Send the customer a note",
-    icon: MessageCircleQuestion,
-    className:
-      "bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100 dark:bg-amber-500/15 dark:text-amber-200 dark:border-amber-500/30",
   },
   {
     id: "resolve",
@@ -179,13 +169,6 @@ function buildEmailDraft(warranty: WarrantyItem) {
   }
   if (warranty.claimDescription) {
     lines.push("", `Your description: "${warranty.claimDescription}"`);
-  }
-
-  // The newest answer they sent after "Ask For More Info".
-  const replies = warranty.claimReplies || [];
-  const lastReply = replies.length ? replies[replies.length - 1] : null;
-  if (lastReply?.message) {
-    lines.push("", `Your latest reply: "${lastReply.message}"`);
   }
 
   // The coverage itself, so the customer can check it against the message.
@@ -314,11 +297,6 @@ export default function AdminWarrantiesClient({
 
     if ((action === "resolve" || action === "reject") && !resolution.trim() && !adminNote.trim()) {
       toast.warning("Please provide resolution details or an admin note.");
-      return;
-    }
-
-    if (action === "request_info" && !adminNote.trim()) {
-      toast.warning("Please provide a note explaining what info is needed.");
       return;
     }
 
@@ -850,27 +828,6 @@ export default function AdminWarrantiesClient({
                           <p className="text-[10px] font-bold uppercase text-amber-600/60 dark:text-amber-400/60">Description</p>
                           <p className="text-xs leading-relaxed mt-1">{selectedWarranty.claimDescription}</p>
                         </div>
-                        {/* Answers the customer sent after "Ask For More Info". */}
-                        {!!selectedWarranty.claimReplies?.length && (
-                          <div className="space-y-2">
-                            <p className="text-[10px] font-bold uppercase text-amber-600/60 dark:text-amber-400/60">
-                              Customer Replies ({selectedWarranty.claimReplies.length})
-                            </p>
-                            {selectedWarranty.claimReplies.map((reply, i) => (
-                              <div
-                                key={i}
-                                className="p-2.5 rounded-xl bg-[var(--surface-elevated)] border border-amber-500/20"
-                              >
-                                <p className="text-[10px] font-semibold text-[var(--foreground-muted)]">
-                                  {formatOrderDate(reply.createdAt)}
-                                </p>
-                                <p className="text-xs leading-relaxed mt-0.5 whitespace-pre-line">
-                                  {reply.message}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
                         {selectedWarranty.claimImages && selectedWarranty.claimImages.length > 0 && (
                           <div>
                             <p className="text-[10px] font-bold uppercase text-amber-600/60 dark:text-amber-400/60 mb-2">Images ({selectedWarranty.claimImages.length})</p>

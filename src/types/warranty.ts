@@ -21,7 +21,7 @@ export interface WarrantyExtension {
 export interface RawWarranty {
   _id: string;
   id?: string;
-  status: "active" | "expired" | "claim_submitted" | "under_review" | "info_requested" | "resolved";
+  status: "active" | "expired" | "claim_submitted" | "under_review" | "resolved";
   activationDate?: string | Date;
   expiryDate: string | Date;
   // Snapshot of the product's warranty terms, taken at delivery.
@@ -40,8 +40,6 @@ export interface RawWarranty {
   claimReason?: string;
   claimDescription?: string;
   claimImages?: string[];
-  // Follow-up answers the customer sent after the store asked for more info.
-  claimReplies?: { message: string; createdAt?: string | Date }[];
   claimAdminNote?: string;
   resolutionDetails?: string;
   createdAt?: string;
@@ -77,7 +75,6 @@ export interface NormalizedWarranty {
   claimReason?: string;
   claimDescription?: string;
   claimImages?: string[];
-  claimReplies?: { message: string; createdAt?: string | Date }[];
   claimAdminNote?: string;
   resolutionDetails?: string;
   closedReason?: "date" | "rejected" | "void";
@@ -100,7 +97,7 @@ export interface NormalizedAdminWarranty {
   orderNumber?: string;
   activationDate?: string | Date;
   expiryDate: string | Date;
-  status: "active" | "expired" | "claim_submitted" | "under_review" | "info_requested" | "resolved";
+  status: "active" | "expired" | "claim_submitted" | "under_review" | "resolved";
   // Warranty terms: from the product when it still exists, otherwise the copy
   // stored on the record.
   warrantyType?: string;
@@ -110,7 +107,6 @@ export interface NormalizedAdminWarranty {
   claimReason?: string;
   claimDescription?: string;
   claimImages?: string[];
-  claimReplies?: { message: string; createdAt?: string | Date }[];
   claimAdminNote?: string;
   resolutionDetails?: string;
   // Why a closed record is closed, so the dialog can explain it.

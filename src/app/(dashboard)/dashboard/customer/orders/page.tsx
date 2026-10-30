@@ -72,7 +72,6 @@ function normalizeCustomerWarranty(w: any): CustomerWarranty {
     claimReason: w.claimReason,
     claimDescription: w.claimDescription,
     claimImages: Array.isArray(w.claimImages) ? w.claimImages : [],
-    claimReplies: Array.isArray(w.claimReplies) ? w.claimReplies : [],
     claimAdminNote: w.claimAdminNote,
     resolutionDetails: w.resolutionDetails,
     product: {

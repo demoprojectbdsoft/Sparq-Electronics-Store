@@ -12,7 +12,6 @@ import {
   CheckCircle2,
   ClipboardCheck,
   Clock,
-  MessageCircleQuestion,
   Shield,
   ShieldCheck,
   ShieldOff,
@@ -50,13 +49,6 @@ const WARRANTY_STATUS_STYLES: Record<string, WarrantyStatusStyle> = {
       "bg-violet-50 text-violet-700 border border-violet-200 dark:bg-violet-500/15 dark:text-violet-200 dark:border-violet-500/30",
     dot: "bg-violet-500 dark:bg-violet-400",
     icon: ClipboardCheck,
-  },
-  info_requested: {
-    label: "Needs Info",
-    badge:
-      "bg-orange-50 text-orange-700 border border-orange-200 dark:bg-orange-500/15 dark:text-orange-200 dark:border-orange-500/30",
-    dot: "bg-orange-500 dark:bg-orange-400",
-    icon: MessageCircleQuestion,
   },
   resolved: {
     label: "Resolved",

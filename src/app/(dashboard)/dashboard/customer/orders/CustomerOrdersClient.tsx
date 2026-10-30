@@ -122,13 +122,13 @@ function coverageOf(warranty: CustomerWarranty) {
   };
 }
 
-/** A warranty takes a claim while active, and a reply once the store asks for info. */
+/** A warranty takes one claim, and only while it is still active. */
 function canClaim(warranty: CustomerWarranty | null): boolean {
   if (!warranty) return false;
   // A record with no coverage can never be claimed, whatever its status says.
   const { type, months } = coverageOf(warranty);
   if (!hasWarrantyCoverage(type, months)) return false;
-  if (warranty.status !== "active" && warranty.status !== "info_requested") return false;
+  if (warranty.status !== "active") return false;
   const days = daysUntilExpiry(warranty);
   return days === null || days > 0;
 }
@@ -151,11 +151,6 @@ function orderHasLiveWarranty(order: CustomerOrder): boolean {
 function orderTimestamp(order: CustomerOrder): number {
   const time = new Date(order.createdAt || order.date).getTime();
   return Number.isNaN(time) ? 0 : time;
-}
-
-/** True when the form is answering the store's request instead of filing a claim. */
-function isClaimReply(warranty: CustomerWarranty | null): boolean {
-  return warranty?.status === "info_requested";
 }
 
 /**
@@ -189,13 +184,6 @@ function warrantyStatusMeta(warranty: CustomerWarranty) {
         icon: ShieldAlert,
         className: "border-primary/25 bg-primary/10 text-primary",
       };
-    case "info_requested":
-      return {
-        label: "Info Requested",
-        icon: ShieldAlert,
-        className:
-          "border-amber-200 dark:border-amber-900/60 bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400",
-      };
     case "resolved":
       return {
         label: "Resolved",
@@ -220,8 +208,6 @@ function warrantyBlockReason(warranty: CustomerWarranty): string {
       return "You already submitted a claim for this warranty. Our team will review it and get back to you.";
     case "under_review":
       return "Your claim is under review. We will contact you as soon as a decision is made.";
-    case "info_requested":
-      return "The store has asked for more information about your claim. Send your reply in the form below.";
     case "resolved":
       return "This claim has already been resolved. The outcome is shown below.";
     case "expired":
@@ -318,9 +304,9 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
     setSelectedWarranty(warranty);
     setSelectedWarrantyItem(item);
     setSelectedWarrantyOrderNumber(orderNumber);
-    // When the store asked for more info, the reason is shown again so the
-    // customer can correct it; the description box starts empty for the reply.
-    setClaimReason(warranty?.status === "info_requested" ? warranty.claimReason || "" : "");
+    // A fresh form every time, so a claim typed for one item is never sent for
+    // another.
+    setClaimReason("");
     setClaimDescription("");
     setClaimImages([]);
     setIsWarrantyModalOpen(true);
@@ -361,13 +347,8 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
 
   const handleSubmitClaim = async () => {
     if (!selectedWarranty) return;
-    const isReply = isClaimReply(selectedWarranty);
     if (!claimReason.trim() || !claimDescription.trim()) {
-      toast.warning(
-        isReply
-          ? "Please write your reply before sending it."
-          : "Please provide a reason and description for your claim."
-      );
+      toast.warning("Please provide a reason and description for your claim.");
       return;
     }
     setIsSubmittingClaim(true);
@@ -378,9 +359,7 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
         images: claimImages,
       });
       if (res?.success !== false) {
-        toast.success(
-          isReply ? "Your reply has been sent to the store." : "Warranty claim submitted successfully!"
-        );
+        toast.success("Warranty claim submitted successfully!");
         setIsWarrantyModalOpen(false);
 
         // Mirror the claim locally so the row and a reopened modal stay accurate
@@ -394,16 +373,12 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
         setClaimDescription("");
         setClaimImages([]);
 
-        // A reply keeps the first message and appends to the thread; a first
-        // claim simply writes the description.
+        // A first claim simply writes the description.
         const mirroredWarranty = (warranty: CustomerWarranty): CustomerWarranty => ({
           ...warranty,
           status: "claim_submitted",
           claimReason: submitted.reason,
-          claimDescription: isReply ? warranty.claimDescription : submitted.description,
-          claimReplies: isReply
-            ? [...(warranty.claimReplies || []), { message: submitted.description, createdAt: new Date().toISOString() }]
-            : warranty.claimReplies,
+          claimDescription: submitted.description,
         });
 
         setSelectedWarranty((prev) => (prev ? mirroredWarranty(prev) : prev));
@@ -1614,27 +1589,6 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
                           {selectedWarranty.claimDescription}
                         </p>
                       )}
-                      {/* Answers sent after the store asked for more information. */}
-                      {!!selectedWarranty.claimReplies?.length && (
-                        <div className="space-y-2 pt-1">
-                          <p className="text-[10px] font-bold uppercase text-[var(--foreground-muted)]">
-                            Your replies
-                          </p>
-                          {selectedWarranty.claimReplies.map((reply, i) => (
-                            <div
-                              key={i}
-                              className="p-2.5 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border-color)]"
-                            >
-                              <p className="text-[10px] font-semibold text-[var(--foreground-muted)]">
-                                {formatWarrantyDate(reply.createdAt)}
-                              </p>
-                              <p className="text-xs text-[var(--foreground)] whitespace-pre-line mt-0.5">
-                                {reply.message}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
                       {!!selectedWarranty.claimImages?.length && (
                         <div className="flex flex-wrap gap-2 pt-1">
                           {selectedWarranty.claimImages.map((img, i) => (
@@ -1697,14 +1651,10 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
                       </div>
                       <div className="flex flex-col gap-1">
                         <label className="text-xs font-semibold text-[var(--foreground)]">
-                          {isClaimReply(selectedWarranty) ? "Your Reply" : "Description"}
+                          Description
                         </label>
                         <TextArea
-                          placeholder={
-                            isClaimReply(selectedWarranty)
-                              ? "Add the information the store asked for..."
-                              : "Describe the issue in detail..."
-                          }
+                          placeholder="Describe the issue in detail..."
                           value={claimDescription}
                           maxLength={2000}
                           onChange={(e) => setClaimDescription(e.target.value)}
@@ -1804,8 +1754,6 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
                   >
                     {isSubmittingClaim ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : isClaimReply(selectedWarranty) ? (
-                      "Send Reply"
                     ) : (
                       "Submit Claim"
                     )}

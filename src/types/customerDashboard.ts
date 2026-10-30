@@ -108,7 +108,6 @@ export interface CustomerWarranty {
     | "expired"
     | "claim_submitted"
     | "under_review"
-    | "info_requested"
     | "resolved";
   /** Why the record is closed: the date ran out, a claim was rejected, or it voided. */
   closedReason?: "date" | "rejected" | "void";
@@ -130,8 +129,6 @@ export interface CustomerWarranty {
   claimReason?: string;
   claimDescription?: string;
   claimImages?: string[];
-  /** Answers the customer sent after the store asked for more information. */
-  claimReplies?: { message: string; createdAt?: string | Date }[];
   claimAdminNote?: string;
   resolutionDetails?: string;
   product?: {

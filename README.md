@@ -140,7 +140,7 @@ Switching mode keeps the current filters, search and sort.
 | **Delivery response** | Once an order ships, the customer confirms whether it arrived — see [Orders & delivery](#orders--delivery). |
 | **Buy again** | Re-add a product from order history straight back into the cart. |
 | **Reviews & ratings** | Star rating, written review and up to 5 images (hosted on ImgBB). A product's rating is recalculated from its real reviews. |
-| **Warranties** | Coverage is issued on delivery and the panel shows its type, duration, terms and dates before claiming. The claim form takes a reason, a description and up to 5 photos; the claim status stays visible to the customer, and when the store asks for more information the same form becomes a **reply form** that keeps a visible thread of everything already sent. |
+| **Warranties** | Coverage is issued on delivery and the panel shows its type, duration, terms and dates before claiming. The claim form takes a reason, a description and up to 5 photos; a record takes one claim, and its status stays visible to the customer until the store resolves or rejects it. |
 | **Invoice download** | Any order can be downloaded as a PDF invoice. |
 
 ---
@@ -150,7 +150,7 @@ Switching mode keeps the current filters, search and sort.
 | Page | What it offers |
 |---|---|
 | **Overview** | Spend and savings charts, summary stat cards, recent orders with their status and points saved. |
-| **Orders** | Full order history: status badge, timeline, **Track Shipment**, **invoice PDF**, **Buy Again**, warranty cards with claims and replies, and the delivery-response form. The delivery response is final once reported as received or cancelled; *not received* can be updated until it is settled. The toolbar holds a search box, a **status select** with a count per status, a **sort** (newest, oldest, total high or low) and an **Active warranty** switch that keeps only the orders whose coverage is still running. The cards are paged five at a time. |
+| **Orders** | Full order history: status badge, timeline, **Track Shipment**, **invoice PDF**, **Buy Again**, warranty cards with their claims, and the delivery-response form. The delivery response is final once reported as received or cancelled; *not received* can be updated until it is settled. The toolbar holds a search box, a **status select** with a count per status, a **sort** (newest, oldest, total high or low) and an **Active warranty** switch that keeps only the orders whose coverage is still running. The cards are paged five at a time. |
 | **Transactions** | Every payment record for the customer's orders, with search, status filter and sorting. Each row can be downloaded as a **PDF receipt** showing the receipt number, order, method, amount and status. |
 | **Wishlist** | Saved products, with add-to-cart. |
 | **Reviews** | The reviews they have written, with edit support. |
@@ -266,11 +266,10 @@ Coverage lives on the server; the dashboard only reads and reacts to it. The [ba
 - Opening a warranty shows its **type**, **duration**, **terms** and activation/expiry dates, plus the days remaining. The type also says **who carries the repair** (the brand, the store, or the plan's terms), so a claim is never a blind guess.
 - The **duration is the real one**: the original promise plus every extension the store granted, shown as `18 months (+6 extended)` so a later expiry date is never unexplained. When a warranty is extended the record lists each extension, its reason and the new date.
 - While it is active the customer can file one claim: a short reason, a description and up to 5 photos. Claims filed before the form was simplified also carry a problem code, which the customer still sees on their own claim.
-- The status is always visible: *Claim Submitted*, *Under Review*, *Info Requested*, *Resolved* or *Expired*.
-- **Info Requested is not a dead end.** The same panel turns into a reply form: the reason stays filled in, the reply box starts empty, and every answer is appended to a thread the customer and the admin can both read.
+- The status is always visible: *Claim Submitted*, *Under Review*, *Resolved* or *Expired*.
 - **Resolved** shows the outcome the admin wrote, and **Expired** explains which of the three closings happened: the period ran out, the claim was rejected, or the order went back.
 - Cancelling or returning an order voids the coverage it created.
-- Every step is also emailed (claim, reply, decision, extension, and the issued coverage) when the server has a mail transport configured.
+- Every step is also emailed (claim, decision, extension, and the issued coverage) when the server has a mail transport configured.
 
 ### Pricing & slider
 
@@ -531,7 +530,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | Checkout: COD and mobile wallet with OTP | ✅ Complete |
 | Loyalty points: earning, redemption at checkout, refunds | ✅ Complete |
 | Order tracking, delivery response and invoice PDF | ✅ Complete |
-| Warranty coverage, claims, replies and admin email | ✅ Complete |
+| Warranty coverage, claims and admin email | ✅ Complete |
 | Contact page form that stores the message and emails the store | ✅ Complete |
 | Saved shipping addresses with a default and a profile list | ✅ Complete |
 | Reviews with image uploads and rating recalculation | ✅ Complete |
