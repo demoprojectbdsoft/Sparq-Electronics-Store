@@ -1,6 +1,10 @@
 import type { jsPDF } from "jspdf";
 import { getCurrencySymbol } from "./currency";
-import type { AdminOverviewExportData, CustomerOverviewExportData } from "./csvExport";
+import type {
+  AdminOverviewExportData,
+  CustomerOverviewExportData,
+  RiderOverviewExportData,
+} from "./csvExport";
 
 /**
  * Analytics PDF reports for the two dashboards.
@@ -983,5 +987,94 @@ export async function downloadCustomerOverviewPdf(
 
   report.save(
     `${safeFilePart(siteName)}-customer-overview-${new Date().toISOString().split("T")[0]}.pdf`
+  );
+}
+
+// ── Rider overview report ───────────────────────────────────────────────────
+
+export async function downloadRiderOverviewPdf(
+  data: RiderOverviewExportData,
+  options: PdfOptions = {}
+): Promise<void> {
+  const { jsPDF: JsPdf } = await import("jspdf");
+
+  const siteName = options.siteName || "Sparq";
+  const currency = (options.currency || "USD").toUpperCase();
+  const symbol = getCurrencySymbol(currency);
+  const money = (value: number) => `${symbol}${compact(value)}`;
+
+  const doc = new JsPdf({ unit: "pt", format: "a4" });
+  const report = new PdfReport(doc, {
+    reportTitle: `${siteName} - Rider Overview Report`,
+    footerText: `${siteName} · Rider overview`,
+  });
+
+  report.title(
+    `${siteName} - Rider Overview`,
+    `${data.riderName || "Rider"} · last ${data.rangeDays ?? 0} days · currency ${currency}`
+  );
+
+  report.heading("Performance");
+  report.tiles(
+    data.stats.slice(0, 8).map((stat) => ({
+      label: stat.title,
+      value: stat.value,
+      note: stat.change,
+    }))
+  );
+
+  // ── Chart 1: earnings and delivered jobs ──
+  if (data.series.length > 0) {
+    report.heading("Earnings and delivered jobs");
+    report.legend([
+      { label: "Earnings", color: PALETTE[1] },
+      { label: "Delivered", color: PALETTE[0] },
+    ]);
+    report.barsWithLine({
+      labels: data.series.map((point) => point.date.slice(5)),
+      bar: { label: "Earnings", color: PALETTE[1], values: data.series.map((p) => p.earnings) },
+      line: { label: "Delivered", color: PALETTE[0], values: data.series.map((p) => p.delivered) },
+      formatBar: money,
+    });
+  }
+
+  // ── Chart 2: which stage the jobs are in ──
+  const stageSlices: Slice[] = Object.entries(data.statusCounts)
+    .filter(([, count]) => count > 0)
+    .map(([status, count]) => ({ label: status.replace(/_/g, " "), value: count }));
+
+  if (stageSlices.length > 0) {
+    report.heading("Delivery pipeline");
+    report.donut({
+      slices: limitedSlices(stageSlices),
+      format: (value) => String(round(value, 0)),
+    });
+  }
+
+  // ── Table ──
+  if (data.recent.length > 0) {
+    report.heading("Recent deliveries");
+    report.table(
+      [
+        { label: "Order", width: 82 },
+        { label: "Customer", width: 116 },
+        { label: "City", width: 90 },
+        { label: `Fee (${currency})`, width: 62, align: "right" },
+        { label: "Status", width: 90 },
+        { label: "Updated", width: 67 },
+      ],
+      data.recent.slice(0, 20).map((delivery) => [
+        delivery.orderNumber,
+        delivery.customerName || "-",
+        delivery.city || "-",
+        String(round(delivery.fee, 2)),
+        delivery.status.replace(/_/g, " "),
+        delivery.updatedAt,
+      ])
+    );
+  }
+
+  report.save(
+    `${safeFilePart(siteName)}-rider-overview-${new Date().toISOString().split("T")[0]}.pdf`
   );
 }

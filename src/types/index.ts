@@ -84,6 +84,12 @@ export interface User {
   phone?: string | null;
   bio?: string | null;
   department?: string | null;
+  /** Rider-only details, written from the rider's own profile page. */
+  vehicleType?: string | null;
+  vehicleNumber?: string | null;
+  licenseNumber?: string | null;
+  /** Riders go offline to stop receiving new delivery requests. */
+  availability?: "online" | "offline" | null;
   createdAt?: string | Date | null;
   updatedAt?: string | Date | null;
 }
@@ -294,3 +300,4 @@ export * from "./shop";
 export * from "./cart";
 export * from "./checkout";
 export * from "./warranty";
+export * from "./delivery";

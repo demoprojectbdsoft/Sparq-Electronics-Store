@@ -655,6 +655,119 @@ export function exportCustomerOverviewCsv(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// RIDER OVERVIEW
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface RiderOverviewExportData {
+  riderName?: string;
+  rangeDays?: number;
+  stats: Array<{
+    title: string;
+    value: string;
+    change?: string;
+  }>;
+  series: Array<{
+    date: string;
+    delivered: number;
+    cancelled: number;
+    earnings: number;
+  }>;
+  statusCounts: Record<string, number>;
+  recent: Array<{
+    orderNumber: string;
+    customerName: string;
+    city: string;
+    fee: number;
+    status: string;
+    updatedAt: string;
+  }>;
+}
+
+/** Builds and downloads the rider's own overview CSV report. */
+export function exportRiderOverviewCsv(
+  data: RiderOverviewExportData,
+  options: ExportOptions = {}
+): void {
+  const siteName = options.siteName || "Sparq";
+  const currency = (options.currency || "USD").toUpperCase();
+
+  const statRows: CsvValue[][] = data.stats.map((stat) => [
+    stat.title,
+    stat.value,
+    stat.change || "",
+  ]);
+
+  const seriesRows: CsvValue[][] = data.series.map((point) => [
+    point.date,
+    point.delivered,
+    point.cancelled,
+    round2(point.earnings),
+  ]);
+
+  const statusRows: CsvValue[][] = Object.entries(data.statusCounts).map(([status, count]) => [
+    status.replace(/_/g, " "),
+    count,
+  ]);
+
+  const recentRows: CsvValue[][] = data.recent.map((delivery) => [
+    delivery.orderNumber,
+    delivery.customerName,
+    delivery.city,
+    round2(delivery.fee),
+    delivery.status.replace(/_/g, " "),
+    delivery.updatedAt,
+  ]);
+
+  const sections: CsvSection[] = [
+    {
+      title: "Performance summary",
+      columns: ["Metric", "Value", "Note"],
+      rows: statRows,
+    },
+    {
+      title: "Daily activity",
+      note: CHART_NOTE,
+      columns: [
+        "Date",
+        "Delivered",
+        "Cancelled",
+        `Earnings (${currency})`,
+      ],
+      rows: seriesRows,
+    },
+    {
+      title: "Delivery pipeline",
+      note: CHART_NOTE,
+      columns: ["Stage", "Jobs"],
+      rows: statusRows,
+    },
+    {
+      title: "Recent deliveries",
+      columns: [
+        "Order",
+        "Customer",
+        "City",
+        `Fee (${currency})`,
+        "Status",
+        "Last update",
+      ],
+      rows: recentRows,
+    },
+  ];
+
+  const csv = buildReportCsv(
+    reportHeader(`${siteName} - Rider Overview Report`, [
+      ["Rider", data.riderName || "Rider"],
+      ["Charted days", data.rangeDays ?? 0],
+      ["Currency", currency],
+    ]),
+    sections
+  );
+
+  triggerCsvDownload(csv, downloadName(siteName, "rider_overview"));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // TOP SELLING PRODUCTS
 // ─────────────────────────────────────────────────────────────────────────────
 

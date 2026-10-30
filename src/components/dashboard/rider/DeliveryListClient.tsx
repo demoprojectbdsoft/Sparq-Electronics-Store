@@ -1,0 +1,351 @@
+"use client";
+
+import React, { useState } from "react";
+import Link from "next/link";
+import { Button, Card, Chip } from "@heroui/react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Inbox,
+  MapPin,
+  PackageCheck,
+  Search,
+  SlidersHorizontal,
+  X,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useSiteSettings } from "@/context/SiteSettingsContext";
+import {
+  DELIVERY_STATUS_LABELS,
+  DELIVERY_STATUS_STYLES,
+  formatDistance,
+  formatMoment,
+} from "@/lib/rider";
+import {
+  DELIVERY_STATUSES,
+  type DeliveryPagination,
+  type DeliveryRecord,
+} from "@/types/delivery";
+
+interface DeliveryListClientProps {
+  scope: "requests" | "deliveries" | "active" | "history";
+  title: string;
+  subtitle: string;
+  emptyText: string;
+  path: string;
+  showStatusFilter: boolean;
+  deliveries: DeliveryRecord[];
+  /** Orders whose assignment expired before the rider answered. */
+  expiredIds: string[];
+  pagination: DeliveryPagination;
+  filters: { status: string; search: string; sort: string; limit: number };
+}
+
+export default function DeliveryListClient({
+  scope,
+  title,
+  subtitle,
+  emptyText,
+  path,
+  showStatusFilter,
+  deliveries,
+  expiredIds,
+  pagination,
+  filters,
+}: DeliveryListClientProps) {
+  const router = useRouter();
+  const { formatPrice } = useSiteSettings();
+
+  const [search, setSearch] = useState(filters.search);
+  const [status, setStatus] = useState(filters.status);
+  const [sort, setSort] = useState(filters.sort);
+  const [limit, setLimit] = useState(String(filters.limit));
+
+  const go = (next: { page?: number; search?: string; status?: string; sort?: string; limit?: string }) => {
+    const params = new URLSearchParams();
+    const nextSearch = (next.search ?? search).trim();
+    const nextStatus = next.status ?? status;
+    const nextSort = next.sort ?? sort;
+    const nextLimit = next.limit ?? limit;
+    const page = next.page ?? 1;
+
+    if (nextSearch) params.set("search", nextSearch);
+    if (showStatusFilter && nextStatus && nextStatus !== "all") params.set("status", nextStatus);
+    if (nextSort && nextSort !== "newest") params.set("sort", nextSort);
+    if (nextLimit && nextLimit !== "10") params.set("limit", nextLimit);
+    if (page > 1) params.set("page", String(page));
+
+    const query = params.toString();
+    router.push(query ? `${path}?${query}` : path);
+  };
+
+  const clearFilters = () => {
+    setSearch("");
+    setStatus("all");
+    setSort("newest");
+    setLimit("10");
+    router.push(path);
+  };
+
+  const hasFilters = Boolean(search) || sort !== "newest" || (showStatusFilter && status !== "all");
+  const from = pagination.total === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1;
+  const to = Math.min(pagination.page * pagination.limit, pagination.total);
+
+  return (
+    <div className="space-y-6">
+      {/* ── Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight text-[var(--foreground)]">
+            {title}
+          </h1>
+          <p className="text-xs md:text-sm text-[var(--foreground-muted)] mt-1">{subtitle}</p>
+        </div>
+        {scope === "requests" && (
+          <Link
+            href="/dashboard/rider/deliveries"
+            className="inline-flex items-center gap-1.5 text-xs font-bold text-primary hover:underline"
+          >
+            All my deliveries
+            <ChevronRight className="w-3.5 h-3.5" />
+          </Link>
+        )}
+      </div>
+
+      {/* ── Filters ── */}
+      <Card className="bg-[var(--surface)] border border-[var(--border-color)] rounded-2xl p-4 shadow-xs">
+        <div className="flex flex-col lg:flex-row gap-3">
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              go({ search, page: 1 });
+            }}
+            className="flex-1 flex items-center gap-2 bg-[var(--surface-alt)] border border-[var(--border-color)] rounded-xl px-3 py-2"
+          >
+            <Search className="w-4 h-4 text-[var(--foreground-muted)] shrink-0" />
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Order, customer, phone or city"
+              className="w-full bg-transparent outline-none text-xs text-[var(--foreground)] placeholder:text-[var(--foreground-muted)]"
+            />
+            {search && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => {
+                  setSearch("");
+                  go({ search: "", page: 1 });
+                }}
+                className="text-[var(--foreground-muted)] hover:text-[var(--foreground)] cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </form>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5 bg-[var(--surface-alt)] border border-[var(--border-color)] rounded-xl px-3 py-2">
+              <SlidersHorizontal className="w-3.5 h-3.5 text-[var(--foreground-muted)]" />
+              <select
+                value={sort}
+                onChange={(event) => {
+                  setSort(event.target.value);
+                  go({ sort: event.target.value, page: 1 });
+                }}
+                className="bg-transparent outline-none text-xs font-semibold text-[var(--foreground)] cursor-pointer"
+              >
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="fee_desc">Highest fee</option>
+              </select>
+            </div>
+
+            {showStatusFilter && (
+              <select
+                value={status}
+                onChange={(event) => {
+                  setStatus(event.target.value);
+                  go({ status: event.target.value, page: 1 });
+                }}
+                className="bg-[var(--surface-alt)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-xs font-semibold text-[var(--foreground)] outline-none cursor-pointer"
+              >
+                <option value="all">Every stage</option>
+                <option value="active">Active only</option>
+                <option value="finished">Finished only</option>
+                {DELIVERY_STATUSES.map((value) => (
+                  <option key={value} value={value}>
+                    {DELIVERY_STATUS_LABELS[value]}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            <select
+              value={limit}
+              onChange={(event) => {
+                setLimit(event.target.value);
+                go({ limit: event.target.value, page: 1 });
+              }}
+              className="bg-[var(--surface-alt)] border border-[var(--border-color)] rounded-xl px-3 py-2 text-xs font-semibold text-[var(--foreground)] outline-none cursor-pointer"
+            >
+              <option value="10">10 rows</option>
+              <option value="20">20 rows</option>
+              <option value="50">50 rows</option>
+            </select>
+
+            {hasFilters && (
+              <Button
+                size="sm"
+                onClick={clearFilters}
+                className="h-9 text-[11px] font-bold rounded-xl bg-[var(--surface-alt)] text-[var(--foreground)] border border-[var(--border-color)]"
+              >
+                Reset
+              </Button>
+            )}
+          </div>
+        </div>
+      </Card>
+
+      {/* ── Rows ── */}
+      <Card className="bg-[var(--surface)] border border-[var(--border-color)] rounded-2xl shadow-xs overflow-hidden">
+        {deliveries.length === 0 ? (
+          <div className="p-10 flex flex-col items-center text-center gap-3">
+            <Inbox className="w-10 h-10 text-[var(--foreground-muted)]" />
+            <p className="text-sm font-semibold text-[var(--foreground)]">Nothing to show</p>
+            <p className="text-xs text-[var(--foreground-muted)] max-w-md">{emptyText}</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-[var(--surface-alt)] text-[var(--foreground-muted)] uppercase tracking-wider text-[10px]">
+                <tr>
+                  <th className="px-5 py-3 font-bold">Order</th>
+                  <th className="px-4 py-3 font-bold">Customer</th>
+                  <th className="px-4 py-3 font-bold">Drop-off</th>
+                  <th className="px-4 py-3 font-bold">Fee</th>
+                  <th className="px-4 py-3 font-bold">Status</th>
+                  <th className="px-4 py-3 font-bold">Assigned</th>
+                  <th className="px-5 py-3 font-bold text-right">Last update</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--border-color)]">
+                {deliveries.map((delivery) => {
+                  const distance = formatDistance(delivery.distanceKm);
+                  const expired = expiredIds.includes(delivery._id);
+
+                  return (
+                    <tr
+                      key={delivery._id}
+                      className="hover:bg-[var(--surface-alt)]/60 transition-colors align-top"
+                    >
+                      <td className="px-5 py-4 font-bold text-[var(--foreground)] whitespace-nowrap">
+                        {delivery.orderNumber}
+                        <span className="block text-[10px] font-medium text-[var(--foreground-muted)]">
+                          {delivery.items} item{delivery.items === 1 ? "" : "s"}
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-4 text-[var(--foreground)]">
+                        <span className="font-semibold">{delivery.customerName || "Customer"}</span>
+                        <span className="block text-[10px] text-[var(--foreground-muted)]">
+                          {delivery.customerPhone || "No phone"}
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-4 text-[var(--foreground-muted)] max-w-[220px]">
+                        <span className="inline-flex items-start gap-1">
+                          <MapPin className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                          <span>
+                            {delivery.address || "Address not recorded"}
+                            {delivery.city && (
+                              <span className="block text-[10px] font-semibold text-[var(--foreground)]">
+                                {delivery.city}
+                                {distance && ` · ${distance}`}
+                              </span>
+                            )}
+                          </span>
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-4 font-bold text-[var(--foreground)] whitespace-nowrap">
+                        {formatPrice(delivery.fee)}
+                        <span className="block text-[10px] font-medium text-[var(--foreground-muted)]">
+                          order {formatPrice(delivery.orderTotal)}
+                        </span>
+                      </td>
+
+                      <td className="px-4 py-4">
+                        <Chip
+                          size="sm"
+                          className={`border text-[10px] font-bold ${DELIVERY_STATUS_STYLES[delivery.status]}`}
+                        >
+                          {DELIVERY_STATUS_LABELS[delivery.status]}
+                        </Chip>
+                        {expired && (
+                          <span className="mt-1 flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                            <Clock className="w-3 h-3" />
+                            Expired
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="px-4 py-4 text-[var(--foreground-muted)] whitespace-nowrap">
+                        {formatMoment(delivery.createdAt)}
+                      </td>
+
+                      <td className="px-5 py-4 text-right text-[var(--foreground-muted)] whitespace-nowrap">
+                        {formatMoment(delivery.updatedAt)}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* ── Pager ── */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-5 py-4 border-t border-[var(--border-color)] bg-[var(--surface-alt)]/40">
+          <p className="text-[11px] text-[var(--foreground-muted)]">
+            Showing <span className="font-bold text-[var(--foreground)]">{from}</span>–
+            <span className="font-bold text-[var(--foreground)]">{to}</span> of{" "}
+            <span className="font-bold text-[var(--foreground)]">{pagination.total}</span> deliveries
+          </p>
+
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              isDisabled={pagination.page <= 1}
+              onClick={() => go({ page: pagination.page - 1 })}
+              className="h-8 text-[11px] font-bold rounded-lg bg-[var(--surface)] border border-[var(--border-color)] text-[var(--foreground)]"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              Previous
+            </Button>
+            <span className="text-[11px] font-bold text-[var(--foreground-muted)] px-1">
+              {pagination.page} / {Math.max(1, pagination.totalPages)}
+            </span>
+            <Button
+              size="sm"
+              isDisabled={pagination.page >= pagination.totalPages}
+              onClick={() => go({ page: pagination.page + 1 })}
+              className="h-8 text-[11px] font-bold rounded-lg bg-[var(--surface)] border border-[var(--border-color)] text-[var(--foreground)]"
+            >
+              Next
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </div>
+      </Card>
+
+      {scope === "active" && deliveries.length > 0 && (
+        <div className="flex items-center gap-2 text-[11px] text-[var(--foreground-muted)]">
+          <PackageCheck className="w-3.5 h-3.5" />
+          Lifecycle actions (picked up, out for delivery, delivered) arrive with the live delivery screen.
+        </div>
+      )}
+    </div>
+  );
+}
