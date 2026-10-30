@@ -16,6 +16,7 @@ import {
   ShoppingBag,
   Package,
   Truck,
+  Navigation,
   Calendar,
   CheckCircle2,
   Clock,
@@ -1230,19 +1231,30 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
               ))}
             </div>
 
-            <div className="pt-4 border-t border-[var(--border-color)] flex items-center justify-between text-xs">
+            <div className="pt-4 border-t border-[var(--border-color)] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
               <div className="text-[var(--foreground-muted)]">
                 <span>Shipping to: </span>
                 <span className="font-semibold text-[var(--foreground)] block sm:inline">
                   {trackingModalOrder.shippingAddress}
                 </span>
               </div>
-              <Button
-                onClick={() => setTrackingModalOrder(null)}
-                className="px-4 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold transition-all cursor-pointer shrink-0 h-9"
-              >
-                Close
-              </Button>
+              <div className="flex items-center gap-2 shrink-0">
+                {/* The stepper above is the order's own story; this is the map
+                    with the rider carrying it, which only the live page has. */}
+                <Link
+                  href={`/track-order/${trackingModalOrder.id}`}
+                  className="inline-flex items-center gap-1.5 px-4 h-9 rounded-xl bg-[var(--surface-alt)] border border-[var(--border-color)] text-[var(--foreground)] font-bold transition-colors hover:text-primary"
+                >
+                  <Navigation className="w-3.5 h-3.5" />
+                  Live map &amp; rider
+                </Link>
+                <Button
+                  onClick={() => setTrackingModalOrder(null)}
+                  className="px-4 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold transition-all cursor-pointer shrink-0 h-9"
+                >
+                  Close
+                </Button>
+              </div>
             </div>
           </Card>
         </div>

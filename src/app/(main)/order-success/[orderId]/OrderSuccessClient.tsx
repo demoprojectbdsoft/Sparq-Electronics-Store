@@ -687,7 +687,7 @@ export default function OrderSuccessClient({
             </Link>
 
             <Link
-              href="/track-order"
+              href={`/track-order/${orderId}`}
               className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[var(--surface-elevated)] hover:bg-[var(--surface-alt)] text-[var(--foreground)] font-bold text-xs border border-[var(--border-color)] transition-colors text-center flex items-center justify-center gap-2 shadow-xs cursor-pointer"
             >
               <Truck className="w-4 h-4 text-primary" />

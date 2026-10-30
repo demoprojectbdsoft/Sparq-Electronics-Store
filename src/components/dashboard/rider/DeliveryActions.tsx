@@ -52,7 +52,11 @@ export default function DeliveryActions({
 
   const sizeClass = compact ? "h-8 px-2.5 text-[10px]" : "h-10 px-4 text-xs";
 
-  const run = async (key: string, action: () => Promise<any>, success: string) => {
+  const run = async (
+    key: string,
+    action: () => Promise<{ success?: boolean; message?: string } | undefined>,
+    success: string
+  ) => {
     setBusy(key);
     try {
       const res = await action();

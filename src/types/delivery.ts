@@ -26,6 +26,8 @@ export interface DeliveryRider {
   _id: string;
   name: string;
   phone: string;
+  /** Avatar URL; empty when the rider never uploaded one. */
+  image: string;
   vehicleType: string;
   vehicleNumber: string;
 }
@@ -137,6 +139,16 @@ export interface DeliveryTrackingOrder {
   shippingMethod: string;
   address: string;
   city: string;
+  /** When the customer placed it, for the first step of the timeline. */
+  createdAt: string;
+}
+
+/** Where the parcel is going, once the address has been put on the map. */
+export interface DeliveryDestination {
+  lat: number;
+  lng: number;
+  /** The address as OpenStreetMap matched it; may be coarser than the order. */
+  label: string;
 }
 
 /**
