@@ -173,7 +173,7 @@ Switching mode keeps the current filters, search and sort.
 | Area | What the admin can do |
 |---|---|
 | **Overview** | Revenue, orders, customers and product summaries, profit charts by day/week/month/year with the most sold and highest-earning products, and a recent-orders table. Exportable to **CSV** and **PDF**. |
-| **Products** | Add, edit and delete products with image upload, badges and stock. See each product's **sell count** and the **profit or loss** it has made, in the table and in the product view, with the same image gallery modal. |
+| **Products** | Add, edit and delete products with image upload, badges and stock. **Stock is optional:** a blank stock field means the product is not stock-tracked, so it is always available — no unit count, no limit in the cart and never marked out of stock — and the In Stock switch hides itself. A **manufacturer warranty** requires the **Brand** row in Specifications, because the claim is filed with the brand. See each product's **sell count** and the **profit or loss** it has made, in the table and in the product view, with the same image gallery modal. |
 | **Categories & subcategories** | Manage the hierarchy. Deleting a category also deletes its subcategories, but the whole delete is cancelled if the category or any subcategory still has products. |
 | **Home slider** | Add, reorder and manage slides by selecting an existing product. |
 | **Orders** | Platform-wide orders with search and status filters. Open an order to see items, pricing breakdown, redemption and earned points, warranty state and the customer's response, then move it along the status flow. |

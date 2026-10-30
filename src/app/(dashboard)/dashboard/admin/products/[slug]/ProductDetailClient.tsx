@@ -36,6 +36,8 @@ import {
 import ImageGalleryModal from "@/components/shared/ImageGalleryModal";
 import { Product } from "@/types";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
+import { isStockTracked } from "@/lib/stock";
+import { hasOfferDiscount } from "@/lib/offer";
 
 interface ProductDetailClientProps {
   product: Product;
@@ -81,7 +83,10 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
 
   // ── Financial & Sales Computations ──────────────────────────
   const sellCount = typeof product.sellCount === "number" ? product.sellCount : 0;
-  const stockQuantity = typeof product.stockQuantity === "number" ? product.stockQuantity : 0;
+  // A product saved without a stock number is not stock-tracked: it has no units
+  // to value, so the stock cards say so instead of showing zeros.
+  const stockTracked = isStockTracked(product.stockQuantity);
+  const stockQuantity = stockTracked ? (product.stockQuantity as number) : 0;
   const price = typeof product.price === "number" ? product.price : 0;
   const originalPrice = product.originalPrice;
   const investPrice = product.investPrice;
@@ -112,7 +117,8 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
   const inventoryRetailValue = price * stockQuantity;
   const inventoryCostValue = hasInvestPrice ? investPrice * stockQuantity : null;
 
-  // Offer Status
+  // Offer Status — a countdown only runs while the price is really discounted.
+  const offerRunning = Boolean(product.offerEndDate) && hasOfferDiscount(product.price, product.originalPrice);
   const isOfferExpired =
     product.isOfferExpired ||
     (product.offerEndDate && new Date(product.offerEndDate).getTime() <= Date.now());
@@ -177,7 +183,12 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
               {catName}
             </span>
 
-            {product.inStock ? (
+            {!stockTracked ? (
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-[var(--surface-alt)] text-[var(--foreground-muted)] border border-[var(--border-color)]">
+                <Boxes className="w-3 h-3" />
+                Not Tracked
+              </span>
+            ) : product.inStock ? (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/40">
                 <CheckCircle2 className="w-3 h-3" />
                 In Stock ({stockQuantity} units)
@@ -200,7 +211,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
               </span>
             )}
 
-            {product.offerEndDate && (
+            {offerRunning && (
               <span
                 className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full border ${
                   isOfferExpired
@@ -448,9 +459,11 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
             <div>
               <span className="text-[10px] uppercase font-bold text-[var(--foreground-muted)] block">Inventory Stock Value</span>
               <span className="text-base font-black text-[var(--foreground)] font-mono">
-                {formatPrice(inventoryRetailValue)}
+                {stockTracked ? formatPrice(inventoryRetailValue) : "Not tracked"}
               </span>
-              <span className="text-[10px] text-[var(--foreground-muted)] block mt-0.5">{stockQuantity} units @ retail</span>
+              <span className="text-[10px] text-[var(--foreground-muted)] block mt-0.5">
+                {stockTracked ? `${stockQuantity} units @ retail` : "No stock count on this product"}
+              </span>
             </div>
             <Boxes className="w-6 h-6 text-primary/60" />
           </div>
@@ -459,12 +472,18 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
             <div>
               <span className="text-[10px] uppercase font-bold text-[var(--foreground-muted)] block">Capital Tied in Stock</span>
               <span className="text-base font-black text-[var(--foreground)] font-mono">
-                {hasInvestPrice && inventoryCostValue != null
-                  ? `${currencySymbol}${inventoryCostValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                  : "Cost not set"}
+                {!stockTracked
+                  ? "Not tracked"
+                  : hasInvestPrice && inventoryCostValue != null
+                    ? `${currencySymbol}${inventoryCostValue.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                    : "Cost not set"}
               </span>
               <span className="text-[10px] text-[var(--foreground-muted)] block mt-0.5">
-                {hasInvestPrice ? `${stockQuantity} units @ ${formatPrice(investPrice)} cost` : "Add cost price"}
+                {!stockTracked
+                  ? "No stock count on this product"
+                  : hasInvestPrice
+                    ? `${stockQuantity} units @ ${formatPrice(investPrice)} cost`
+                    : "Add cost price"}
               </span>
             </div>
             <DollarSign className="w-6 h-6 text-emerald-500/60" />
@@ -474,7 +493,7 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
             <div>
               <span className="text-[10px] uppercase font-bold text-[var(--foreground-muted)] block">Promotion &amp; Offer Status</span>
               <span className="text-sm font-bold text-[var(--foreground)] block mt-0.5">
-                {product.offerEndDate
+                {offerRunning
                   ? isOfferExpired
                     ? "Lapsed on " + formatDate(product.offerEndDate)
                     : "Ends " + formatDate(product.offerEndDate)
@@ -583,9 +602,11 @@ export default function ProductDetailClient({ product }: ProductDetailClientProp
               </span>
               <div className="flex items-center gap-1.5">
                 <span className="text-base font-black text-[var(--foreground)] font-mono">
-                  {stockQuantity}
+                  {stockTracked ? stockQuantity : "—"}
                 </span>
-                <span className="text-xs text-[var(--foreground-muted)]">in stock</span>
+                <span className="text-xs text-[var(--foreground-muted)]">
+                  {stockTracked ? "in stock" : "not tracked"}
+                </span>
               </div>
             </Card>
           </div>

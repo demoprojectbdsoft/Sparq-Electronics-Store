@@ -19,6 +19,7 @@ import { toast } from "react-toastify";
 import { COMPARE_LIMIT, useCompare, type CompareProduct } from "@/lib/compare";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 import { addToCart } from "@/lib/action/cart";
+import { isProductOutOfStock, unitsLeft } from "@/lib/stock";
 
 // ── Small helpers ───────────────────────────────────────────────────────────
 
@@ -129,23 +130,26 @@ export default function CompareClient() {
     },
     {
       label: "Availability",
-      render: (item) =>
-        item.inStock ? (
+      // A product with no stock count is not tracked, so it is always in stock.
+      render: (item) => {
+        const left = unitsLeft(item.stockQuantity);
+        return isProductOutOfStock(item) ? (
+          <span className="inline-flex items-center gap-1 text-rose-500 text-xs font-bold">
+            <XCircle className="w-3.5 h-3.5" /> Out of stock
+          </span>
+        ) : (
           <div className="space-y-1">
             <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-bold">
               <CheckCircle2 className="w-3.5 h-3.5" /> In stock
             </span>
-            {typeof item.stockQuantity === "number" && item.stockQuantity > 0 && (
+            {left !== null && left > 0 && (
               <p className="text-[10px] text-[var(--foreground-muted)]">
-                {item.stockQuantity} available
+                {left} available
               </p>
             )}
           </div>
-        ) : (
-          <span className="inline-flex items-center gap-1 text-rose-500 text-xs font-bold">
-            <XCircle className="w-3.5 h-3.5" /> Out of stock
-          </span>
-        ),
+        );
+      },
     },
     {
       label: "Rating",
@@ -372,7 +376,7 @@ export default function CompareClient() {
                       <button
                         type="button"
                         onClick={() => handleAddToCart(item)}
-                        disabled={!item.inStock || addingId === item.id}
+                        disabled={isProductOutOfStock(item) || addingId === item.id}
                         className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-primary hover:bg-primary-hover text-white text-[11px] font-bold transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {addingId === item.id ? (
@@ -380,7 +384,7 @@ export default function CompareClient() {
                         ) : (
                           <ShoppingBag className="w-3.5 h-3.5" />
                         )}
-                        {item.inStock ? "Add to cart" : "Out of stock"}
+                        {isProductOutOfStock(item) ? "Out of stock" : "Add to cart"}
                       </button>
 
                       <Link

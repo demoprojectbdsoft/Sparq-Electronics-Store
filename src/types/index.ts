@@ -141,7 +141,8 @@ export interface Product {
   image: string;
   additionalImages?: string[];
   inStock: boolean;
-  stockQuantity?: number;
+  /** null means the product is not stock-tracked. */
+  stockQuantity?: number | null;
   sellCount?: number;
   rating?: number;
   reviewCount?: number;

@@ -5,6 +5,7 @@ import { getUserSession } from "@/lib/core/session";
 import { getOrdersByUserId } from "@/lib/api/orders";
 import { getMyWarranties } from "@/lib/api/warranty";
 import { formatOrderDate, formatOrderMoment } from "@/lib/dateTime";
+import { isProductOutOfStock } from "@/lib/stock";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -246,10 +247,8 @@ export default async function CustomerOrdersPage() {
                 .toLowerCase()
                 .replace(/\s+/g, "-");
 
-            const inStock =
-              prod
-                ? prod.inStock !== false && (prod.stockQuantity == null || prod.stockQuantity > 0)
-                : true;
+            // A product with no stock count is not tracked, so it is always available.
+            const inStock = prod ? !isProductOutOfStock(prod) : true;
 
             return {
               id: item._id || `${order._id}-${idx}`,

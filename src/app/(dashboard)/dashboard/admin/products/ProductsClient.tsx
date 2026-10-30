@@ -41,6 +41,8 @@ import { Product, Category, SubCategory } from "@/types";
 import { updateProduct, deleteProduct } from "@/lib/action/products";
 import { WARRANTY_TYPE_OPTIONS } from "@/lib/warranty";
 import { hasOfferDiscount } from "@/lib/offer";
+import { hasBrandSpec } from "@/lib/productSpecs";
+import { isStockTracked } from "@/lib/stock";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 const AVAILABLE_BADGES = [
@@ -249,7 +251,8 @@ export default function ProductsClient({
       originalPrice: p.originalPrice ? String(p.originalPrice) : "",
       investPrice: p.investPrice != null ? String(p.investPrice) : "",
       discountPercentage: p.discountPercentage ? String(p.discountPercentage) : "",
-      stockQuantity: p.stockQuantity !== undefined ? String(p.stockQuantity) : "",
+      // A product with no stock number is not tracked; the field then starts empty.
+      stockQuantity: p.stockQuantity != null ? String(p.stockQuantity) : "",
       sku: p.sku || "",
       description: p.description || "",
       image: p.image || "",
@@ -273,6 +276,13 @@ export default function ProductsClient({
     const qty = parseInt(editForm.stockQuantity, 10);
     return !isNaN(qty) && qty > 0;
   }, [editForm.stockQuantity]);
+
+  // A blank field means the product is not stock-tracked, so it can never sell out
+  // and the In Stock switch has nothing to control.
+  const editStockTracked = useMemo(
+    () => editForm.stockQuantity.trim() !== "" && !isNaN(parseInt(editForm.stockQuantity, 10)),
+    [editForm.stockQuantity]
+  );
 
   // A countdown is only offered when the original price is actually higher than
   // the selling price. Equal prices would run a timer for a deal nobody gets.
@@ -314,14 +324,21 @@ export default function ProductsClient({
       return;
     }
 
-    setIsUpdating(true);
-
     const specObj: Record<string, string> = {};
     editSpecs.forEach((s) => {
       if (s.key.trim() && s.value.trim()) {
         specObj[s.key.trim()] = s.value.trim();
       }
     });
+
+    // A manufacturer warranty is claimed from the brand, so the specs have to
+    // carry one before the product is saved.
+    if (editForm.warrantyType === "manufacturer-warranty" && !hasBrandSpec(specObj)) {
+      toast.error("Add the brand in Specifications — a manufacturer warranty is claimed from the brand.");
+      return;
+    }
+
+    setIsUpdating(true);
 
     const payload: any = {
       title: editForm.title,
@@ -330,7 +347,9 @@ export default function ProductsClient({
       originalPrice: editForm.originalPrice ? parseFloat(editForm.originalPrice) : undefined,
       investPrice: editForm.investPrice ? parseFloat(editForm.investPrice) : undefined,
       discountPercentage: editForm.discountPercentage ? parseFloat(editForm.discountPercentage) : undefined,
-      stockQuantity: editForm.stockQuantity ? parseInt(editForm.stockQuantity) : 0,
+      // Blank means "not stock-tracked": null clears the old number, so the
+      // product stops being counted on the shop, the cart and the order flow.
+      stockQuantity: editStockTracked ? parseInt(editForm.stockQuantity, 10) : null,
       sku: editForm.sku || undefined,
       description: editForm.description || undefined,
       image: editForm.image,
@@ -760,23 +779,39 @@ export default function ProductsClient({
 
                       {/* Stock Quantity */}
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        <span
-                          className={`font-mono text-xs font-bold ${
-                            (product.stockQuantity ?? 0) > 10
-                              ? "text-[var(--foreground)]"
-                              : (product.stockQuantity ?? 0) > 0
-                                ? "text-amber-600 dark:text-amber-400"
-                                : "text-rose-500"
-                          }`}
-                        >
-                          {product.stockQuantity !== undefined ? product.stockQuantity : "N/A"}
-                        </span>
-                        <span className="block text-[10px] text-[var(--foreground-muted)]">units</span>
+                        {isStockTracked(product.stockQuantity) ? (
+                          <>
+                            <span
+                              className={`font-mono text-xs font-bold ${
+                                (product.stockQuantity ?? 0) > 10
+                                  ? "text-[var(--foreground)]"
+                                  : (product.stockQuantity ?? 0) > 0
+                                    ? "text-amber-600 dark:text-amber-400"
+                                    : "text-rose-500"
+                              }`}
+                            >
+                              {product.stockQuantity}
+                            </span>
+                            <span className="block text-[10px] text-[var(--foreground-muted)]">units</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-xs font-semibold text-[var(--foreground-muted)]">
+                              Not tracked
+                            </span>
+                            <span className="block text-[10px] text-[var(--foreground-muted)]">always available</span>
+                          </>
+                        )}
                       </td>
 
                       {/* Status */}
                       <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                        {product.inStock ? (
+                        {!isStockTracked(product.stockQuantity) ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-[var(--surface-alt)] text-[var(--foreground-muted)] border border-[var(--border-color)]">
+                            <Package className="w-3 h-3" />
+                            Not Tracked
+                          </span>
+                        ) : product.inStock ? (
                           <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-800/40">
                             <CheckCircle2 className="w-3 h-3" />
                             In Stock
@@ -1077,54 +1112,64 @@ export default function ProductsClient({
 
                     <div>
                       <label className="text-xs font-bold text-[var(--foreground)] block mb-1">
-                        Stock Quantity *
+                        Stock Quantity
                       </label>
                       <Input
                         type="number"
                         min="0"
+                        placeholder="Leave blank to skip stock tracking"
                         value={editForm.stockQuantity}
                         onChange={(e) =>
                           setEditForm((prev) => ({
                             ...prev,
                             stockQuantity: e.target.value,
-                            inStock: parseInt(e.target.value) > 0,
+                            // A positive count forces the product on; a blank field
+                            // hands control back to the switch, which is hidden then.
+                            inStock: parseInt(e.target.value, 10) > 0 ? true : prev.inStock,
                           }))
                         }
-                        required
                         className="w-full h-10 rounded-xl bg-[var(--surface-alt)] dark:bg-[var(--surface)] text-xs font-bold"
                       />
+                      <p className="text-[10px] text-[var(--foreground-muted)] mt-1">
+                        Leave blank if this product has no stock count. It then sells
+                        without any stock limit.
+                      </p>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                    {/* In Stock toggle */}
-                    <div className="flex items-center justify-between p-3 bg-[var(--surface-alt)] rounded-xl border border-[var(--border-color)]/60 cursor-pointer">
+                    {/* In Stock toggle — only for a product with a stock count */}
+                    <div className="flex items-center justify-between p-3 bg-[var(--surface-alt)] rounded-xl border border-[var(--border-color)]/60">
                       <div>
                         <p className="text-xs font-bold text-[var(--foreground)]">
                           In Stock
                         </p>
                         <p className="text-[10px] text-[var(--foreground-muted)]">
-                          {hasEditPositiveStock
-                            ? "Automatically enabled (Stock > 0)"
-                            : "Mark if product is ready for purchase"}
+                          {!editStockTracked
+                            ? "Not tracked — the product is always available"
+                            : hasEditPositiveStock
+                              ? "Automatically enabled (Stock > 0)"
+                              : "Mark if product is ready for purchase"}
                         </p>
                       </div>
-                      <Switch
-                        isSelected={hasEditPositiveStock ? true : editForm.inStock}
-                        isDisabled={hasEditPositiveStock}
-                        onChange={(val) => {
-                          if (!hasEditPositiveStock) {
-                            setEditForm((prev) => ({ ...prev, inStock: !!val }));
-                          }
-                        }}
-                        className={hasEditPositiveStock ? "opacity-70 cursor-not-allowed" : "cursor-pointer"}
-                      >
-                        <Switch.Content className={hasEditPositiveStock ? "cursor-not-allowed" : "cursor-pointer"}>
-                          <Switch.Control className={hasEditPositiveStock ? "cursor-not-allowed" : "cursor-pointer"}>
-                            <Switch.Thumb className={hasEditPositiveStock ? "cursor-not-allowed" : "cursor-pointer"} />
-                          </Switch.Control>
-                        </Switch.Content>
-                      </Switch>
+                      {editStockTracked && (
+                        <Switch
+                          isSelected={hasEditPositiveStock ? true : editForm.inStock}
+                          isDisabled={hasEditPositiveStock}
+                          onChange={(val) => {
+                            if (!hasEditPositiveStock) {
+                              setEditForm((prev) => ({ ...prev, inStock: !!val }));
+                            }
+                          }}
+                          className={hasEditPositiveStock ? "opacity-70 cursor-not-allowed" : "cursor-pointer"}
+                        >
+                          <Switch.Content className={hasEditPositiveStock ? "cursor-not-allowed" : "cursor-pointer"}>
+                            <Switch.Control className={hasEditPositiveStock ? "cursor-not-allowed" : "cursor-pointer"}>
+                              <Switch.Thumb className={hasEditPositiveStock ? "cursor-not-allowed" : "cursor-pointer"} />
+                            </Switch.Control>
+                          </Switch.Content>
+                        </Switch>
+                      )}
                     </div>
 
                     {/* Featured toggle */}
@@ -1228,6 +1273,11 @@ export default function ProductsClient({
                           ?.customerAction
                       }
                     </p>
+                    {editForm.warrantyType === "manufacturer-warranty" && (
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
+                        Fill in the Brand row in Specifications — the brand carries this warranty.
+                      </p>
+                    )}
                   </div>
 
                   <div className="pt-2">

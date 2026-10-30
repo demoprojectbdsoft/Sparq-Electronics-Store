@@ -45,6 +45,7 @@ import { submitWarrantyClaim } from "@/lib/action/warranty";
 import { downloadOrderInvoicePdf } from "@/lib/orderInvoicePdf";
 import OrderStatusBadge from "@/components/shared/OrderStatusBadge";
 import { formatOrderDateTime } from "@/lib/dateTime";
+import { isProductOutOfStock } from "@/lib/stock";
 import {
   claimProblemLabel,
   closedReasonText,
@@ -507,11 +508,8 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
       return;
     }
 
-    const isOutOfStock =
-      item.inStock === false ||
-      (item.stockQuantity != null && item.stockQuantity <= 0);
-
-    if (isOutOfStock) {
+    // A product with no stock count is not tracked, so Buy Again is always allowed.
+    if (isProductOutOfStock(item)) {
       toast.warning(`"${item.name}" is currently out of stock!`, {
         icon: <span>⚠️</span>,
       });
@@ -932,7 +930,7 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
                     </div>
 
                     <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                      {item.inStock === false && (
+                      {isProductOutOfStock(item) && (
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-rose-50 text-rose-600 dark:bg-rose-950/50 dark:text-rose-400 border border-rose-200 dark:border-rose-900/50">
                           Out of Stock
                         </span>
@@ -961,7 +959,7 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
                         isDisabled={loadingItemId === item.id}
                         onClick={() => handleBuyAgain(item)}
                         className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors cursor-pointer h-8 ${
-                          item.inStock === false
+                          isProductOutOfStock(item)
                             ? "bg-rose-50/80 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200/80 dark:border-rose-900/40"
                             : "bg-[var(--surface-alt)] hover:bg-[var(--surface-alt)]/80 text-[var(--foreground)] border border-[var(--border-color)]"
                         }`}

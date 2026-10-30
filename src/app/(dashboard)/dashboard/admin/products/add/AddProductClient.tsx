@@ -31,6 +31,7 @@ import HeroUIDateTimePicker from "@/components/shared/HeroUIDateTimePicker";
 import { addProduct } from "@/lib/action/products";
 import { WARRANTY_TYPE_OPTIONS } from "@/lib/warranty";
 import { hasOfferDiscount } from "@/lib/offer";
+import { hasBrandSpec } from "@/lib/productSpecs";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 import { useDemoAdmin } from "@/hooks/useDemoAdmin";
@@ -176,6 +177,13 @@ export default function AddProductClient({
     return !isNaN(qty) && qty > 0;
   }, [formState.stockQuantity]);
 
+  // A blank field means the product is not stock-tracked, so it can never sell out
+  // and the In Stock switch has nothing to control.
+  const stockTracked = useMemo(
+    () => formState.stockQuantity.trim() !== "" && !isNaN(parseInt(formState.stockQuantity, 10)),
+    [formState.stockQuantity]
+  );
+
   // A countdown is only offered when the original price is actually higher than
   // the selling price. Equal prices would run a timer for a deal nobody gets.
   const hasDiscount = hasOfferDiscount(formState.price, formState.originalPrice);
@@ -275,14 +283,21 @@ export default function AddProductClient({
       return;
     }
 
-    setIsSubmitting(true);
-
     const specObj: Record<string, string> = {};
     specifications.forEach((s) => {
       if (s.key.trim() && s.value.trim()) {
         specObj[s.key.trim()] = s.value.trim();
       }
     });
+
+    // A manufacturer warranty is claimed from the brand, so the specs have to
+    // carry one before the product is saved.
+    if (formState.warrantyType === "manufacturer-warranty" && !hasBrandSpec(specObj)) {
+      toast.error("Add the brand in Specifications — a manufacturer warranty is claimed from the brand.");
+      return;
+    }
+
+    setIsSubmitting(true);
 
     const payload = {
       title: formState.title,
@@ -292,7 +307,9 @@ export default function AddProductClient({
       price: parseFloat(formState.price) || 0,
       originalPrice: formState.originalPrice ? parseFloat(formState.originalPrice) : undefined,
       investPrice: formState.investPrice ? parseFloat(formState.investPrice) : undefined,
-      stockQuantity: formState.stockQuantity ? parseInt(formState.stockQuantity, 10) : undefined,
+      // Blank means "not stock-tracked", which the server stores as null so no
+      // page ever counts, hides or limits this product.
+      stockQuantity: stockTracked ? parseInt(formState.stockQuantity, 10) : null,
       sku: formState.sku || undefined,
       description: formState.description || undefined,
       image: mainImageUrl,
@@ -344,6 +361,9 @@ export default function AddProductClient({
 
   const switchRowClass =
     "flex items-center justify-between p-3 bg-[var(--surface-alt)] rounded-xl border border-[var(--border-color)] cursor-pointer";
+  // The same row without the hand cursor, for a row that only explains itself.
+  const switchRowStaticClass =
+    "flex items-center justify-between p-3 bg-[var(--surface-alt)] rounded-xl border border-[var(--border-color)]";
 
   const tabBtnClass = (active: boolean) =>
     `flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
@@ -736,6 +756,11 @@ export default function AddProductClient({
                         ?.customerAction
                     }
                   </p>
+                  {formState.warrantyType === "manufacturer-warranty" && (
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
+                      Fill in the Brand row in Specifications — the brand carries this warranty.
+                    </p>
+                  )}
                 </div>
 
                 <div className={fieldClass}>
@@ -840,14 +865,22 @@ export default function AddProductClient({
                 </div>
 
                 <div className={fieldClass}>
-                  <label className={labelClass}>Stock Quantity</label>
+                  <label className={labelClass}>
+                    Stock Quantity
+                    <span className="ml-1 text-[10px] font-normal text-[var(--foreground-muted)]">(optional)</span>
+                  </label>
                   <Input
                     name="stockQuantity"
                     type="number"
-                    placeholder="100"
+                    min="0"
+                    placeholder="Leave blank to skip stock tracking"
                     value={formState.stockQuantity}
                     onChange={(e) => handleStockQuantityChange(e.target.value)}
                   />
+                  <p className="text-[10px] text-[var(--foreground-muted)] mt-1">
+                    Leave blank if you do not count stock for this product. It is then
+                    always available, with no unit limit and never marked out of stock.
+                  </p>
                 </div>
 
                 <div className={fieldClass}>
@@ -1055,34 +1088,38 @@ export default function AddProductClient({
                   </div>
                 </div>
 
-                {/* In Stock toggle */}
-                <div className={switchRowClass}>
+                {/* In Stock toggle — only for a product with a stock count */}
+                <div className={switchRowStaticClass}>
                   <div>
                     <p className="text-xs font-bold text-[var(--foreground)]">
                       In Stock
                     </p>
                     <p className="text-[10px] text-[var(--foreground-muted)]">
-                      {hasPositiveStock
-                        ? "Automatically enabled (Stock > 0)"
-                        : "Mark if product is ready for purchase"}
+                      {!stockTracked
+                        ? "Not tracked — the product is always available"
+                        : hasPositiveStock
+                          ? "Automatically enabled (Stock > 0)"
+                          : "Mark if product is ready for purchase"}
                     </p>
                   </div>
-                  <Switch
-                    isSelected={hasPositiveStock ? true : formState.inStock}
-                    isDisabled={hasPositiveStock}
-                    onChange={(val) => {
-                      if (!hasPositiveStock) {
-                        setFormState((prev) => ({ ...prev, inStock: val }));
-                      }
-                    }}
-                    className={hasPositiveStock ? "opacity-70 cursor-not-allowed" : "cursor-pointer"}
-                  >
-                    <Switch.Content className={hasPositiveStock ? "cursor-not-allowed" : "cursor-pointer"}>
-                      <Switch.Control className={hasPositiveStock ? "cursor-not-allowed" : "cursor-pointer"}>
-                        <Switch.Thumb className={hasPositiveStock ? "cursor-not-allowed" : "cursor-pointer"} />
-                      </Switch.Control>
-                    </Switch.Content>
-                  </Switch>
+                  {stockTracked && (
+                    <Switch
+                      isSelected={hasPositiveStock ? true : formState.inStock}
+                      isDisabled={hasPositiveStock}
+                      onChange={(val) => {
+                        if (!hasPositiveStock) {
+                          setFormState((prev) => ({ ...prev, inStock: val }));
+                        }
+                      }}
+                      className={hasPositiveStock ? "opacity-70 cursor-not-allowed" : "cursor-pointer"}
+                    >
+                      <Switch.Content className={hasPositiveStock ? "cursor-not-allowed" : "cursor-pointer"}>
+                        <Switch.Control className={hasPositiveStock ? "cursor-not-allowed" : "cursor-pointer"}>
+                          <Switch.Thumb className={hasPositiveStock ? "cursor-not-allowed" : "cursor-pointer"} />
+                        </Switch.Control>
+                      </Switch.Content>
+                    </Switch>
+                  )}
                 </div>
 
                 {/* Featured toggle */}

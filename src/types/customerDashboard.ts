@@ -60,7 +60,8 @@ export interface CustomerOrderItem {
   price: number;
   quantity: number;
   inStock?: boolean;
-  stockQuantity?: number;
+  /** null means the product is not stock-tracked. */
+  stockQuantity?: number | null;
   /** Warranty record attached to this order item, when one exists. */
   warranty?: CustomerWarranty;
 }

@@ -18,6 +18,7 @@ import {
 import { getReviewsByProductId } from "@/lib/api/reviews";
 import { COMPARE_LIMIT, useCompare } from "@/lib/compare";
 import { hasOfferDiscount } from "@/lib/offer";
+import { isProductOutOfStock } from "@/lib/stock";
 import { Product } from "@/types";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
@@ -123,7 +124,8 @@ export default function ProductCard({
   const [showSuspendedAlert, setShowSuspendedAlert] = useState<boolean>(false);
 
   const isSuspended = ((user as { status?: string })?.status || "").toLowerCase() === "suspended";
-  const isOutOfStock = product.inStock === false || (product.stockQuantity !== undefined && product.stockQuantity <= 0);
+  // A product saved without a stock number is not tracked, so it is never sold out.
+  const isOutOfStock = isProductOutOfStock(product);
 
   // A deal needs a lower selling price than the original price. Without that
   // gap there is no offer, so the card shows neither a timer nor an old price.

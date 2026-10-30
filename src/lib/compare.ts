@@ -29,7 +29,8 @@ export interface CompareProduct {
   discountPercentage?: number;
   categories: string[];
   inStock: boolean;
-  stockQuantity?: number;
+  /** null means the product is not stock-tracked. */
+  stockQuantity?: number | null;
   rating?: number;
   reviewCount?: number;
   description?: string;

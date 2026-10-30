@@ -45,6 +45,7 @@ import { addReview, editReview } from "@/lib/action/reviews";
 import { addToCart, isCarted as checkIsCartedAction } from "@/lib/action/cart";
 import { COMPARE_LIMIT, useCompare } from "@/lib/compare";
 import { hasOfferDiscount } from "@/lib/offer";
+import { isProductOutOfStock, unitsLeft } from "@/lib/stock";
 import {
   addToWishlist,
   removeFromWishlist,
@@ -159,6 +160,11 @@ export default function ProductDetailsPage({
 
   const isSuspended = ((user as { status?: string })?.status || "").toLowerCase() === "suspended";
 
+  // No stock number means the product is not stock-tracked: it can never be sold out
+  // and it shows no unit count.
+  const soldOut = isProductOutOfStock(product);
+  const stockLeft = unitsLeft(product.stockQuantity);
+
   // Calculate review stats
   const totalReviews = reviews.length;
   const averageRating = totalReviews > 0
@@ -230,7 +236,8 @@ export default function ProductDetailsPage({
   }, [product?.id]);
 
   const handleQuantityChange = (type: "inc" | "dec") => {
-    const maxStock = product.stockQuantity ?? Infinity;
+    // An untracked product has no ceiling; unitsLeft returns null for it.
+    const maxStock = unitsLeft(product.stockQuantity) ?? Infinity;
     if (type === "dec" && quantity > 1) {
       setQuantity((prev) => prev - 1);
     } else if (type === "inc" && quantity < maxStock) {
@@ -812,13 +819,13 @@ export default function ProductDetailsPage({
                 <span className="text-gray-300 dark:text-gray-700">•</span>
 
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  {(!product.inStock || (product.stockQuantity !== undefined && product.stockQuantity !== null && product.stockQuantity <= 0)) ? (
+                  {soldOut ? (
                     <span className="flex items-center gap-1 text-xs font-semibold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 px-2.5 py-1 rounded-full border border-red-200 dark:border-red-800/50">
                       <XCircle className="w-3.5 h-3.5" /> Out of Stock
                     </span>
                   ) : (
                     <span className="flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800/50">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> In Stock {product.stockQuantity !== undefined ? `(${product.stockQuantity} units)` : ""}
+                      <CheckCircle2 className="w-3.5 h-3.5" /> In Stock {stockLeft !== null ? `(${stockLeft} units)` : ""}
                     </span>
                   )}
 
@@ -904,7 +911,7 @@ export default function ProductDetailsPage({
                   <button
                     type="button"
                     onClick={() => handleQuantityChange("dec")}
-                    disabled={quantity <= 1 || !product.inStock || (product.stockQuantity !== undefined && product.stockQuantity !== null && product.stockQuantity <= 0)}
+                    disabled={quantity <= 1 || soldOut}
                     className="h-full px-2.5 text-[var(--foreground)] hover:bg-[var(--surface-alt)] rounded-lg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors flex items-center justify-center"
                   >
                     <Minus className="w-4 h-4" />
@@ -915,7 +922,7 @@ export default function ProductDetailsPage({
                   <button
                     type="button"
                     onClick={() => handleQuantityChange("inc")}
-                    disabled={!product.inStock || (product.stockQuantity !== undefined && product.stockQuantity !== null && (product.stockQuantity <= 0 || quantity >= product.stockQuantity))}
+                    disabled={soldOut || (stockLeft !== null && quantity >= stockLeft)}
                     className="h-full px-2.5 text-[var(--foreground)] hover:bg-[var(--surface-alt)] rounded-lg disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors flex items-center justify-center"
                   >
                     <Plus className="w-4 h-4" />
@@ -924,12 +931,12 @@ export default function ProductDetailsPage({
 
                 {/* Add To Cart Button */}
                 <Button
-                  isDisabled={!product.inStock || (product.stockQuantity !== undefined && product.stockQuantity !== null && product.stockQuantity <= 0)}
+                  isDisabled={soldOut}
                   onClick={handleAddToCart}
                   className={`flex-1 h-12 font-bold rounded-xl shadow-lg transition-all flex items-center justify-center gap-2 ${
                     isInCart
                       ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-500/25 cursor-default"
-                      : (!product.inStock || (product.stockQuantity !== undefined && product.stockQuantity !== null && product.stockQuantity <= 0))
+                      : soldOut
                       ? "bg-slate-200 dark:bg-slate-800 text-slate-400 dark:text-slate-500 shadow-none cursor-not-allowed"
                       : "bg-gradient-to-r from-primary to-primary-hover hover:from-primary-hover hover:to-primary text-white shadow-primary/25 cursor-pointer"
                   } disabled:cursor-not-allowed`}
@@ -939,7 +946,7 @@ export default function ProductDetailsPage({
                       <CheckCircle2 className="w-5 h-5" />
                       Added to Cart
                     </>
-                  ) : (!product.inStock || (product.stockQuantity !== undefined && product.stockQuantity !== null && product.stockQuantity <= 0)) ? (
+                  ) : soldOut ? (
                     <>
                       <XCircle className="w-5 h-5" />
                       Out of Stock

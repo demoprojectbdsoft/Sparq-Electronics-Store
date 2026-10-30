@@ -28,6 +28,7 @@ import { AlertDialog, Button } from "@heroui/react";
 import { authClient } from "@/lib/auth-client";
 import SuspendedAccountModal from "@/components/shared/SuspendedAccountModal";
 import { updateCartItem, removeFromCart, clearCart } from "@/lib/action/cart";
+import { isProductOutOfStock, unitsLeft } from "@/lib/stock";
 import { getCartByUserId } from "@/lib/api/cart";
 import { CartClientProps, CartData, CartItem } from "@/types";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
@@ -101,11 +102,13 @@ export default function CartClient({ initialCart, user: initialUser }: CartClien
     0
   );
 
-  // Check if any cart item is out of stock or exceeds available inventory
+  // Check if any cart item is out of stock or exceeds available inventory.
+  // A product with no stock count is not tracked, so it raises neither problem.
   const hasInventoryIssues = items.some((item) => {
     const p = item.product;
-    const isOOS = p?.inStock === false || (p?.stockQuantity !== undefined && p?.stockQuantity <= 0);
-    const exceeds = p?.stockQuantity !== undefined && item.quantity > p.stockQuantity;
+    const left = unitsLeft(p?.stockQuantity);
+    const isOOS = p ? isProductOutOfStock(p) : false;
+    const exceeds = left !== null && item.quantity > left;
     return isOOS || exceeds;
   });
 
@@ -519,10 +522,11 @@ export default function CartClient({ initialCart, user: initialUser }: CartClien
                     const originalPrice = product?.originalPrice ? Number(product.originalPrice) : null;
                     const primaryCategory = product?.categories?.[0] || "Electronics";
 
-                    // Stock calculations
-                    const isOutOfStock = product?.inStock === false || (product?.stockQuantity !== undefined && product?.stockQuantity <= 0);
-                    const maxStock = product?.stockQuantity !== undefined ? product.stockQuantity : (isOutOfStock ? 0 : 99);
-                    const exceedsStock = maxStock !== undefined && item.quantity > maxStock;
+                    // Stock calculations — null means the product is not stock-tracked
+                    const stockLeft = unitsLeft(product?.stockQuantity);
+                    const isOutOfStock = product ? isProductOutOfStock(product) : false;
+                    const maxStock = stockLeft ?? undefined;
+                    const exceedsStock = stockLeft !== null && item.quantity > stockLeft;
 
                     return (
                       <div
@@ -572,7 +576,7 @@ export default function CartClient({ initialCart, user: initialUser }: CartClien
                                   </span>
                                 ) : (
                                   <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium text-[11px]">
-                                    <CheckCircle2 className="w-3 h-3" /> In Stock {product?.stockQuantity !== undefined ? `(${product.stockQuantity} available)` : ""}
+                                    <CheckCircle2 className="w-3 h-3" /> In Stock {stockLeft !== null ? `(${stockLeft} available)` : ""}
                                   </span>
                                 )}
                                 {product?.sku && (
