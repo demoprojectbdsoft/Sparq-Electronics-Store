@@ -27,9 +27,11 @@ import {
   MessageCircleQuestion,
   CheckCircle2,
   XCircle,
+  Mail,
+  Send,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { adminUpdateClaim } from "@/lib/action/warranty";
+import { adminUpdateClaim, emailWarrantyCustomer } from "@/lib/action/warranty";
 import ImageGalleryModal from "@/components/shared/ImageGalleryModal";
 import WarrantyStatusBadge from "@/components/shared/WarrantyStatusBadge";
 import { formatOrderDate } from "@/lib/dateTime";
@@ -102,6 +104,61 @@ interface AdminWarrantiesClientProps {
   pagination: PaginationMeta;
 }
 
+/** Short "#A1B2C3" form of an order id, the same one the table shows. */
+function shortOrderNumber(orderId: string): string {
+  return `#${orderId.slice(-6).toUpperCase()}`;
+}
+
+/**
+ * Builds the email the admin starts from, so the claim details are already on
+ * the page instead of being retyped by hand.
+ *
+ * Everything is optional: a warranty with no claim yet still gets a short,
+ * sensible message.
+ */
+function buildEmailDraft(warranty: WarrantyItem) {
+  const firstName = (warranty.userName || "there").split(" ")[0];
+  const product = warranty.productTitle || "your product";
+  const order = shortOrderNumber(warranty.orderId);
+
+  const subject = warranty.claimReason
+    ? `Your warranty claim - ${product}`
+    : `About your warranty - ${product}`;
+
+  const lines = [
+    `Hi ${firstName},`,
+    "",
+    `We are writing about the warranty for ${product} on order ${order}.`,
+  ];
+
+  // What the customer originally told us.
+  if (warranty.claimReason) {
+    lines.push("", `What you reported: ${warranty.claimReason}`);
+  }
+  if (warranty.claimDescription) {
+    lines.push("", `Your description: "${warranty.claimDescription}"`);
+  }
+
+  // The newest answer they sent after "Ask For More Info".
+  const replies = warranty.claimReplies || [];
+  const lastReply = replies.length ? replies[replies.length - 1] : null;
+  if (lastReply?.message) {
+    lines.push("", `Your latest reply: "${lastReply.message}"`);
+  }
+
+  // The coverage itself, so the customer can check it against the message.
+  lines.push(
+    "",
+    `Coverage: ${warrantyTypeLabel(warranty.warrantyType)}, valid until ${formatOrderDate(
+      warranty.expiryDate
+    )}.`
+  );
+
+  lines.push("", "Please reply to this email if you have any questions.", "", "Thanks,", "Sparq Support");
+
+  return { subject, message: lines.join("\n") };
+}
+
 export default function AdminWarrantiesClient({
   initialWarranties = [],
   pagination,
@@ -126,6 +183,13 @@ export default function AdminWarrantiesClient({
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [isGalleryOpen, setIsGalleryOpen] = useState(false);
+
+  // Email composer state. It opens on top of the details modal and starts from
+  // the claim, so the admin only edits what needs changing.
+  const [isEmailOpen, setIsEmailOpen] = useState(false);
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailMessage, setEmailMessage] = useState("");
+  const [isSendingEmail, setIsSendingEmail] = useState(false);
 
   useEffect(() => {
     setWarranties(Array.isArray(initialWarranties) ? initialWarranties : []);
@@ -229,6 +293,47 @@ export default function AdminWarrantiesClient({
     } finally {
       setIsSubmitting(false);
       setPendingAction(null);
+    }
+  };
+
+  /** Opens the composer with subject and message already filled in. */
+  const openEmailModal = () => {
+    if (!selectedWarranty) return;
+    const draft = buildEmailDraft(selectedWarranty);
+    setEmailSubject(draft.subject);
+    setEmailMessage(draft.message);
+    setIsEmailOpen(true);
+  };
+
+  const handleSendEmail = async () => {
+    if (!selectedWarranty || isSendingEmail) return;
+
+    if (!emailSubject.trim()) {
+      toast.warning("Add a subject for the email.");
+      return;
+    }
+    if (!emailMessage.trim()) {
+      toast.warning("Write a message before sending.");
+      return;
+    }
+
+    setIsSendingEmail(true);
+    try {
+      const res = await emailWarrantyCustomer(selectedWarranty.id, {
+        subject: emailSubject.trim(),
+        message: emailMessage.trim(),
+      });
+
+      if (res?.success !== false) {
+        toast.success(`Email sent to ${selectedWarranty.userEmail || "the customer"}`);
+        setIsEmailOpen(false);
+      } else {
+        toast.error(res?.message || "The email could not be sent");
+      }
+    } catch (err) {
+      toast.error((err as Error).message || "An error occurred");
+    } finally {
+      setIsSendingEmail(false);
     }
   };
 
@@ -390,19 +495,10 @@ export default function AdminWarrantiesClient({
                     </td>
                     <td className="py-3 px-4">
                       <p className="font-semibold">{w.userName || "Customer"}</p>
-                      {w.userEmail ? (
-                        <a
-                          href={`mailto:${w.userEmail}`}
-                          // The whole row opens the modal, so the link must not
-                          // trigger that click as well.
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-[10px] text-[var(--foreground-muted)] hover:text-primary hover:underline"
-                        >
-                          {w.userEmail}
-                        </a>
-                      ) : (
-                        <span className="text-[10px] text-[var(--foreground-muted)]">—</span>
-                      )}
+                      {/* Plain text here; the detail modal has the email button. */}
+                      <p className="text-[10px] text-[var(--foreground-muted)]">
+                        {w.userEmail || "—"}
+                      </p>
                     </td>
                     <td className="py-3 px-4 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
@@ -437,12 +533,12 @@ export default function AdminWarrantiesClient({
 
       {/* ── Detail Modal ── */}
       <Modal
-        isOpen={isModalOpen && !isGalleryOpen}
+        isOpen={isModalOpen && !isGalleryOpen && !isEmailOpen}
         onOpenChange={(open) => {
-          // The image gallery opens on top of this modal, which hides it. That
-          // "closed" event must be ignored, otherwise closing the gallery would
-          // also wipe the details modal.
-          if (!isGalleryOpen) setIsModalOpen(open);
+          // The image gallery and the email composer open on top of this modal,
+          // which hides it. That "closed" event must be ignored, otherwise
+          // closing the child would also wipe the details modal.
+          if (!isGalleryOpen && !isEmailOpen) setIsModalOpen(open);
         }}
       >
         {/*
@@ -473,16 +569,9 @@ export default function AdminWarrantiesClient({
                         <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs">{(selectedWarranty.userName || "C").charAt(0)}</div>
                         <div className="min-w-0">
                           <p className="text-xs font-bold truncate">{selectedWarranty.userName}</p>
-                          {selectedWarranty.userEmail ? (
-                            <a
-                              href={`mailto:${selectedWarranty.userEmail}`}
-                              className="block text-[10px] text-[var(--foreground-muted)] truncate hover:text-primary hover:underline"
-                            >
-                              {selectedWarranty.userEmail}
-                            </a>
-                          ) : (
-                            <p className="text-[10px] text-[var(--foreground-muted)]">—</p>
-                          )}
+                          <p className="text-[10px] text-[var(--foreground-muted)] truncate">
+                            {selectedWarranty.userEmail || "—"}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center justify-between text-[11px]">
@@ -587,9 +676,21 @@ export default function AdminWarrantiesClient({
                   )}
 
                   <div className="space-y-4 border-t border-[var(--border-color)] pt-6">
-                    <h3 className="text-sm font-bold flex items-center gap-2">
-                      <Clock className="w-4 h-4 text-primary" /> Admin Actions
-                    </h3>
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-sm font-bold flex items-center gap-2">
+                        <Clock className="w-4 h-4 text-primary" /> Admin Actions
+                      </h3>
+                      {/* Opens the composer with the claim already filled in. */}
+                      <span title={selectedWarranty.userEmail ? `Email ${selectedWarranty.userEmail}` : "This customer has no email address on file"}>
+                        <Button
+                          isDisabled={!selectedWarranty.userEmail || isSendingEmail}
+                          onPress={openEmailModal}
+                          className="h-9 px-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] text-xs font-bold flex items-center gap-1.5"
+                        >
+                          <Mail className="w-3.5 h-3.5" /> Email Customer
+                        </Button>
+                      </span>
+                    </div>
                     <div className="space-y-3">
                       <div className="flex flex-col gap-1">
                         <label className="text-xs font-semibold text-[var(--foreground)]">Internal Admin Note</label>
@@ -649,6 +750,90 @@ export default function AdminWarrantiesClient({
                         </p>
                       )}
                     </div>
+                  </div>
+                </div>
+              )}
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
+
+      {/* ── Email Modal ── */}
+      {/*
+        Sits above the details modal. The subject and message are pre-filled from
+        the claim, so the admin edits instead of typing everything again.
+      */}
+      <Modal
+        isOpen={isEmailOpen}
+        onOpenChange={(open) => {
+          // A send in flight must not be dismissed half way.
+          if (!isSendingEmail) setIsEmailOpen(open);
+        }}
+      >
+        <Modal.Backdrop isDismissable={!isSendingEmail}>
+          <Modal.Container size="lg">
+            <Modal.Dialog className="bg-[var(--surface-elevated)] rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+              {selectedWarranty && (
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2.5 rounded-2xl bg-primary/10 text-primary"><Mail className="w-5 h-5" /></div>
+                      <div className="min-w-0">
+                        <h2 className="text-lg font-bold">Email Customer</h2>
+                        <p className="text-[10px] font-semibold text-[var(--foreground-muted)] truncate">
+                          To: {selectedWarranty.userEmail || "no email address on file"}
+                        </p>
+                      </div>
+                    </div>
+                    <button onClick={() => setIsEmailOpen(false)} className="p-2 hover:bg-[var(--surface-alt)] rounded-xl transition-colors">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-[var(--foreground)]">Subject</label>
+                    <Input
+                      value={emailSubject}
+                      onChange={(e) => setEmailSubject(e.target.value)}
+                      className="bg-[var(--surface-alt)]"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-[var(--foreground)]">Message</label>
+                    <TextArea
+                      rows={12}
+                      value={emailMessage}
+                      onChange={(e) => setEmailMessage(e.target.value)}
+                      className="bg-[var(--surface-alt)]"
+                    />
+                  </div>
+
+                  <p className="text-[11px] text-[var(--foreground-muted)]">
+                    Sent from the store address to this customer. Their reply goes to
+                    the store inbox, not back to this screen.
+                  </p>
+
+                  <div className="flex items-center justify-end gap-2 border-t border-[var(--border-color)] pt-4">
+                    <Button
+                      isDisabled={isSendingEmail}
+                      onPress={() => setIsEmailOpen(false)}
+                      className="h-10 px-4 rounded-xl bg-[var(--surface-alt)] text-xs font-bold"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      isDisabled={isSendingEmail || !selectedWarranty.userEmail}
+                      onPress={handleSendEmail}
+                      className="h-10 px-5 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-2"
+                    >
+                      {isSendingEmail ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                      {isSendingEmail ? "Sending..." : "Send Email"}
+                    </Button>
                   </div>
                 </div>
               )}
