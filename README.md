@@ -71,7 +71,7 @@ Sign in (email/password or Google) ─► better-auth creates a session and issu
 - **Role-isolated dashboards** — `dashboard/admin/layout.tsx` and `dashboard/customer/layout.tsx` each require their own role, so one role cannot open the other's dashboard.
 - **Checked on both sides** — the frontend guard is for navigation; the backend repeats the check, so a role check cannot be bypassed through the UI or a hand-made request.
 - **Shared JWT auth** — this app owns authentication and exposes `/api/auth/jwks`; the API verifies tokens against it, with no shared secret and no duplicated user table.
-- **Forgot password** — `sendResetPassword` in `lib/auth.ts` hands better-auth's one-time link to the API, which emails it from the store's own mailbox. The link works once, expires after one hour, and opens `/auth/reset-password`, where the new password is chosen. A reset also signs the account out on every device.
+- **Forgot password** — `sendResetPassword` in `lib/auth.ts` hands better-auth's one-time link to the API, which emails it from the store's own mailbox. The link works once, expires after one hour, and opens `/auth/reset-password`, where the new password is chosen. A reset also signs the account out on every device. The form checks the address first, so an unknown email says **no account uses this address** instead of claiming a link was sent — better-auth itself replies the same way for every address. That is friendlier for one store but reveals which emails are registered.
 
 ---
 

@@ -17,6 +17,7 @@ import {
 } from "@heroui/react";
 import { Mail, ArrowLeft, Send, CheckCircle2 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { isEmailRegistered } from "@/lib/action/account";
 import SparqLogo from "@/components/shared/SparqLogo";
 
 export function ForgotPasswordForm() {
@@ -39,8 +40,19 @@ export function ForgotPasswordForm() {
     setLoading(true);
 
     try {
+      // better-auth answers the same way for every address, so the account is
+      // checked first. Without this, a mistyped email shows "check your inbox"
+      // while no link is ever sent.
+      const registered = await isEmailRegistered(address);
+      if (!registered) {
+        setError(
+          "No account uses this email address. Check the spelling, or create an account first."
+        );
+        return;
+      }
+
       // better-auth creates a one-time token and emails the link through the
-      // store API. The reply is the same whether or not the account exists.
+      // store API.
       const { error: requestError } = await authClient.requestPasswordReset({
         email: address,
         redirectTo: `${window.location.origin}/auth/reset-password`,
@@ -100,7 +112,7 @@ export function ForgotPasswordForm() {
                     <AlertDescription className="text-emerald-800 dark:text-emerald-300 space-y-1">
                       <p className="font-bold text-sm">Check your inbox</p>
                       <p className="text-xs leading-relaxed">
-                        If an account exists for <span className="font-semibold">{email}</span>, a reset link is on its way. It works once, expires in one hour, and may land in your spam folder.
+                        A reset link is on its way to <span className="font-semibold">{email}</span>. It works once and expires in one hour. If it is not in your inbox after a minute, look in the spam folder.
                       </p>
                     </AlertDescription>
                   </div>
@@ -155,7 +167,7 @@ export function ForgotPasswordForm() {
               </Form>
             )}
 
-            <div className="text-center pt-2">
+            <div className="text-center pt-2 space-y-2">
               <Link
                 href="/auth/login"
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-[var(--foreground-muted)] hover:text-primary transition-colors"
@@ -163,6 +175,15 @@ export function ForgotPasswordForm() {
                 <ArrowLeft className="w-3.5 h-3.5" />
                 Back to Sign In
               </Link>
+              <p className="text-xs text-[var(--foreground-muted)]">
+                No account yet?{" "}
+                <Link
+                  href="/auth/register"
+                  className="font-semibold text-primary hover:text-primary-hover hover:underline"
+                >
+                  Create Account
+                </Link>
+              </p>
             </div>
           </CardContent>
         </Card>
