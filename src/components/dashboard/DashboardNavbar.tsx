@@ -94,8 +94,12 @@ export default function DashboardNavbar({ onToggleSidebar }: DashboardNavbarProp
           </button>
         )}
 
-        {/* Notifications — the activity feed is for the store team only */}
-        {isAdminView && <NotificationBell />}
+        {/* Notifications — one bell for every role; the scope decides whose
+            feed it reads */}
+        <NotificationBell
+          scope={isAdminView ? "store" : "personal"}
+          role={isRiderRoute ? "rider" : "customer"}
+        />
 
         {/* Cart Item Count & Dollar Total — buyers only */}
         {canUserShop && (

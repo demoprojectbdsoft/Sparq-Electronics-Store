@@ -27,6 +27,44 @@ export interface AdminActivity {
 }
 
 /**
+ * What a customer or rider can be told about. Same collection as the store
+ * feed; these are the lines addressed to one person.
+ */
+export type PersonalNotificationType =
+  | "order_placed"
+  | "order_confirmed"
+  | "order_processing"
+  | "order_shipped"
+  | "order_delivered"
+  | "order_cancelled"
+  | "delivery_assigned"
+  | "delivery_update"
+  | "delivery_declined";
+
+/** One line in a customer's or rider's own feed. */
+export interface PersonalNotification {
+  _id: string;
+  type: PersonalNotificationType;
+  title: string;
+  detail?: string;
+  /** An order id, a delivery id — whatever the matching screen searches for. */
+  ref?: string;
+  /** Null until its owner opens it. */
+  readAt?: string | null;
+  createdAt: string;
+}
+
+/** One read of a personal feed, newest first. */
+export interface PersonalNotificationFeed {
+  notifications: PersonalNotification[];
+  unreadCount: number;
+  /** ISO timestamp of the API at the moment it answered. */
+  serverTime: string;
+  /** False when the read failed, so the bell keeps what it already has. */
+  ok: boolean;
+}
+
+/**
  * One read of the feed: the lines plus the API clock that wrote them.
  *
  * The clock travels with the lines so "3m ago" is measured with the same clock

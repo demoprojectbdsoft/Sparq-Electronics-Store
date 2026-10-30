@@ -1,12 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Bell,
+  CircleX,
   CreditCard,
   Mail,
-  CircleX,
   ShieldCheck,
   ShoppingBag,
   Star,
@@ -15,28 +15,40 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getActivities } from "@/lib/action/activity";
-import { formatOrderDateTime } from "@/lib/dateTime";
+import {
+  loadMyNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+} from "@/lib/action/notifications";
+import { formatOrderDateTime, formatTimeAgo } from "@/lib/dateTime";
+import {
+  PERSONAL_NOTIFICATION_EMPTY,
+  PERSONAL_NOTIFICATION_FALLBACK_ICON,
+  PERSONAL_NOTIFICATION_ICONS,
+  personalNotificationLink,
+} from "@/lib/notifications";
 import type { AdminActivity, AdminActivityType } from "@/types";
 
+/** How often the bell asks for new lines while the dashboard is open. */
+const POLL_MS = 60_000;
+/** How many lines the panel shows; the full personal feed has its own page. */
+const PANEL_LIMIT = 8;
+
 /**
- * The ids of the lines the admin has already read.
+ * The ids of the store lines this browser has already read.
  *
  * One id per line, because every line carries its own dot: reading one leaves
- * the rest untouched. The list is ordered newest first and cut to a limit, so a
- * long-running browser cannot grow it forever.
+ * the rest untouched. The store feed is shared by every admin, so its read
+ * state stays on the device rather than becoming somebody else's "read".
  */
 const SEEN_IDS_KEY = "sparq:activities:seen-ids";
 /** Keys written by earlier versions of the bell; removed so they cannot linger. */
 const LEGACY_KEYS = ["sparq:activities:seen", "sparq:activities:seen-at"];
 /** How many read ids are remembered; the panel itself only shows the newest few. */
 const SEEN_IDS_LIMIT = 300;
-/** How often the bell asks for new lines while the dashboard is open. */
-const POLL_MS = 60_000;
-/** How often the "3m ago" labels are recomputed, so they never freeze. */
-const TICK_MS = 30_000;
 
-/** One icon per kind of activity, so a glance tells the admin what happened. */
-const ICONS: Record<AdminActivityType, LucideIcon> = {
+/** One icon per kind of store activity, so a glance tells the story. */
+const STORE_ICONS: Record<AdminActivityType, LucideIcon> = {
   order: ShoppingBag,
   transaction: CreditCard,
   user: UserPlus,
@@ -46,6 +58,17 @@ const ICONS: Record<AdminActivityType, LucideIcon> = {
   message: Mail,
   review: Star,
 };
+
+/** One line, whichever feed it came from: the panel renders this shape only. */
+interface BellItem {
+  id: string;
+  title: string;
+  detail?: string;
+  createdAt: string;
+  href: string;
+  icon: LucideIcon;
+  unread: boolean;
+}
 
 /** Milliseconds of a stored timestamp, or 0 when it is missing or unreadable. */
 function timeOf(value: string | undefined): number {
@@ -68,12 +91,12 @@ function readSeenIds(): string[] {
 }
 
 /**
- * Where one activity sends the admin.
+ * Where one store line sends the admin.
  *
  * The API only stores the value to look for, never a route, so a line saved
  * months ago still opens the right page after the dashboard changes.
  */
-function linkFor(activity: AdminActivity): string {
+function storeLinkFor(activity: AdminActivity): string {
   const ref = encodeURIComponent(activity.ref || "");
 
   switch (activity.type) {
@@ -102,38 +125,34 @@ function linkFor(activity: AdminActivity): string {
   }
 }
 
-/** "just now", "12m ago", "3h ago", "2d ago" — measured on the API clock. */
-function timeAgo(value: string, nowMs: number): string {
-  const then = timeOf(value);
-  if (!then) return "";
-
-  // Never negative: a stamp a second ahead of the clock still reads "now".
-  const minutes = Math.floor(Math.max(0, nowMs - then) / 60_000);
-  if (minutes < 1) return "just now";
-  if (minutes < 60) return `${minutes}m ago`;
-
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-
-  return `${Math.floor(hours / 24)}d ago`;
+export interface NotificationBellProps {
+  /**
+   * Which feed the bell reads.
+   *
+   * "store" is the shared activity feed every admin sees; "personal" is the
+   * lines addressed to one customer or rider.
+   */
+  scope?: "store" | "personal";
+  /** Needed by the personal scope to build links and copy. */
+  role?: "customer" | "rider";
 }
 
 /**
- * The admin notification bell: a red dot while any line is unread, and a panel
- * of the last few lines that each open the matching screen.
+ * The dashboard notification bell, for every role.
  *
- * Every line has its own dot. Clicking it reads that one line; "Mark all as
- * read" clears the rest. The bell's dot disappears only once nothing is left
- * unseen, and the mark is shared between tabs.
- *
- * Only admins and the demo admin see it; the customer dashboard has no bell at
- * all, because this feed names other people's orders and accounts.
+ * The panel, the dots, the polling and the relative labels are the same
+ * everywhere; only the feed behind them changes. A store line's read state is
+ * kept on the device (the feed is shared), while a personal line's read state
+ * is the server's, so it clears on every device the account is signed in on.
  */
-export default function NotificationBell() {
-  const [activities, setActivities] = useState<AdminActivity[]>([]);
+export default function NotificationBell({ scope = "store", role = "customer" }: NotificationBellProps) {
+  const isStore = scope === "store";
+
+  const [items, setItems] = useState<BellItem[]>([]);
+  // A personal feed shows one page of lines, so its unread total comes from the
+  // API. The store feed is a fixed head of the list, so its total is derived.
+  const [personalUnread, setPersonalUnread] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
-  // The ids already read, which decide every dot in sight.
-  const [seenIds, setSeenIds] = useState<string[]>([]);
   // How far this device's clock is ahead of the API clock. Every "3m ago"
   // below is computed against the API clock, via this offset.
   const [clockOffset, setClockOffset] = useState(0);
@@ -141,32 +160,75 @@ export default function NotificationBell() {
   const [now, setNow] = useState(() => Date.now());
   const wrapRef = useRef<HTMLDivElement>(null);
 
-  /** Reads the given lines: their dots go, the others keep theirs. */
+  const unreadCount = isStore ? items.filter((line) => line.unread).length : personalUnread;
+
+  /** Reads the given store lines: their dots go, the others keep theirs. */
   const markSeen = useCallback((ids: string[]) => {
     if (!ids.length) return;
 
-    setSeenIds((current) => {
-      const merged = Array.from(new Set([...ids, ...current])).slice(0, SEEN_IDS_LIMIT);
-      localStorage.setItem(SEEN_IDS_KEY, JSON.stringify(merged));
-      return merged;
-    });
+    const current = readSeenIds();
+    const merged = Array.from(new Set([...ids, ...current])).slice(0, SEEN_IDS_LIMIT);
+    localStorage.setItem(SEEN_IDS_KEY, JSON.stringify(merged));
+
+    const seenSet = new Set(merged);
+    setItems((lines) =>
+      lines.map((line) => (seenSet.has(line.id) ? { ...line, unread: false } : line))
+    );
   }, []);
 
-  const load = useCallback(async () => {
-    const feed = await getActivities();
+  /** The store feed: the newest lines, plus the API clock that stamped them. */
+  const loadStore = useCallback(async () => {
+    const feed = await getActivities(PANEL_LIMIT);
 
     // A failed read is not an empty feed: keep the lines already on screen.
     if (!feed.ok) return;
 
+    // Another tab may have read some of these lines already.
+    const seenSet = new Set(readSeenIds());
+    setItems(
+      feed.activities.map((activity) => ({
+        id: activity._id,
+        title: activity.title,
+        detail: activity.detail,
+        createdAt: activity.createdAt,
+        href: storeLinkFor(activity),
+        icon: STORE_ICONS[activity.type] || Bell,
+        unread: !seenSet.has(activity._id),
+      }))
+    );
+    return feed.serverTime;
+  }, []);
+
+  /** The personal feed: only the caller's own lines, newest first. */
+  const loadPersonal = useCallback(async () => {
+    const feed = await loadMyNotifications(PANEL_LIMIT);
+
+    // A failed read is not an empty feed: keep the lines already on screen.
+    if (!feed.ok) return;
+
+    setItems(
+      feed.notifications.map((line) => ({
+        id: line._id,
+        title: line.title,
+        detail: line.detail,
+        createdAt: line.createdAt,
+        href: personalNotificationLink(line, role),
+        icon: PERSONAL_NOTIFICATION_ICONS[line.type] || PERSONAL_NOTIFICATION_FALLBACK_ICON,
+        unread: !line.readAt,
+      }))
+    );
+    setPersonalUnread(feed.unreadCount);
+    return feed.serverTime;
+  }, [role]);
+
+  const load = useCallback(async () => {
+    const serverTime = await (isStore ? loadStore() : loadPersonal());
+
     // The API hands over its own clock with the lines. Remember the gap once,
     // so a device with a wrong system time still shows the real "3m ago".
-    const serverMs = timeOf(feed.serverTime);
+    const serverMs = timeOf(serverTime);
     if (serverMs) setClockOffset(Date.now() - serverMs);
-
-    setActivities(feed.activities);
-    // Another tab may have read some of these lines already.
-    setSeenIds(readSeenIds());
-  }, []);
+  }, [isStore, loadStore, loadPersonal]);
 
   // The bell lives in the dashboard navbar, so it refreshes itself instead of
   // asking every page to hand it a list. The first read goes through a timer
@@ -175,7 +237,7 @@ export default function NotificationBell() {
     const firstLoad = setTimeout(() => void load(), 0);
     const timer = setInterval(() => void load(), POLL_MS);
 
-    // Coming back to the tab is the moment the admin expects fresh lines.
+    // Coming back to the tab is the moment the reader expects fresh lines.
     const onFocus = () => void load();
     const onVisible = () => {
       if (document.visibilityState === "visible") void load();
@@ -192,22 +254,26 @@ export default function NotificationBell() {
   }, [load]);
 
   // The relative labels age on their own; without this a line stays "just now"
-  // for as long as the admin leaves the dashboard open.
+  // for as long as the dashboard is left open.
   useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), TICK_MS);
+    const timer = setInterval(() => setNow(Date.now()), 30_000);
     return () => clearInterval(timer);
   }, []);
 
-  // Reading in one tab has to clear the dots in the other ones too.
+  // The store's read state is per device, so it has to be shared between tabs.
   useEffect(() => {
+    if (!isStore) return;
+
     LEGACY_KEYS.forEach((key) => localStorage.removeItem(key));
 
     const onStorage = (event: StorageEvent) => {
-      if (event.key === SEEN_IDS_KEY) setSeenIds(readSeenIds());
+      if (event.key !== SEEN_IDS_KEY) return;
+      const seenSet = new Set(readSeenIds());
+      setItems((lines) => lines.map((line) => ({ ...line, unread: !seenSet.has(line.id) })));
     };
     window.addEventListener("storage", onStorage);
     return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  }, [isStore]);
 
   // A menu should close the way every other menu on the site closes.
   useEffect(() => {
@@ -230,11 +296,34 @@ export default function NotificationBell() {
     };
   }, [isOpen]);
 
-  const seenSet = useMemo(() => new Set(seenIds), [seenIds]);
-  const unreadCount = activities.filter((activity) => !seenSet.has(activity._id)).length;
   const hasUnread = unreadCount > 0;
   // Labels are measured on the API clock, not on this device's clock.
   const nowMs = now - clockOffset;
+
+  /** Clears one dot here and, for a personal line, on the server too. */
+  const readOne = (item: BellItem) => {
+    if (isStore) {
+      markSeen([item.id]);
+      return;
+    }
+
+    setItems((lines) =>
+      lines.map((line) => (line.id === item.id ? { ...line, unread: false } : line))
+    );
+    setPersonalUnread((count) => Math.max(0, count - 1));
+    void markNotificationRead(item.id).catch(() => void load());
+  };
+
+  const readAll = () => {
+    if (isStore) {
+      markSeen(items.filter((line) => line.unread).map((line) => line.id));
+      return;
+    }
+
+    setItems((lines) => lines.map((line) => ({ ...line, unread: false })));
+    setPersonalUnread(0);
+    void markAllNotificationsRead().catch(() => void load());
+  };
 
   const toggle = () => {
     const next = !isOpen;
@@ -246,15 +335,28 @@ export default function NotificationBell() {
     }
   };
 
+  // Only the words change between the two feeds; the panel below is one panel.
+  const copy = isStore
+    ? {
+        title: "Recent activity",
+        emptyText: "Orders, payments, new users, warranties and messages show up here.",
+        footerHref: "/dashboard/admin",
+        footerLabel: "Go to the dashboard",
+      }
+    : {
+        title: "Notifications",
+        emptyText: PERSONAL_NOTIFICATION_EMPTY[role],
+        footerHref: `/dashboard/${role}/notifications`,
+        footerLabel: "See all notifications",
+      };
+
   return (
     <div className="relative" ref={wrapRef}>
       <button
         type="button"
         onClick={toggle}
         aria-label={
-          hasUnread
-            ? `Notifications, ${unreadCount} unread`
-            : "Notifications, nothing unread"
+          hasUnread ? `Notifications, ${unreadCount} unread` : "Notifications, nothing unread"
         }
         aria-expanded={isOpen}
         aria-haspopup="true"
@@ -269,17 +371,17 @@ export default function NotificationBell() {
       {isOpen && (
         <div
           role="menu"
-          aria-label="Recent activity"
+          aria-label={copy.title}
           className="absolute right-0 top-[calc(100%+10px)] z-50 w-[min(20rem,calc(100vw-2rem))] rounded-2xl border border-[var(--border-color)] bg-[var(--surface-elevated)] shadow-xl overflow-hidden"
         >
           <div className="flex items-center justify-between gap-2 px-4 py-3 border-b border-[var(--border-color)]">
             <div className="min-w-0">
-              <p className="text-xs font-bold text-[var(--foreground)]">Recent activity</p>
+              <p className="text-xs font-bold text-[var(--foreground)]">{copy.title}</p>
               <p className="text-[10px] font-semibold text-[var(--foreground-muted)]">
-                {activities.length === 0
+                {items.length === 0
                   ? "Nothing yet"
                   : hasUnread
-                    ? `${unreadCount} unread of ${activities.length}`
+                    ? `${unreadCount} unread of ${items.length}`
                     : "All read"}
               </p>
             </div>
@@ -287,7 +389,7 @@ export default function NotificationBell() {
             {hasUnread && (
               <button
                 type="button"
-                onClick={() => markSeen(activities.map((activity) => activity._id))}
+                onClick={readAll}
                 className="shrink-0 text-[10px] font-bold text-[var(--brand-flat)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-flat)]/35 rounded px-1 py-0.5 cursor-pointer"
               >
                 Mark all as read
@@ -295,24 +397,24 @@ export default function NotificationBell() {
             )}
           </div>
 
-          {activities.length === 0 ? (
+          {items.length === 0 ? (
             <p className="px-4 py-8 text-center text-xs text-[var(--foreground-muted)]">
-              Orders, payments, new users, warranties and messages show up here.
+              {copy.emptyText}
             </p>
           ) : (
             <ul className="max-h-80 overflow-y-auto divide-y divide-[var(--border-color)]/60">
-              {activities.map((activity) => {
-                const Icon = ICONS[activity.type] || Bell;
+              {items.map((item) => {
+                const Icon = item.icon;
                 // Each line stands alone: only its own click clears its dot.
-                const isUnread = !seenSet.has(activity._id);
+                const isUnread = item.unread;
 
                 return (
-                  <li key={activity._id}>
+                  <li key={item.id}>
                     <Link
-                      href={linkFor(activity)}
+                      href={item.href}
                       role="menuitem"
                       onClick={() => {
-                        markSeen([activity._id]);
+                        if (isUnread) readOne(item);
                         setIsOpen(false);
                       }}
                       className="flex gap-3 px-4 py-3 hover:bg-[var(--surface-alt)] transition-colors"
@@ -327,18 +429,18 @@ export default function NotificationBell() {
                             isUnread ? "font-bold" : "font-semibold"
                           } text-[var(--foreground)]`}
                         >
-                          {activity.title}
+                          {item.title}
                         </span>
-                        {activity.detail && (
+                        {item.detail && (
                           <span className="block text-[11px] text-[var(--foreground-muted)] truncate">
-                            {activity.detail}
+                            {item.detail}
                           </span>
                         )}
                         <span
                           className="block text-[10px] text-[var(--foreground-muted)] mt-0.5"
-                          title={formatOrderDateTime(activity.createdAt)}
+                          title={formatOrderDateTime(item.createdAt)}
                         >
-                          {timeAgo(activity.createdAt, nowMs)}
+                          {formatTimeAgo(item.createdAt, nowMs)}
                         </span>
                       </span>
 
@@ -357,11 +459,11 @@ export default function NotificationBell() {
 
           <div className="px-4 py-2.5 border-t border-[var(--border-color)] bg-[var(--surface-alt)]/40">
             <Link
-              href="/dashboard/admin"
+              href={copy.footerHref}
               onClick={() => setIsOpen(false)}
               className="text-[11px] font-semibold text-[var(--brand-flat)] hover:underline"
             >
-              Go to the dashboard
+              {copy.footerLabel}
             </Link>
           </div>
         </div>

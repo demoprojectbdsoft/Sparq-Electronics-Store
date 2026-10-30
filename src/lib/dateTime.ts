@@ -56,3 +56,24 @@ export function formatOrderDateTime(value?: string | Date | null): string {
   const date = toDate(value);
   return date ? longDateTime.format(date) : "";
 }
+
+/**
+ * "just now", "12m ago", "3h ago", "2d ago" — for the notification bells.
+ *
+ * `nowMs` is the caller's idea of "now", so the bell can measure against the
+ * API clock instead of a device whose clock happens to be wrong.
+ */
+export function formatTimeAgo(value?: string | Date | null, nowMs: number = Date.now()): string {
+  const date = toDate(value);
+  if (!date) return "";
+
+  // Never negative: a stamp a second ahead of the clock still reads "now".
+  const minutes = Math.floor(Math.max(0, nowMs - date.getTime()) / 60_000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+
+  return `${Math.floor(hours / 24)}d ago`;
+}
