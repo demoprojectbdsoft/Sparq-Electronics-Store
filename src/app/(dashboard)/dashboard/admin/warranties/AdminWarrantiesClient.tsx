@@ -523,8 +523,11 @@ export default function AdminWarrantiesClient({
 
       {/* ── Filters ── */}
       <div className="bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-2xl p-4 md:p-5 shadow-xs">
-        <div className="flex flex-col 2xl:flex-row 2xl:items-end justify-between gap-3">
-          <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-0 max-w-md flex items-center gap-2">
+        {/* One wrapping row, the same shape the products screen uses: the search
+            box takes whatever room is left and the selects keep a fixed width, so
+            nothing ends up stacked on one side of the card. */}
+        <div className="flex flex-wrap items-center gap-3">
+          <form onSubmit={handleSearchSubmit} className="relative flex-1 min-w-[220px] max-w-md flex items-center gap-2">
             <div className="relative flex-1">
               <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--foreground-muted)] z-10" />
               <Input
@@ -538,96 +541,82 @@ export default function AdminWarrantiesClient({
             <Button type="submit" size="sm" className="h-10 px-4 rounded-xl bg-primary text-white font-bold text-xs">Search</Button>
           </form>
 
-          {/* One select per filter — status, warranty type and order — each with
-              a small label above it. The old tab strip had to scroll sideways on
-              a laptop; the same choices now sit in a dropdown each. */}
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]">Status</span>
-              <div className="w-[9.5rem]">
-                <Select
-                  aria-label="Status"
-                  selectedKey={currentStatusParam}
-                  onSelectionChange={(key) => updateParams({ status: String(key) })}
-                >
-                  <Select.Trigger className="h-10 w-full px-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] text-xs font-semibold flex items-center justify-between gap-2">
-                    <Select.Value className="truncate" />
-                    <Select.Indicator />
-                  </Select.Trigger>
-                  <Select.Popover className="w-52 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl">
-                    <ListBox>
-                      {STATUS_FILTER_OPTIONS.map((opt) => (
-                        <ListBox.Item key={opt.value} id={opt.value} textValue={opt.label} className="text-xs font-medium px-3 py-2 rounded-lg hover:bg-primary/10">
-                          {opt.label}
-                        </ListBox.Item>
-                      ))}
-                    </ListBox>
-                  </Select.Popover>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]">Warranty Type</span>
-              <div className="w-48">
-                <Select
-                  aria-label="Warranty type"
-                  selectedKey={currentWarrantyTypeParam}
-                  onSelectionChange={(key) =>
-                    // "all" clears the filter instead of being sent to the API.
-                    updateParams({
-                      warrantyType: String(key) === "all" ? undefined : String(key),
-                    })
-                  }
-                >
-                  <Select.Trigger className="h-10 w-full px-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] text-xs font-semibold flex items-center justify-between gap-2">
-                    <Select.Value className="truncate" />
-                    <Select.Indicator />
-                  </Select.Trigger>
-                  <Select.Popover className="w-60 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl">
-                    <ListBox>
-                      {WARRANTY_TYPE_FILTER_OPTIONS.map((opt) => (
-                        <ListBox.Item key={opt.value} id={opt.value} textValue={opt.label} className="text-xs font-medium px-3 py-2 rounded-lg hover:bg-primary/10">
-                          {opt.label}
-                        </ListBox.Item>
-                      ))}
-                    </ListBox>
-                  </Select.Popover>
-                </Select>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]">Sort</span>
-              <div className="w-40">
-                <Select
-                  aria-label="Sort"
-                  selectedKey={currentSort}
-                  onSelectionChange={(key) => updateParams({ sort: String(key) })}
-                >
-                  <Select.Trigger className="h-10 w-full px-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] text-xs font-semibold flex items-center justify-between gap-2">
-                    <Select.Value className="truncate" />
-                    <Select.Indicator />
-                  </Select.Trigger>
-                  <Select.Popover className="w-52 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl">
-                    <ListBox>
-                      {SORT_OPTIONS.map((opt) => (
-                        <ListBox.Item key={opt.key} id={opt.key} textValue={opt.label} className="text-xs font-medium px-3 py-2 rounded-lg hover:bg-primary/10">
-                          {opt.label}
-                        </ListBox.Item>
-                      ))}
-                    </ListBox>
-                  </Select.Popover>
-                </Select>
-              </div>
-            </div>
-
-            {(currentSearch || currentStatusParam !== "claimed" || currentWarrantyTypeParam !== "all") && (
-              <Button size="sm" onPress={handleResetFilters} className="h-10 px-3 rounded-xl bg-[var(--surface-alt)] text-xs font-semibold">
-                <RotateCcw className="w-3.5 h-3.5 mr-1" /> Reset
-              </Button>
-            )}
+          <div className="w-40">
+            <Select
+              aria-label="Status"
+              selectedKey={currentStatusParam}
+              onSelectionChange={(key) => updateParams({ status: String(key) })}
+            >
+              <Select.Trigger className="h-10 w-full px-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] text-xs font-semibold flex items-center justify-between gap-2">
+                <Select.Value className="truncate" />
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover className="w-52 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl">
+                <ListBox>
+                  {STATUS_FILTER_OPTIONS.map((opt) => (
+                    <ListBox.Item key={opt.value} id={opt.value} textValue={opt.label} className="text-xs font-medium px-3 py-2 rounded-lg hover:bg-primary/10">
+                      {opt.label}
+                    </ListBox.Item>
+                  ))}
+                </ListBox>
+              </Select.Popover>
+            </Select>
           </div>
+
+          <div className="w-48">
+            <Select
+              aria-label="Warranty type"
+              selectedKey={currentWarrantyTypeParam}
+              onSelectionChange={(key) =>
+                // "all" clears the filter instead of being sent to the API.
+                updateParams({
+                  warrantyType: String(key) === "all" ? undefined : String(key),
+                })
+              }
+            >
+              <Select.Trigger className="h-10 w-full px-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] text-xs font-semibold flex items-center justify-between gap-2">
+                <Select.Value className="truncate" />
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover className="w-60 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl">
+                <ListBox>
+                  {WARRANTY_TYPE_FILTER_OPTIONS.map((opt) => (
+                    <ListBox.Item key={opt.value} id={opt.value} textValue={opt.label} className="text-xs font-medium px-3 py-2 rounded-lg hover:bg-primary/10">
+                      {opt.label}
+                    </ListBox.Item>
+                  ))}
+                </ListBox>
+              </Select.Popover>
+            </Select>
+          </div>
+
+          <div className="w-40">
+            <Select
+              aria-label="Sort"
+              selectedKey={currentSort}
+              onSelectionChange={(key) => updateParams({ sort: String(key) })}
+            >
+              <Select.Trigger className="h-10 w-full px-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] text-xs font-semibold flex items-center justify-between gap-2">
+                <Select.Value className="truncate" />
+                <Select.Indicator />
+              </Select.Trigger>
+              <Select.Popover className="w-52 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl">
+                <ListBox>
+                  {SORT_OPTIONS.map((opt) => (
+                    <ListBox.Item key={opt.key} id={opt.key} textValue={opt.label} className="text-xs font-medium px-3 py-2 rounded-lg hover:bg-primary/10">
+                      {opt.label}
+                    </ListBox.Item>
+                  ))}
+                </ListBox>
+              </Select.Popover>
+            </Select>
+          </div>
+
+          {(currentSearch || currentStatusParam !== "claimed" || currentWarrantyTypeParam !== "all") && (
+            <Button size="sm" onPress={handleResetFilters} className="h-10 px-3 rounded-xl bg-[var(--surface-alt)] text-xs font-semibold">
+              <RotateCcw className="w-3.5 h-3.5 mr-1" /> Reset
+            </Button>
+          )}
         </div>
       </div>
 
