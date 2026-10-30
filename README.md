@@ -90,7 +90,7 @@ Public pages anyone can visit.
 | **Track order** (`/track-order`) | An order-lookup form with a delivery timeline. The per-order **Track Shipment** view in the customer dashboard is the live one. |
 | **Store locator** (`/store-locator`) | Store locations and contact details. |
 | **About** (`/about`) | Headline, story, headquarters note, **opening hours**, contact channels and call-to-action — all editable from **Site Settings → Contact & Socials**. |
-| **Services / Contact / Privacy / Terms** | Informational pages, branded from the store settings. The **Contact** page has a working form: it validates the fields on the spot and the API emails the message to the store inbox, with the visitor's address as the reply-to. |
+| **Services / Contact / Privacy / Terms** | Informational pages, branded from the store settings. The **Contact** page has a working form: it validates the fields on the spot and the API emails the message to the **support** or **contact** address saved in Site Settings, with the visitor's address as the reply-to. |
 | **Maintenance** (`/maintenance`) | Shown while the store is paused. See [Maintenance Mode](#-maintenance-mode). |
 | **Forbidden** (`/forbidden`) | Shown when a signed-in user opens a dashboard that is not theirs. |
 
@@ -469,7 +469,7 @@ NEXT_PUBLIC_IMGBB_API_KEY=your_imgbb_api_key
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | For Google login | OAuth credentials. |
 | `NEXT_PUBLIC_IMGBB_API_KEY` | For uploads | Hosts product images, review photos and claim images. |
 
-> ✉️ Email is sent by the API, not this app: claims, claim updates, issued coverage and contact-page messages all go out through Resend. Set `RESEND_API_KEY`, `MAIL_FROM` and `STORE_INBOX` in the **server** environment (see the [backend README](https://github.com/demoprojectbdsoft/Sparq-Server#environment-variables)). Without them the app still works — the contact form simply reports that the message could not be sent.
+> ✉️ Email is sent by the API, not this app: claims, claim updates, issued coverage and contact-page messages all go out through Resend. Set `RESEND_API_KEY` and `MAIL_FROM` in the **server** environment (see the [backend README](https://github.com/demoprojectbdsoft/Sparq-Server#environment-variables)) — the store name and both inboxes are read from **Site Settings → Contact & Socials** (`siteName`, `supportEmail`, `contactEmail`). Without the key and sender the app still works: the contact form simply reports that the message could not be sent.
 
 > ⚠️ Never commit `.env.local`. `NEXT_PUBLIC_*` values are baked in at build time — rebuild after changing one.
 
