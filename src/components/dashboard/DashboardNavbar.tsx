@@ -3,10 +3,11 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Search, Bell, Menu, Sun, Moon } from "lucide-react";
+import { Search, Menu, Sun, Moon } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
 import CartButton from "@/components/shared/CartButton";
 import UserAvatar from "@/components/shared/UserAvatar";
+import NotificationBell from "@/components/dashboard/NotificationBell";
 
 import { useTheme } from "next-themes";
 
@@ -25,8 +26,13 @@ export default function DashboardNavbar({ onToggleSidebar }: DashboardNavbarProp
   const user = session?.user;
   const isCustomerRoute = pathname.startsWith("/dashboard/customer");
   const userRole = ((user as { role?: string })?.role || (isCustomerRoute ? "customer" : "admin")).toLowerCase();
+  // The activity feed names other people's orders and accounts, so only the
+  // store team gets the bell. Customers keep a clean header.
+  const isAdminView = userRole === "admin" || userRole === "demoadmin";
   const userImage = user?.image || (user as { avatar?: string })?.avatar;
-  const displayName = user?.name || (userRole === "admin" ? "Alex Rivera" : "Valued Customer");
+  // No invented name while the session loads: the header names the role and
+  // swaps to the real account name the moment it arrives.
+  const displayName = user?.name || (isAdminView ? "Store Admin" : "Customer");
 
   const isDark = (resolvedTheme || theme) === "dark";
 
@@ -73,17 +79,11 @@ export default function DashboardNavbar({ onToggleSidebar }: DashboardNavbarProp
           </button>
         )}
 
-        {/* Notifications Bell */}
-        <button
-          aria-label="Notifications"
-          className="w-9 h-9 rounded-xl border border-[var(--border-color)] bg-[var(--surface-elevated)] flex items-center justify-center text-[var(--foreground-muted)] hover:bg-[var(--surface-alt)] hover:text-[var(--foreground)] hover:border-[var(--brand-flat)]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand-flat)]/35 transition-all relative shadow-2xs cursor-pointer"
-        >
-          <Bell className="w-4 h-4" />
-          <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[var(--brand-flat)] shadow-xs" />
-        </button>
+        {/* Notifications — the activity feed is for the store team only */}
+        {isAdminView && <NotificationBell />}
 
         {/* Cart Item Count & Dollar Total — hidden for admin/demoadmin */}
-        {userRole !== "admin" && userRole !== "demoadmin" && (
+        {!isAdminView && (
           <CartButton
             showTotal={true}
             className="px-2 py-1.5 rounded-xl hover:bg-[var(--surface-alt)] transition-colors"

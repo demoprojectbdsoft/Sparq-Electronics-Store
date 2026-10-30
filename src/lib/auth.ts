@@ -10,12 +10,67 @@ const db = client.db(process.env.DATABASE as string);
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
 const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY || "";
 
+/**
+ * Adds one line to the admin activity feed.
+ *
+ * Sign-ups and account deletions happen here in the app, not in the store API,
+ * so this writes straight into the same `activities` collection the API reads.
+ * It never throws: a notification problem must not fail a sign-up.
+ */
+const recordActivity = async (activity: {
+  type: "user" | "user_deleted";
+  title: string;
+  detail?: string;
+  ref?: string;
+}) => {
+  try {
+    await db.collection("activities").insertOne({
+      type: activity.type,
+      title: activity.title,
+      detail: activity.detail || "",
+      ref: activity.ref || "",
+      createdAt: new Date(),
+    });
+  } catch (err) {
+    console.error("[activity] Could not save activity:", (err as Error).message);
+  }
+};
+
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL, 
   database: mongodbAdapter(db, {
     client,
   }),
   plugins: [jwt()],
+  databaseHooks: {
+    user: {
+      create: {
+        // A new account, whether the customer signed up with a password or
+        // with Google.
+        after: async (user) => {
+          await recordActivity({
+            type: "user",
+            title: `New user ${user.name || user.email}`,
+            detail: user.email,
+            // The account id, so the bell opens exactly this customer instead
+            // of every address that merely contains the same text.
+            ref: user.id,
+          });
+        },
+      },
+      delete: {
+        // The customer deleted their own account from Settings. An admin
+        // deleting somebody goes through the store API instead.
+        after: async (user) => {
+          await recordActivity({
+            type: "user_deleted",
+            title: `${user.name || user.email} deleted their account`,
+            detail: user.email,
+          });
+        },
+      },
+    },
+  },
   emailAndPassword: {
     enabled: true,
     // Must match "one hour" in the email: passwordResetEmail() on the server.

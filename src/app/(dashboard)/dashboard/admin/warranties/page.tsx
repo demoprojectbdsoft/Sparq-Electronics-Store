@@ -13,6 +13,8 @@ interface AdminWarrantiesPageProps {
     sort?: string;
     page?: string;
     limit?: string;
+    // Set by a notification link, so it opens on the order that was delivered.
+    orderId?: string;
   }>;
 }
 
@@ -70,6 +72,8 @@ export default async function AdminWarrantiesPage({ searchParams }: AdminWarrant
     // "all" warranty types is the same as no warranty-type filter at all.
     warrantyType: params?.warrantyType === "all" ? undefined : params?.warrantyType,
     sort: params?.sort,
+    // A notification link narrows the list to the one order it is about.
+    orderId: params?.orderId,
   };
 
   let warranties: NormalizedAdminWarranty[] = [];

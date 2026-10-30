@@ -286,6 +286,7 @@ export interface SiteSettingsData {
 // ─── Page Specific Types (Re-exports) ─────────────────────────────────────────
 export * from "./home";
 export * from "./promo";
+export * from "./activity";
 export * from "./adminDashboard";
 export * from "./customerDashboard";
 export * from "./storeLocator";
