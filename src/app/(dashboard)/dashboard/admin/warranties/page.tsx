@@ -36,6 +36,11 @@ function normalizeWarranty(w: RawWarranty): NormalizedAdminWarranty {
     warrantyPeriodMonths:
       w?.productId?.warrantyPeriodMonths ?? w.warrantyPeriodMonths,
     warrantyTerms: w?.productId?.warrantyTerms || w.warrantyTerms,
+    // Why a closed record is closed, and every extension already granted.
+    closedReason: w.closedReason,
+    extensions: Array.isArray(w.extensions) ? w.extensions : [],
+    maxExtensions: w.maxExtensions,
+    extensionsLeft: w.extensionsLeft,
     claimProblem: w.claimProblem,
     claimReason: w.claimReason,
     claimDescription: w.claimDescription,

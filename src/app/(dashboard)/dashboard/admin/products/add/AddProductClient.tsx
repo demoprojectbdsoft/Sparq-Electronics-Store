@@ -29,6 +29,7 @@ import { Category, SubCategory } from "@/types";
 import ImageUploader from "@/components/shared/ImageUploader";
 import HeroUIDateTimePicker from "@/components/shared/HeroUIDateTimePicker";
 import { addProduct } from "@/lib/action/products";
+import { WARRANTY_TYPE_OPTIONS } from "@/lib/warranty";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 import { useDemoAdmin } from "@/hooks/useDemoAdmin";
@@ -253,6 +254,19 @@ export default function AddProductClient({
 
     if (!mainImageUrl) {
       toast.error("Please provide a main display image");
+      return;
+    }
+
+    // The warranty has to agree with itself before it reaches the API. A covering
+    // type with no period, or an "Other" type with no terms, would be stored as
+    // no warranty at all — the opposite of what the admin just chose.
+    const warrantyMonths = parseInt(formState.warrantyPeriodMonths || "0", 10) || 0;
+    if (formState.warrantyType !== "none" && warrantyMonths <= 0) {
+      toast.error("Set a warranty period of at least 1 month, or choose No Warranty.");
+      return;
+    }
+    if (formState.warrantyType === "other" && !formState.warrantyTerms.trim()) {
+      toast.error("Describe the coverage in Warranty Terms for an Other warranty.");
       return;
     }
 
@@ -650,7 +664,8 @@ export default function AddProductClient({
                   <Input
                     name="warrantyPeriodMonths"
                     type="number"
-                    min="0"
+                    min="1"
+                    max="120"
                     step="1"
                     placeholder="e.g. 12"
                     disabled={formState.warrantyType === "none"}
@@ -664,8 +679,9 @@ export default function AddProductClient({
                   />
                   <p className="text-[10px] text-[var(--foreground-muted)] mt-1">
                     When a customer buys this product and the order is delivered, a
-                    warranty record is automatically created for the number of months set
-                    here. Leave blank or 0 to disable warranty coverage for this product.
+                    warranty record is automatically created for this number of months.
+                    A period of 0 issues nothing, and <span className="font-semibold">No
+                    Warranty</span> means a claim can never be filed.
                   </p>
                 </div>
 
@@ -691,28 +707,36 @@ export default function AddProductClient({
                     </Select.Trigger>
                     <Select.Popover className="w-56 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl">
                       <ListBox>
-                        <ListBox.Item id="manufacturer-warranty" textValue="Manufacturer Warranty">
-                          Manufacturer Warranty
-                        </ListBox.Item>
-                        <ListBox.Item id="seller-warranty" textValue="Seller Warranty">
-                          Seller Warranty
-                        </ListBox.Item>
-                        <ListBox.Item id="extended-warranty" textValue="Extended Warranty">
-                          Extended Warranty
-                        </ListBox.Item>
-                        <ListBox.Item id="other" textValue="Other">
-                          Other
-                        </ListBox.Item>
-                        <ListBox.Item id="none" textValue="No Warranty">
-                          No Warranty
-                        </ListBox.Item>
+                        {/* One option per type the server accepts, taken from the
+                            shared catalog so the form and the dashboards agree. */}
+                        {WARRANTY_TYPE_OPTIONS.map((option) => (
+                          <ListBox.Item
+                            key={option.value}
+                            id={option.value}
+                            textValue={option.label}
+                          >
+                            {option.label}
+                          </ListBox.Item>
+                        ))}
                       </ListBox>
                     </Select.Popover>
                   </Select>
+                  {/* Says who carries the repair, so the choice is not a guess. */}
+                  <p className="text-[10px] text-[var(--foreground-muted)] mt-1">
+                    {
+                      WARRANTY_TYPE_OPTIONS.find((o) => o.value === formState.warrantyType)
+                        ?.customerAction
+                    }
+                  </p>
                 </div>
 
                 <div className={fieldClass}>
-                  <label className={labelClass}>Warranty Terms</label>
+                  <label className={labelClass}>
+                    Warranty Terms
+                    {formState.warrantyType === "other" && (
+                      <span className="text-rose-500"> *</span>
+                    )}
+                  </label>
                   <TextArea
                     name="warrantyTerms"
                     placeholder="e.g. Covers manufacturing defects for 12 months from delivery date..."
@@ -723,7 +747,8 @@ export default function AddProductClient({
                     rows={3}
                   />
                   <p className="text-[10px] text-[var(--foreground-muted)] mt-1">
-                    Optional. Shown to customers on the product page.
+                    Shown to customers on the product page and on the warranty record.
+                    Required when the type is <span className="font-semibold">Other warranty</span>.
                   </p>
                 </div>
               </Card.Content>

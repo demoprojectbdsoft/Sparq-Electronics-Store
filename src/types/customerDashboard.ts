@@ -107,6 +107,21 @@ export interface CustomerWarranty {
     | "under_review"
     | "info_requested"
     | "resolved";
+  /** Why the record is closed: the date ran out, a claim was rejected, or it voided. */
+  closedReason?: "date" | "rejected" | "void";
+  /** The terms copied onto the record at delivery, so they survive a product edit. */
+  warrantyType?: string;
+  warrantyPeriodMonths?: number;
+  warrantyTerms?: string;
+  /** Every extra period the store has granted, oldest first. */
+  extensions?: {
+    months: number;
+    previousExpiryDate: string | Date;
+    newExpiryDate: string | Date;
+    reason?: string;
+    extendedBy?: string;
+    createdAt?: string | Date;
+  }[];
   /** What went wrong, picked from the claim form. */
   claimProblem?: string;
   claimReason?: string;

@@ -180,7 +180,7 @@ Switching mode keeps the current filters, search and sort.
 | **Transactions** | Platform-wide payment records. |
 | **Users** | Change a user's role and account status, and see their points and membership tier. |
 | **Reviews** | View and moderate every product review. |
-| **Warranties** | Review coverage records and process claims. Status badges (icon + colour) appear in the table and in the modal, and the table shows each record's **type and duration**. Opening one shows the full coverage (type, duration, terms, dates), the claim with its reason, description and evidence photos, and every answer the customer sent after *ask for info*, plus one coloured icon button per action — under review, ask for info, resolve or reject. Every action button locks while a save is in flight, so two decisions can never race. **Email Customer** opens a composer already filled in from the claim (name, product, order, reason, description, latest reply and coverage) and sends it from the dashboard instead of handing the address to a mail app. |
+| **Warranties** | Review coverage records and process claims. Status badges (icon + colour) appear in the table and in the modal, and the table shows each record's **type and duration**. Opening one shows the full coverage (type, duration, terms, dates), the claim with its reason, description and evidence photos, and every answer the customer sent after *ask for info*, plus one coloured icon button per action — under review, ask for info, resolve or reject. Every action button locks while a save is in flight, so two decisions can never race. **Email Customer** opens a composer already filled in from the claim (name, product, order, reason, description, latest reply and coverage) and sends it from the dashboard instead of handing the address to a mail app. **Extend** adds months to the coverage with a required reason, at most three times per record, and the dialog lists every extension already granted beside an `n of 3 used` counter. |
 | **Messages** | Every message written on the contact page, filterable by delivery state and searchable by name, email or subject. Opening one shows the full text and whether the email copy reached the store inbox (and why not, in the provider's own words), with **Reply by email** and delete. Replying happens from the mailbox, because the email copy carries the visitor as the reply-to. |
 | **Settings** | Site settings and branding — see [Site Settings & Branding](#-site-settings--branding). |
 
@@ -260,13 +260,14 @@ A review holds a star rating, a written message and up to 5 images. Ratings are 
 Coverage lives on the server; the dashboard only reads and reacts to it. The [backend README](https://github.com/demoprojectbdsoft/Sparq-Server#warranty-coverage--claims) documents the full pipeline.
 
 - Coverage is created automatically when an order is delivered, one per item, using the product's warranty period, type and terms. Those three values are **copied onto the warranty record**, so the coverage still explains itself if the product is edited or deleted later. A product marked **No warranty** never creates a record.
-- Opening a warranty shows its **type**, **duration**, **terms** and activation/expiry dates, plus the days remaining.
+- Opening a warranty shows its **type**, **duration**, **terms** and activation/expiry dates, plus the days remaining. The type also says **who carries the repair** (the brand, the store, or the plan's terms), so a claim is never a blind guess.
+- The **duration is the real one**: the original promise plus every extension the store granted, shown as `18 months (+6 extended)` so a later expiry date is never unexplained. When a warranty is extended the record lists each extension, its reason and the new date.
 - While it is active the customer can file one claim: a short reason, a description and up to 5 photos. Claims filed before the form was simplified also carry a problem code, which the customer still sees on their own claim.
 - The status is always visible: *Claim Submitted*, *Under Review*, *Info Requested*, *Resolved* or *Expired*.
 - **Info Requested is not a dead end.** The same panel turns into a reply form: the reason stays filled in, the reply box starts empty, and every answer is appended to a thread the customer and the admin can both read.
-- **Resolved** shows the outcome the admin wrote, and **Expired** explains why the warranty or claim is closed.
+- **Resolved** shows the outcome the admin wrote, and **Expired** explains which of the three closings happened: the period ran out, the claim was rejected, or the order went back.
 - Cancelling or returning an order voids the coverage it created.
-- Every step is also emailed (claim, reply, decision, and the issued coverage) when the server has Resend configured.
+- Every step is also emailed (claim, reply, decision, extension, and the issued coverage) when the server has a mail transport configured.
 
 ### Pricing & slider
 
@@ -426,7 +427,7 @@ src/
 │   ├── orderInvoicePdf.ts      per-order invoice PDF
 │   ├── transactionReceiptPdf.ts per-transaction receipt PDF
 │   ├── orderStatusStyles.ts    one colour/icon palette per order status
-│   ├── warranty.ts             warranty type, duration and problem wording
+│   ├── warranty.ts             warranty catalog, duration, extension and problem wording
 │   ├── warrantyStatusStyles.ts status badge colours and icons
 │   └── currency.ts             formatting helpers
 └── types/                      shared TypeScript models

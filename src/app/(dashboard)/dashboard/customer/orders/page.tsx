@@ -59,6 +59,14 @@ function normalizeCustomerWarranty(w: any): CustomerWarranty {
     activationDate: w.activationDate,
     expiryDate: w.expiryDate,
     status: w.status,
+    // Why it is closed, when it is: date, rejected or void.
+    closedReason: w.closedReason,
+    // The terms copied onto the record at delivery.
+    warrantyType: w.warrantyType,
+    warrantyPeriodMonths: w.warrantyPeriodMonths,
+    warrantyTerms: w.warrantyTerms,
+    // Oldest first, so the dialog can read them like a timeline.
+    extensions: Array.isArray(w.extensions) ? w.extensions : [],
     claimProblem: w.claimProblem,
     claimReason: w.claimReason,
     claimDescription: w.claimDescription,

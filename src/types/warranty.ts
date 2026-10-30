@@ -1,6 +1,19 @@
 // ─── Warranty System Types ───────────────────────────────────────────────────
 
 /**
+ * One extra period an admin granted on top of the original coverage.
+ * Kept as a history so the extra months can always be explained.
+ */
+export interface WarrantyExtension {
+  months: number;
+  previousExpiryDate: string | Date;
+  newExpiryDate: string | Date;
+  reason?: string;
+  extendedBy?: string;
+  createdAt?: string | Date;
+}
+
+/**
  * Raw warranty record as returned by the server API (MongoDB lean output).
  * Optional fields exist only when a claim has been filed or when the
  * product/order references are not populated.
@@ -15,6 +28,14 @@ export interface RawWarranty {
   warrantyType?: string;
   warrantyPeriodMonths?: number;
   warrantyTerms?: string;
+  // Why a closed record is closed: the date ran out, a claim was rejected, or
+  // the goods went back. Absent on older records.
+  closedReason?: "date" | "rejected" | "void";
+  // Every extra period an admin has granted, oldest first.
+  extensions?: WarrantyExtension[];
+  // The cap and what is left of it, as the server reports them.
+  maxExtensions?: number;
+  extensionsLeft?: number;
   claimProblem?: string;
   claimReason?: string;
   claimDescription?: string;
@@ -59,6 +80,8 @@ export interface NormalizedWarranty {
   claimReplies?: { message: string; createdAt?: string | Date }[];
   claimAdminNote?: string;
   resolutionDetails?: string;
+  closedReason?: "date" | "rejected" | "void";
+  extensions?: WarrantyExtension[];
 }
 
 /**
@@ -90,5 +113,13 @@ export interface NormalizedAdminWarranty {
   claimReplies?: { message: string; createdAt?: string | Date }[];
   claimAdminNote?: string;
   resolutionDetails?: string;
+  // Why a closed record is closed, so the dialog can explain it.
+  closedReason?: "date" | "rejected" | "void";
+  // Every extension already granted on this record.
+  extensions?: WarrantyExtension[];
+  // The cap and what is left of it, sent by the API so the button can be
+  // disabled without hardcoding the number on the screen.
+  maxExtensions?: number;
+  extensionsLeft?: number;
   createdAt?: string;
 }

@@ -45,7 +45,12 @@ import OrderStatusBadge from "@/components/shared/OrderStatusBadge";
 import { formatOrderDateTime } from "@/lib/dateTime";
 import {
   claimProblemLabel,
+  closedReasonText,
+  extensionUsageText,
   formatWarrantyDuration,
+  hasWarrantyCoverage,
+  totalCoverageMonths,
+  warrantyTypeInfo,
   warrantyTypeLabel,
 } from "@/lib/warranty";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
@@ -93,9 +98,21 @@ function daysUntilExpiry(warranty: CustomerWarranty): number | null {
   return Math.ceil((end - Date.now()) / DAY_MS);
 }
 
+/** The type and period the record promised: the live product, else the copy. */
+function coverageOf(warranty: CustomerWarranty) {
+  return {
+    type: warranty.product?.warrantyType || warranty.warrantyType,
+    months:
+      warranty.product?.warrantyPeriodMonths ?? warranty.warrantyPeriodMonths,
+  };
+}
+
 /** A warranty takes a claim while active, and a reply once the store asks for info. */
 function canClaim(warranty: CustomerWarranty | null): boolean {
   if (!warranty) return false;
+  // A record with no coverage can never be claimed, whatever its status says.
+  const { type, months } = coverageOf(warranty);
+  if (!hasWarrantyCoverage(type, months)) return false;
   if (warranty.status !== "active" && warranty.status !== "info_requested") return false;
   const days = daysUntilExpiry(warranty);
   return days === null || days > 0;
@@ -173,11 +190,19 @@ function warrantyBlockReason(warranty: CustomerWarranty): string {
     case "resolved":
       return "This claim has already been resolved. The outcome is shown below.";
     case "expired":
-      return `This warranty expired on ${formatWarrantyDate(warranty.expiryDate)} and can no longer be claimed.`;
+      // Rejected and voided records also read "expired", so use the stored
+      // reason instead of always blaming the calendar.
+      return warranty.closedReason === "date" || !warranty.closedReason
+        ? `This warranty expired on ${formatWarrantyDate(warranty.expiryDate)} and can no longer be claimed.`
+        : closedReasonText(warranty);
     default: {
       const days = daysUntilExpiry(warranty);
       if (days !== null && days <= 0) {
         return `This warranty expired on ${formatWarrantyDate(warranty.expiryDate)} and can no longer be claimed.`;
+      }
+      // Active, unexpired, and still not claimable: the product promised nothing.
+      if (!hasWarrantyCoverage(coverageOf(warranty).type, coverageOf(warranty).months)) {
+        return "This item was sold without warranty coverage, so there is nothing to claim.";
       }
       return "This warranty cannot be claimed right now.";
     }
@@ -1291,13 +1316,22 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                     <WarrantyDetail
                       label="Duration"
-                      value={formatWarrantyDuration(
-                        selectedWarranty.product?.warrantyPeriodMonths
-                      )}
+                      value={`${formatWarrantyDuration(
+                        totalCoverageMonths(
+                          coverageOf(selectedWarranty).months,
+                          selectedWarranty.extensions
+                        )
+                      )}${
+                        selectedWarranty.extensions?.length
+                          ? ` (+${formatWarrantyDuration(
+                              totalCoverageMonths(0, selectedWarranty.extensions)
+                            )} extended)`
+                          : ""
+                      }`}
                     />
                     <WarrantyDetail
                       label="Type"
-                      value={warrantyTypeLabel(selectedWarranty.product?.warrantyType)}
+                      value={warrantyTypeLabel(coverageOf(selectedWarranty).type)}
                     />
                     <WarrantyDetail
                       label="Activated"
@@ -1309,6 +1343,39 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
                     />
                   </div>
 
+                  {/* Who carries the repair, in the same words the store uses
+                      internally, so the customer knows where to turn. */}
+                  <p className="text-[11px] text-[var(--foreground-muted)] leading-relaxed">
+                    <span className="font-semibold text-[var(--foreground)]">
+                      Covered by {warrantyTypeInfo(coverageOf(selectedWarranty).type).coveredBy}.
+                    </span>{" "}
+                    {warrantyTypeInfo(coverageOf(selectedWarranty).type).customerAction}
+                  </p>
+
+                  {/* Extra months the store has granted, shown so an extended
+                      date never appears without an explanation. */}
+                  {!!selectedWarranty.extensions?.length && (
+                    <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 space-y-1">
+                      <p className="text-[10px] font-bold uppercase text-emerald-800 dark:text-emerald-300">
+                        Extended by the store{" "}
+                        <span className="font-semibold normal-case">
+                          ({extensionUsageText(selectedWarranty.extensions.length)})
+                        </span>
+                      </p>
+                      {selectedWarranty.extensions.map((entry, i) => (
+                        <p
+                          key={i}
+                          className="text-[11px] text-emerald-800 dark:text-emerald-300 leading-relaxed"
+                        >
+                          +{formatWarrantyDuration(entry.months)} on{" "}
+                          {formatWarrantyDate(entry.createdAt)} — now valid until{" "}
+                          {formatWarrantyDate(entry.newExpiryDate)}
+                          {entry.reason ? `. ${entry.reason}` : "."}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="p-3 rounded-xl bg-[var(--surface-alt)] border border-[var(--border-color)] space-y-1">
                     <p className="text-[10px] font-bold uppercase text-[var(--foreground-muted)]">
                       Warranty Terms
@@ -1317,6 +1384,7 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
                         always knows what is covered before claiming. */}
                     <p className="text-[11px] leading-relaxed text-[var(--foreground-muted)] whitespace-pre-line">
                       {selectedWarranty.product?.warrantyTerms ||
+                        selectedWarranty.warrantyTerms ||
                         "Covers manufacturing defects within the warranty period. Keep your order number as proof of purchase."}
                     </p>
                   </div>

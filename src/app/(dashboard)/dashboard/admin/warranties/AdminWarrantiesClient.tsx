@@ -18,6 +18,7 @@ import {
   RotateCcw,
   Eye,
   Calendar,
+  CalendarPlus,
   ShoppingBag,
   X,
   AlertCircle,
@@ -29,14 +30,26 @@ import {
   XCircle,
   Mail,
   Send,
+  History,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { adminUpdateClaim, emailWarrantyCustomer } from "@/lib/action/warranty";
+import {
+  adminExtendWarranty,
+  adminUpdateClaim,
+  emailWarrantyCustomer,
+} from "@/lib/action/warranty";
 import ImageGalleryModal from "@/components/shared/ImageGalleryModal";
 import WarrantyStatusBadge from "@/components/shared/WarrantyStatusBadge";
 import { formatOrderDate } from "@/lib/dateTime";
 import {
+  closedReasonText,
+  extensionSlotsLeft,
+  extensionUsageText,
   formatWarrantyDuration,
+  hasWarrantyCoverage,
+  MAX_WARRANTY_EXTENSIONS,
+  totalCoverageMonths,
+  warrantyTypeInfo,
   warrantyTypeLabel,
 } from "@/lib/warranty";
 import type { NormalizedAdminWarranty } from "@/types";
@@ -179,6 +192,12 @@ export default function AdminWarrantiesClient({
   const [adminNote, setAdminNote] = useState("");
   const [resolution, setResolution] = useState("");
 
+  // Extension state. Kept apart from the claim fields above: extending the
+  // coverage is about the calendar, not about a claim decision.
+  const [extendMonths, setExtendMonths] = useState("6");
+  const [extendReason, setExtendReason] = useState("");
+  const [isExtending, setIsExtending] = useState(false);
+
   // Gallery state
   const [galleryImages, setGalleryImages] = useState<string[]>([]);
   const [galleryIndex, setGalleryIndex] = useState(0);
@@ -243,6 +262,10 @@ export default function AdminWarrantiesClient({
     setSelectedWarranty(warranty);
     setAdminNote(warranty.claimAdminNote || "");
     setResolution(warranty.resolutionDetails || "");
+    // A fresh form for every record, so an extension typed for one warranty is
+    // never accidentally sent for another.
+    setExtendMonths("6");
+    setExtendReason("");
     setIsModalOpen(true);
   };
 
@@ -293,6 +316,58 @@ export default function AdminWarrantiesClient({
     } finally {
       setIsSubmitting(false);
       setPendingAction(null);
+    }
+  };
+
+  /**
+   * Adds months to the coverage. The server counts them from whichever is later
+   * — the stored expiry date or today — so a lapsed record gains real months
+   * instead of months already in the past.
+   */
+  const handleExtend = async () => {
+    if (!selectedWarranty || isExtending) return;
+
+    const months = Number(extendMonths);
+    // The same limits the API enforces, checked here so the message is instant.
+    if (!Number.isInteger(months) || months < 1) {
+      toast.warning("Add at least one month.");
+      return;
+    }
+    if (months > 60) {
+      toast.warning("At most 60 months can be added at a time.");
+      return;
+    }
+    if (!extendReason.trim()) {
+      toast.warning("Give a reason — the customer is emailed it.");
+      return;
+    }
+
+    setIsExtending(true);
+    try {
+      const res = await adminExtendWarranty(selectedWarranty.id, {
+        months,
+        reason: extendReason.trim(),
+      });
+
+      if (res?.success !== false) {
+        toast.success(`Coverage extended by ${formatWarrantyDuration(months)}`);
+        const updated = res.data ?? res;
+
+        setWarranties((prev) =>
+          prev.map((w) => (w.id === selectedWarranty.id ? { ...w, ...updated } : w))
+        );
+        setSelectedWarranty((prev) => (prev ? { ...prev, ...updated } : null));
+
+        setExtendMonths("6");
+        setExtendReason("");
+        router.refresh();
+      } else {
+        toast.error(res?.message || "Failed to extend the warranty");
+      }
+    } catch (err) {
+      toast.error((err as Error).message || "An error occurred");
+    } finally {
+      setIsExtending(false);
     }
   };
 
@@ -357,6 +432,29 @@ export default function AdminWarrantiesClient({
           ? "This claim is closed, so no further action can be taken."
           : "";
   const canActOnClaim = claimActionBlockedReason === "";
+
+  // Extending is about the calendar, not the claim, so it has its own rules.
+  const hasCoverage = selectedWarranty
+    ? hasWarrantyCoverage(
+        selectedWarranty.warrantyType,
+        selectedWarranty.warrantyPeriodMonths
+      )
+    : false;
+  // How many extensions this record has used, and how many it may still take.
+  const usedExtensions = selectedWarranty?.extensions?.length || 0;
+  const slotsLeft = selectedWarranty
+    ? extensionSlotsLeft(selectedWarranty.extensions, selectedWarranty.extensionsLeft)
+    : 0;
+  const extendBlockedReason = !selectedWarranty
+    ? ""
+    : !hasCoverage
+      ? "This item was sold without warranty coverage, so there is nothing to extend."
+      : selectedWarranty.closedReason === "void"
+        ? "The order was cancelled or returned, so this warranty can never be extended."
+        : slotsLeft === 0
+          ? `This warranty has used all ${MAX_WARRANTY_EXTENSIONS} extensions it is allowed.`
+          : "";
+  const canExtend = extendBlockedReason === "";
 
   return (
     <div className="space-y-6">
@@ -491,6 +589,12 @@ export default function AdminWarrantiesClient({
                       <p className="font-semibold">{warrantyTypeLabel(w.warrantyType)}</p>
                       <p className="text-[10px] text-[var(--foreground-muted)]">
                         {formatWarrantyDuration(w.warrantyPeriodMonths)}
+                        {/* A quick sign that this record has been extended. */}
+                        {!!w.extensions?.length && (
+                          <span className="font-bold text-primary">
+                            {" "}· +{w.extensions.length} ext
+                          </span>
+                        )}
                       </p>
                     </td>
                     <td className="py-3 px-4">
@@ -602,7 +706,23 @@ export default function AdminWarrantiesClient({
                       </div>
                       <div>
                         <p className="text-[10px] text-[var(--foreground-muted)]">Duration</p>
-                        <p className="text-xs font-bold">{formatWarrantyDuration(selectedWarranty.warrantyPeriodMonths)}</p>
+                        <p className="text-xs font-bold">
+                          {formatWarrantyDuration(
+                            totalCoverageMonths(
+                              selectedWarranty.warrantyPeriodMonths,
+                              selectedWarranty.extensions
+                            )
+                          )}
+                          {/* The extras are named, so the longer duration is
+                              never a surprise. */}
+                          {usedExtensions > 0 && (
+                            <span className="font-semibold text-[var(--foreground-muted)]">
+                              {" "}(+{formatWarrantyDuration(
+                                totalCoverageMonths(0, selectedWarranty.extensions)
+                              )} extended)
+                            </span>
+                          )}
+                        </p>
                       </div>
                       <div>
                         <p className="text-[10px] text-[var(--foreground-muted)]">Expires</p>
@@ -612,6 +732,20 @@ export default function AdminWarrantiesClient({
                     <p className="text-[11px] leading-relaxed text-[var(--foreground-muted)] whitespace-pre-line">
                       {selectedWarranty.warrantyTerms || "No terms were saved on this record."}
                     </p>
+                    {/* Who the customer should turn to, straight from the shared
+                        catalog, so the wording matches the emails. */}
+                    <p className="text-[11px] text-[var(--foreground-muted)]">
+                      <span className="font-semibold text-[var(--foreground)]">
+                        Covered by {warrantyTypeInfo(selectedWarranty.warrantyType).coveredBy}.
+                      </span>{" "}
+                      {warrantyTypeInfo(selectedWarranty.warrantyType).customerAction}
+                    </p>
+                    {/* "Expired" hides three different stories; say which one. */}
+                    {selectedWarranty.status === "expired" && (
+                      <p className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">
+                        {closedReasonText(selectedWarranty)}
+                      </p>
+                    )}
                   </div>
 
                   {(selectedWarranty.claimReason ||
@@ -748,6 +882,98 @@ export default function AdminWarrantiesClient({
                         <p className="text-[11px] font-semibold text-[var(--foreground-muted)]">
                           {claimActionBlockedReason}
                         </p>
+                      )}
+                    </div>
+
+                    {/* Extending is deliberately separate from the four claim
+                        buttons: it changes the calendar, not the claim, and it is
+                        the only fix for a warranty that simply ran out. */}
+                    <div className="space-y-3 border-t border-[var(--border-color)] pt-4">
+                      <h4 className="text-xs font-bold flex items-center gap-2">
+                        <CalendarPlus className="w-4 h-4 text-primary" /> Extend Coverage
+                        {/* The count, so nobody has to guess how many tries are left. */}
+                        <span className="ml-auto text-[10px] font-bold uppercase tracking-wide text-[var(--foreground-muted)]">
+                          {extensionUsageText(usedExtensions)}
+                        </span>
+                      </h4>
+
+                      <div className="flex flex-wrap items-end gap-2">
+                        <div className="flex flex-col gap-1 w-28">
+                          <label className="text-[11px] font-semibold text-[var(--foreground)]">
+                            Extra months
+                          </label>
+                          <Input
+                            type="number"
+                            min="1"
+                            max="60"
+                            step="1"
+                            value={extendMonths}
+                            disabled={isExtending || !canExtend}
+                            onChange={(e) => setExtendMonths(e.target.value)}
+                            className="bg-[var(--surface-alt)]"
+                          />
+                        </div>
+                        <div className="flex flex-col gap-1 flex-1 min-w-[180px]">
+                          <label className="text-[11px] font-semibold text-[var(--foreground)]">
+                            Reason (the customer sees this)
+                          </label>
+                          <Input
+                            value={extendReason}
+                            disabled={isExtending || !canExtend}
+                            placeholder="e.g. Repair took three weeks, so we added a month"
+                            maxLength={500}
+                            onChange={(e) => setExtendReason(e.target.value)}
+                            className="bg-[var(--surface-alt)]"
+                          />
+                        </div>
+                        <Button
+                          isDisabled={isExtending || !canExtend}
+                          onPress={handleExtend}
+                          className="h-10 px-4 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-2"
+                        >
+                          {isExtending ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <CalendarPlus className="w-4 h-4" />
+                          )}
+                          Extend
+                        </Button>
+                      </div>
+
+                      {!canExtend && (
+                        <p className="text-[11px] font-semibold text-[var(--foreground-muted)]">
+                          {extendBlockedReason}
+                        </p>
+                      )}
+
+                      {/* Every extension already granted, oldest first, so the
+                          extra months can always be explained. */}
+                      {!!selectedWarranty.extensions?.length && (
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-bold uppercase text-[var(--foreground-muted)] flex items-center gap-1.5">
+                            <History className="w-3 h-3" />
+                            Extension history ({usedExtensions} of {MAX_WARRANTY_EXTENSIONS})
+                          </p>
+                          {selectedWarranty.extensions.map((entry, i) => (
+                            <div
+                              key={i}
+                              className="p-2.5 rounded-xl bg-[var(--surface-elevated)] border border-[var(--border-color)]"
+                            >
+                              <p className="text-[11px] font-bold">
+                                +{formatWarrantyDuration(entry.months)} — {formatOrderDate(entry.previousExpiryDate)} → {formatOrderDate(entry.newExpiryDate)}
+                              </p>
+                              {entry.reason && (
+                                <p className="text-[11px] leading-relaxed mt-1 whitespace-pre-line">
+                                  {entry.reason}
+                                </p>
+                              )}
+                              <p className="text-[10px] text-[var(--foreground-muted)] mt-1">
+                                {entry.extendedBy ? `${entry.extendedBy} · ` : ""}
+                                {formatOrderDate(entry.createdAt)}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
                       )}
                     </div>
                   </div>

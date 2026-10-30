@@ -39,6 +39,7 @@ import ImageUploader from "@/components/shared/ImageUploader";
 import HeroUIDateTimePicker from "@/components/shared/HeroUIDateTimePicker";
 import { Product, Category, SubCategory } from "@/types";
 import { updateProduct, deleteProduct } from "@/lib/action/products";
+import { WARRANTY_TYPE_OPTIONS } from "@/lib/warranty";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 const AVAILABLE_BADGES = [
@@ -294,6 +295,19 @@ export default function ProductsClient({
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingProductId) return;
+
+    // The warranty has to agree with itself before it reaches the API. A covering
+    // type with no period, or an "Other" type with no terms, would be stored as
+    // no warranty at all — the opposite of what the admin just chose.
+    const editWarrantyMonths = parseInt(editForm.warrantyPeriodMonths || "0", 10) || 0;
+    if (editForm.warrantyType !== "none" && editWarrantyMonths <= 0) {
+      toast.error("Set a warranty period of at least 1 month, or choose No Warranty.");
+      return;
+    }
+    if (editForm.warrantyType === "other" && !editForm.warrantyTerms.trim()) {
+      toast.error("Describe the coverage in Warranty Terms for an Other warranty.");
+      return;
+    }
 
     setIsUpdating(true);
 
@@ -1138,7 +1152,8 @@ export default function ProductsClient({
                     </label>
                     <Input
                       type="number"
-                      min="0"
+                      min="1"
+                      max="120"
                       step="1"
                       placeholder="e.g. 12"
                       disabled={editForm.warrantyType === "none"}
@@ -1153,8 +1168,10 @@ export default function ProductsClient({
                     />
                     <p className="text-[10px] text-[var(--foreground-muted)] mt-1">
                       When a customer buys this product and the order is delivered, a
-                      warranty record is automatically created for the number of months set
-                      here. Leave blank or 0 to disable warranty coverage.
+                      warranty record is automatically created for this number of months.
+                      A period of 0 issues nothing, and <span className="font-semibold">No
+                      Warranty</span> means a claim can never be filed. Editing this only
+                      affects future deliveries.
                     </p>
                   </div>
 
@@ -1182,14 +1199,27 @@ export default function ProductsClient({
                       </Select.Trigger>
                       <Select.Popover className="w-56 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl">
                         <ListBox>
-                          <ListBox.Item id="manufacturer-warranty" textValue="Manufacturer Warranty">Manufacturer Warranty</ListBox.Item>
-                          <ListBox.Item id="seller-warranty" textValue="Seller Warranty">Seller Warranty</ListBox.Item>
-                          <ListBox.Item id="extended-warranty" textValue="Extended Warranty">Extended Warranty</ListBox.Item>
-                          <ListBox.Item id="other" textValue="Other">Other</ListBox.Item>
-                          <ListBox.Item id="none" textValue="No Warranty">No Warranty</ListBox.Item>
+                          {/* One option per type the server accepts, taken from the
+                              shared catalog so the form and the dashboards agree. */}
+                          {WARRANTY_TYPE_OPTIONS.map((option) => (
+                            <ListBox.Item
+                              key={option.value}
+                              id={option.value}
+                              textValue={option.label}
+                            >
+                              {option.label}
+                            </ListBox.Item>
+                          ))}
                         </ListBox>
                       </Select.Popover>
                     </Select>
+                    {/* Says who carries the repair, so the choice is not a guess. */}
+                    <p className="text-[10px] text-[var(--foreground-muted)] mt-1">
+                      {
+                        WARRANTY_TYPE_OPTIONS.find((o) => o.value === editForm.warrantyType)
+                          ?.customerAction
+                      }
+                    </p>
                   </div>
 
                   <div className="pt-2">
@@ -1206,7 +1236,8 @@ export default function ProductsClient({
                       className="w-full rounded-xl bg-[var(--surface-alt)] dark:bg-[var(--surface)] text-xs border border-[var(--border-color)] px-3 py-2 resize-none outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition"
                     />
                     <p className="text-[10px] text-[var(--foreground-muted)] mt-1">
-                      Optional. Shown to customers on the product page.
+                      Shown to customers on the product page and on the warranty record.
+                      Required when the type is <span className="font-semibold">Other warranty</span>.
                     </p>
                   </div>
 

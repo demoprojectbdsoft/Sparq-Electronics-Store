@@ -43,6 +43,21 @@ export const adminUpdateClaim = async (
 };
 
 /**
+ * Admin: add months to a warranty's coverage. The reason is required, because
+ * the customer is emailed it and the record keeps it forever.
+ */
+export const adminExtendWarranty = async (
+  warrantyId: string,
+  data: { months: number; reason: string }
+) => {
+  const user = await getUserSession();
+  if (!isAdminRole(user)) {
+    return { success: false, message: "Admin access required." };
+  }
+  return serverMutation(`/warranties/${warrantyId}/extend`, data, "PATCH");
+};
+
+/**
  * Admin: email the customer about one warranty. Only the subject and message are
  * sent; the server reads the address from the warranty record itself.
  */
