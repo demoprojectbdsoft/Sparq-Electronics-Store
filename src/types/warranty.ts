@@ -19,6 +19,8 @@ export interface RawWarranty {
   claimReason?: string;
   claimDescription?: string;
   claimImages?: string[];
+  // Follow-up answers the customer sent after the store asked for more info.
+  claimReplies?: { message: string; createdAt?: string | Date }[];
   claimAdminNote?: string;
   resolutionDetails?: string;
   createdAt?: string;
@@ -54,6 +56,7 @@ export interface NormalizedWarranty {
   claimReason?: string;
   claimDescription?: string;
   claimImages?: string[];
+  claimReplies?: { message: string; createdAt?: string | Date }[];
   claimAdminNote?: string;
   resolutionDetails?: string;
 }
@@ -84,6 +87,7 @@ export interface NormalizedAdminWarranty {
   claimReason?: string;
   claimDescription?: string;
   claimImages?: string[];
+  claimReplies?: { message: string; createdAt?: string | Date }[];
   claimAdminNote?: string;
   resolutionDetails?: string;
   createdAt?: string;

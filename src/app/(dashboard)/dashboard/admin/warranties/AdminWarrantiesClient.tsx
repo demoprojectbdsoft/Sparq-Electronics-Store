@@ -541,6 +541,27 @@ export default function AdminWarrantiesClient({
                           <p className="text-[10px] font-bold uppercase text-amber-600/60 dark:text-amber-400/60">Description</p>
                           <p className="text-xs leading-relaxed mt-1">{selectedWarranty.claimDescription}</p>
                         </div>
+                        {/* Answers the customer sent after "Ask For More Info". */}
+                        {!!selectedWarranty.claimReplies?.length && (
+                          <div className="space-y-2">
+                            <p className="text-[10px] font-bold uppercase text-amber-600/60 dark:text-amber-400/60">
+                              Customer Replies ({selectedWarranty.claimReplies.length})
+                            </p>
+                            {selectedWarranty.claimReplies.map((reply, i) => (
+                              <div
+                                key={i}
+                                className="p-2.5 rounded-xl bg-[var(--surface-elevated)] border border-amber-500/20"
+                              >
+                                <p className="text-[10px] font-semibold text-[var(--foreground-muted)]">
+                                  {formatOrderDate(reply.createdAt)}
+                                </p>
+                                <p className="text-xs leading-relaxed mt-0.5 whitespace-pre-line">
+                                  {reply.message}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                         {selectedWarranty.claimImages && selectedWarranty.claimImages.length > 0 && (
                           <div>
                             <p className="text-[10px] font-bold uppercase text-amber-600/60 dark:text-amber-400/60 mb-2">Images ({selectedWarranty.claimImages.length})</p>

@@ -112,6 +112,8 @@ export interface CustomerWarranty {
   claimReason?: string;
   claimDescription?: string;
   claimImages?: string[];
+  /** Answers the customer sent after the store asked for more information. */
+  claimReplies?: { message: string; createdAt?: string | Date }[];
   claimAdminNote?: string;
   resolutionDetails?: string;
   product?: {

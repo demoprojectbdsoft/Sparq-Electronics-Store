@@ -40,6 +40,7 @@ function normalizeWarranty(w: RawWarranty): NormalizedAdminWarranty {
     claimReason: w.claimReason,
     claimDescription: w.claimDescription,
     claimImages: w.claimImages,
+    claimReplies: w.claimReplies,
     claimAdminNote: w.claimAdminNote,
     resolutionDetails: w.resolutionDetails,
     createdAt: w.createdAt,
