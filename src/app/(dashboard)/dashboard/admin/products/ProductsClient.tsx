@@ -40,6 +40,7 @@ import HeroUIDateTimePicker from "@/components/shared/HeroUIDateTimePicker";
 import { Product, Category, SubCategory } from "@/types";
 import { updateProduct, deleteProduct } from "@/lib/action/products";
 import { WARRANTY_TYPE_OPTIONS } from "@/lib/warranty";
+import { hasOfferDiscount } from "@/lib/offer";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
 const AVAILABLE_BADGES = [
@@ -273,6 +274,10 @@ export default function ProductsClient({
     return !isNaN(qty) && qty > 0;
   }, [editForm.stockQuantity]);
 
+  // A countdown is only offered when the original price is actually higher than
+  // the selling price. Equal prices would run a timer for a deal nobody gets.
+  const hasEditDiscount = hasOfferDiscount(editForm.price, editForm.originalPrice);
+
   // Auto calculate discount on price or original price change during update
   const handleEditPriceChange = (newPrice: string, newOriginalPrice: string) => {
     const price = parseFloat(newPrice);
@@ -340,7 +345,10 @@ export default function ProductsClient({
         : undefined,
       warrantyType: editForm.warrantyType,
       warrantyTerms: editForm.warrantyTerms || undefined,
-      offerEndDate: editForm.offerEndDate ? new Date(editForm.offerEndDate).toISOString() : undefined,
+      offerEndDate:
+        hasEditDiscount && editForm.offerEndDate
+          ? new Date(editForm.offerEndDate).toISOString()
+          : undefined,
       specifications: specObj,
     };
 
@@ -1241,18 +1249,25 @@ export default function ProductsClient({
                     </p>
                   </div>
 
-                  {/* Deal Countdown End Date Picker */}
-                  <HeroUIDateTimePicker
-                    label="Special Deal Countdown End Date & Time"
-                    value={editForm.offerEndDate}
-                    onChange={(isoString) =>
-                      setEditForm((prev) => ({
-                        ...prev,
-                        offerEndDate: isoString,
-                      }))
-                    }
-                    helperText="When the countdown timer finishes, the product deal price automatically resets to original price across the entire store."
-                  />
+                  {/* Deal Countdown End Date Picker — only for a real discount */}
+                  {hasEditDiscount ? (
+                    <HeroUIDateTimePicker
+                      label="Special Deal Countdown End Date & Time"
+                      value={editForm.offerEndDate}
+                      onChange={(isoString) =>
+                        setEditForm((prev) => ({
+                          ...prev,
+                          offerEndDate: isoString,
+                        }))
+                      }
+                      helperText="When the countdown timer finishes, the product deal price automatically resets to original price across the entire store."
+                    />
+                  ) : (
+                    <p className="text-[11px] text-[var(--foreground-muted)] bg-[var(--surface-alt)] border border-[var(--border-color)] rounded-xl px-3 py-2">
+                      Set an original price higher than the selling price to run a deal
+                      countdown. With both prices the same there is no offer to count down.
+                    </p>
+                  )}
                 </div>
 
                 {/* 3. Media Upload */}

@@ -44,6 +44,7 @@ import ProductNotFound from "./ProductNotFound";
 import { addReview, editReview } from "@/lib/action/reviews";
 import { addToCart, isCarted as checkIsCartedAction } from "@/lib/action/cart";
 import { COMPARE_LIMIT, useCompare } from "@/lib/compare";
+import { hasOfferDiscount } from "@/lib/offer";
 import {
   addToWishlist,
   removeFromWishlist,
@@ -138,7 +139,11 @@ export default function ProductDetailsPage({
     return () => clearInterval(id);
   }, [offerTarget]);
 
-  const showCountdown = offerTarget !== null && !countdown.ended;
+  // A deal only runs while the selling price is lower than the original price.
+  // Equal prices mean no offer, so the timer and the old price stay hidden.
+  const hasDiscount = hasOfferDiscount(product?.price, product?.originalPrice);
+
+  const showCountdown = offerTarget !== null && !countdown.ended && hasDiscount;
 
   // Early return after all hooks
   if (!product) {
@@ -838,7 +843,7 @@ export default function ProductDetailsPage({
                   <span className="text-3xl font-black text-[var(--foreground)]">
                     {formattedPrice}
                   </span>
-                  {formattedOriginalPrice && !countdown.ended && (
+                  {formattedOriginalPrice && hasDiscount && !countdown.ended && (
                     <span className="text-sm text-slate-400 line-through">
                       {formattedOriginalPrice}
                     </span>

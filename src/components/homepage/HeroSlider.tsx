@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, ShoppingCart, Sparkles } from "lucide-react";
 import { SlideItem } from "@/types";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
+import { hasOfferDiscount } from "@/lib/offer";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 export interface SlideData {
@@ -18,6 +19,8 @@ export interface SlideData {
   image: string;
   href: string;
   targetDate: Date;
+  /** False when the slide has no real discount, so no countdown is shown. */
+  hasDiscount: boolean;
 }
 
 // Fallback image used when slide image fails to load
@@ -89,6 +92,10 @@ export default function HeroSlider({ initialSlides = [] }: HeroSliderProps) {
 
       const displayName = s.productName || s.title || s.tabTitle || `OFFER ${idx + 1}`;
 
+      // A slide whose prices match has no offer running, so it shows neither a
+      // struck-through old price nor a countdown.
+      const hasDiscount = hasOfferDiscount(s.price, s.originalPrice);
+
       return {
         id: s.id || s._id || `slide-${idx}`,
         tabTitle: displayName,
@@ -100,6 +107,7 @@ export default function HeroSlider({ initialSlides = [] }: HeroSliderProps) {
         image: s.image || FALLBACK_IMAGE,
         href: s.href || "/shop",
         targetDate: validTarget,
+        hasDiscount,
       };
     });
   }, [initialSlides]);
@@ -216,16 +224,18 @@ export default function HeroSlider({ initialSlides = [] }: HeroSliderProps) {
 
             <div className="flex items-baseline justify-center md:justify-start gap-2">
               <span className="text-3xl font-normal text-red-500 dark:text-red-400">{slide.price}</span>
-              {slide.originalPrice && !countdownEnded && (
+              {slide.originalPrice && slide.hasDiscount && !countdownEnded && (
                 <span className="text-sm text-[var(--foreground-muted)] line-through">{slide.originalPrice}</span>
               )}
             </div>
 
-            <div className="flex items-center justify-center md:justify-start gap-2 pt-1">
-              <CountdownBox value={hours} label="HOURS" />
-              <CountdownBox value={minutes} label="MINS" />
-              <CountdownBox value={seconds} label="SECS" />
-            </div>
+            {slide.hasDiscount && (
+              <div className="flex items-center justify-center md:justify-start gap-2 pt-1">
+                <CountdownBox value={hours} label="HOURS" />
+                <CountdownBox value={minutes} label="MINS" />
+                <CountdownBox value={seconds} label="SECS" />
+              </div>
+            )}
 
             <div className="pt-1">
               <Link

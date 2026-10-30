@@ -272,6 +272,7 @@ Coverage lives on the server; the dashboard only reads and reacts to it. The [ba
 ### Pricing & slider
 
 - Slides reference a real product; price, image and discount are read live.
+- A countdown only appears while the selling price is below the original price. When the seller leaves both prices the same there is no deal running, so the timer and the struck-through old price stay hidden on the product card, the product page and the home slider. The three date pickers (add product, edit product, hero slide) hide themselves too and explain why.
 - Once a slide's countdown ends, the product's discount reverts to 0 and its price reverts to the original.
 
 ---

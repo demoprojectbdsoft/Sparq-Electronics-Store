@@ -30,6 +30,7 @@ import ImageUploader from "@/components/shared/ImageUploader";
 import HeroUIDateTimePicker from "@/components/shared/HeroUIDateTimePicker";
 import { addProduct } from "@/lib/action/products";
 import { WARRANTY_TYPE_OPTIONS } from "@/lib/warranty";
+import { hasOfferDiscount } from "@/lib/offer";
 import { toast } from "react-toastify";
 import { useRouter } from "next/navigation";
 import { useDemoAdmin } from "@/hooks/useDemoAdmin";
@@ -175,6 +176,10 @@ export default function AddProductClient({
     return !isNaN(qty) && qty > 0;
   }, [formState.stockQuantity]);
 
+  // A countdown is only offered when the original price is actually higher than
+  // the selling price. Equal prices would run a timer for a deal nobody gets.
+  const hasDiscount = hasOfferDiscount(formState.price, formState.originalPrice);
+
   function handleStockQuantityChange(val: string) {
     const qty = parseInt(val, 10);
     const isPositive = !isNaN(qty) && qty > 0;
@@ -301,7 +306,10 @@ export default function AddProductClient({
         : undefined,
       warrantyType: formState.warrantyType,
       warrantyTerms: formState.warrantyTerms || undefined,
-      offerEndDate: formState.offerEndDate ? new Date(formState.offerEndDate).toISOString() : undefined,
+      offerEndDate:
+        hasDiscount && formState.offerEndDate
+          ? new Date(formState.offerEndDate).toISOString()
+          : undefined,
     };
 
     try {
@@ -857,18 +865,25 @@ export default function AddProductClient({
                   />
                 </div>
 
-                {/* ── Countdown / Special Deal End Date ── */}
-                <HeroUIDateTimePicker
-                  label="Deal Countdown End Date & Time"
-                  value={formState.offerEndDate}
-                  onChange={(isoString) =>
-                    setFormState((prev) => ({
-                      ...prev,
-                      offerEndDate: isoString,
-                    }))
-                  }
-                  helperText="When the countdown timer finishes, the product price will automatically reset to original price."
-                />
+                {/* ── Countdown / Special Deal End Date, only for a real discount ── */}
+                {hasDiscount ? (
+                  <HeroUIDateTimePicker
+                    label="Deal Countdown End Date & Time"
+                    value={formState.offerEndDate}
+                    onChange={(isoString) =>
+                      setFormState((prev) => ({
+                        ...prev,
+                        offerEndDate: isoString,
+                      }))
+                    }
+                    helperText="When the countdown timer finishes, the product price will automatically reset to original price."
+                  />
+                ) : (
+                  <p className="text-[11px] text-[var(--foreground-muted)] bg-[var(--surface-alt)] border border-[var(--border-color)] rounded-xl px-3 py-2">
+                    Set an original price higher than the selling price to run a deal
+                    countdown. With both prices the same there is no offer to count down.
+                  </p>
+                )}
               </Card.Content>
             </Card>
 

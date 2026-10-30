@@ -34,6 +34,7 @@ import {
 import { toast } from "react-toastify";
 import { Product, SlideItem } from "@/types";
 import { addSlide, updateSlide, deleteSlide } from "@/lib/action/slides";
+import { hasOfferDiscount } from "@/lib/offer";
 import HeroUIDateTimePicker from "@/components/shared/HeroUIDateTimePicker";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
@@ -150,6 +151,13 @@ export default function HomeSliderClient({
     ) || null;
   }, [formData.productId, products]);
 
+  // The slide shows the linked product's prices, so a countdown only makes sense
+  // when that product actually has a lower selling price than its original one.
+  const hasProductDiscount = hasOfferDiscount(
+    selectedProduct?.price,
+    selectedProduct?.originalPrice
+  );
+
   // Filtered Slides
   const filteredSlides = useMemo(() => {
     return slides.filter((slide) => {
@@ -239,7 +247,10 @@ export default function HomeSliderClient({
         tabTitle: formData.tabTitle.trim(),
         subtitle: formData.subtitle.trim(),
         tagline: formData.tagline.trim(),
-        targetDate: formData.targetDate ? new Date(formData.targetDate).toISOString() : undefined,
+        targetDate:
+          hasProductDiscount && formData.targetDate
+            ? new Date(formData.targetDate).toISOString()
+            : undefined,
         order: Number(formData.order) || 0,
         isActive: formData.isActive,
       };
@@ -753,7 +764,7 @@ export default function HomeSliderClient({
                             <span className="font-bold text-red-500">
                               {formatPrice(Number(selectedProduct.price || 0))}
                             </span>
-                            {selectedProduct.originalPrice && (
+                            {selectedProduct.originalPrice && hasProductDiscount && (
                               <span className="ml-1.5 text-[10px] text-[var(--foreground-muted)] line-through">
                                 {formatPrice(Number(selectedProduct.originalPrice))}
                               </span>
@@ -765,17 +776,25 @@ export default function HomeSliderClient({
                   )}
 
                   {/* ── Countdown End Date (Updates real product & slide) ── */}
-                  <HeroUIDateTimePicker
-                    label="Countdown End Date & Time"
-                    value={formData.targetDate}
-                    onChange={(isoString) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        targetDate: isoString,
-                      }))
-                    }
-                    helperText="⚡ Setting this countdown updates the real product deal timer across the entire website."
-                  />
+                  {hasProductDiscount ? (
+                    <HeroUIDateTimePicker
+                      label="Countdown End Date & Time"
+                      value={formData.targetDate}
+                      onChange={(isoString) =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          targetDate: isoString,
+                        }))
+                      }
+                      helperText="⚡ Setting this countdown updates the real product deal timer across the entire website."
+                    />
+                  ) : (
+                    <p className="text-[11px] text-[var(--foreground-muted)] bg-[var(--surface-alt)] border border-[var(--border-color)] rounded-xl px-3 py-2">
+                      {selectedProduct
+                        ? "This product has no discount, so the slide shows no countdown. Set an original price higher than the selling price on the product to run a deal."
+                        : "Pick a product first. A countdown appears only when the product sells for less than its original price."}
+                    </p>
+                  )}
 
                   {/* Tab Title & Subtitle */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

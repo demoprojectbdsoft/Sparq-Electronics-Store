@@ -17,6 +17,7 @@ import {
 } from "@/lib/action/wishlist";
 import { getReviewsByProductId } from "@/lib/api/reviews";
 import { COMPARE_LIMIT, useCompare } from "@/lib/compare";
+import { hasOfferDiscount } from "@/lib/offer";
 import { Product } from "@/types";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 
@@ -124,6 +125,10 @@ export default function ProductCard({
   const isSuspended = ((user as { status?: string })?.status || "").toLowerCase() === "suspended";
   const isOutOfStock = product.inStock === false || (product.stockQuantity !== undefined && product.stockQuantity <= 0);
 
+  // A deal needs a lower selling price than the original price. Without that
+  // gap there is no offer, so the card shows neither a timer nor an old price.
+  const hasDiscount = hasOfferDiscount(product.price, product.originalPrice);
+
   // ── Deal Countdown ───────────────────────────────────────────────────────
   const offerTarget = useMemo(() => {
     if (!product?.offerEndDate) return null;
@@ -154,7 +159,7 @@ export default function ProductCard({
     return () => clearInterval(id);
   }, [offerTarget]);
 
-  const showDealBadge = offerTarget !== null && dealTime.active;
+  const showDealBadge = offerTarget !== null && dealTime.active && hasDiscount;
 
   // ── Fetch Live Reviews, Wishlist & Cart Status ─────────────────────────────
   // 1. Queries latest reviews to calculate dynamic average rating & review count.
@@ -524,7 +529,7 @@ export default function ProductCard({
       {/* Bottom Footer: Price & Add To Cart */}
       <div className="flex items-end justify-between pt-1.5 sm:pt-2 border-t border-[var(--border-color)]">
         <div className="flex flex-col">
-          {formattedOriginalPrice ? (
+          {formattedOriginalPrice && hasDiscount ? (
             <div className="flex flex-col">
               <span className="text-[10px] sm:text-[11px] text-[var(--foreground-muted)] line-through leading-none pb-0.5">
                 {formattedOriginalPrice}
