@@ -691,7 +691,14 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
               }}
             >
               <Select.Trigger className="h-10 w-full px-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] text-xs font-semibold text-[var(--foreground)] flex items-center justify-between gap-1.5 cursor-pointer hover:border-primary transition-colors shadow-xs [&>span]:text-xs [&>span]:font-semibold">
-                <Select.Value className="text-xs font-semibold truncate" />
+                {/* Only the tab's name goes in the trigger. The dropdown rows also
+                    carry a count badge, and without this render prop that badge
+                    was printed under the label inside the closed select. */}
+                <Select.Value className="text-xs font-semibold truncate">
+                  {({ selectedText }) => (
+                    <span className="truncate">{selectedText}</span>
+                  )}
+                </Select.Value>
                 <Select.Indicator className="[&>svg]:w-3.5 [&>svg]:h-3.5 text-[var(--foreground-muted)] shrink-0" />
               </Select.Trigger>
               <Select.Popover className="w-56 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl z-50">
@@ -736,7 +743,11 @@ export default function CustomerOrdersClient({ initialOrders = [] }: CustomerOrd
               }}
             >
               <Select.Trigger className="h-10 w-full px-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] text-xs font-semibold text-[var(--foreground)] flex items-center justify-between gap-1.5 cursor-pointer hover:border-primary transition-colors shadow-xs [&>span]:text-xs [&>span]:font-semibold">
-                <Select.Value className="text-xs font-semibold truncate" />
+                <Select.Value className="text-xs font-semibold truncate">
+                  {({ selectedText }) => (
+                    <span className="truncate">{selectedText}</span>
+                  )}
+                </Select.Value>
                 <Select.Indicator className="[&>svg]:w-3.5 [&>svg]:h-3.5 text-[var(--foreground-muted)] shrink-0" />
               </Select.Trigger>
               <Select.Popover className="w-52 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl z-50">
