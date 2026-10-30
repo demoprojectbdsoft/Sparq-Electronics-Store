@@ -469,7 +469,7 @@ NEXT_PUBLIC_IMGBB_API_KEY=your_imgbb_api_key
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | For Google login | OAuth credentials. |
 | `NEXT_PUBLIC_IMGBB_API_KEY` | For uploads | Hosts product images, review photos and claim images. |
 
-> ✉️ Email is sent by the API, not this app: claims, claim updates, issued coverage and contact-page messages all go out through Resend. Set `RESEND_API_KEY` and `MAIL_FROM` in the **server** environment (see the [backend README](https://github.com/demoprojectbdsoft/Sparq-Server#environment-variables)) — the store name and both inboxes are read from **Site Settings → Contact & Socials** (`siteName`, `supportEmail`, `contactEmail`). Without the key and sender the app still works: the contact form simply reports that the message could not be sent.
+> ✉️ Email is sent by the API, not this app: claims, claim updates, issued coverage and contact-page messages all go out through the **server's** mailer — either Resend (`RESEND_API_KEY` + a verified sender in `MAIL_FROM`) or your own mailbox over SMTP (`SMTP_USER` + `SMTP_PASS`, which needs no domain). See the [backend README](https://github.com/demoprojectbdsoft/Sparq-Server#environment-variables) — the store name and both inboxes are read from **Site Settings → Contact & Socials** (`siteName`, `supportEmail`, `contactEmail`). Without a configured sender the app still works: the contact form simply reports that the message could not be sent.
 
 > ⚠️ Never commit `.env.local`. `NEXT_PUBLIC_*` values are baked in at build time — rebuild after changing one.
 
