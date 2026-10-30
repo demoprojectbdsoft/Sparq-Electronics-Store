@@ -291,6 +291,15 @@ One page, split into tabs, controlling how the whole store looks and behaves. Ch
 | **Contact & Socials** | Support phone, email, address and social links used in the footer and mobile navigation, plus **opening hours** (one day per line) and every line of the **About page**: headline, intro, headquarters note, opening-hours note and call-to-action. Leave a field empty to keep the built-in text. |
 | **System & Security** | Store currency, timezone, footer copyright, the default shop browse mode, and **maintenance mode**. |
 
+**The emails follow the same settings.** The API builds every message from this page, so there is nothing to keep in sync by hand:
+
+- `colorPalette.primary` becomes the rule at the top of the card and every button; `primaryDark` colours the heading and `accent` draws the thin rule under it.
+- `colorPalette.surface` is the page behind the white card, and the uploaded **logo** sits above the heading.
+- `typography.primaryFont` starts the font stack, which ends in Helvetica/Arial because web fonts do not load in a mailbox.
+- `supportEmail` and `supportPhone` appear in the footer, and the shop address builds the button that opens the customer's orders.
+
+A change takes effect on the next message, with no redeploy, and the built-in defaults are used whenever a field is still empty.
+
 ---
 
 ## 🔧 Maintenance Mode
