@@ -127,6 +127,19 @@ export function formatWarrantyDuration(months?: number): string {
 export const MAX_WARRANTY_EXTENSIONS = 3;
 
 /**
+ * The only type an admin may lengthen. An Extended warranty exists to run past
+ * the manufacturer's own period, so it is the one kind that can be topped up;
+ * a manufacturer or seller warranty covers exactly the period it was sold with.
+ * Mirrors `EXTENDABLE_WARRANTY_TYPE` in `warranty.types.ts` on the server.
+ */
+export const EXTENDABLE_WARRANTY_TYPE: WarrantyTypeValue = "extended-warranty";
+
+/** True when an admin may add months to a record of this type. */
+export function isExtendableWarrantyType(type?: string | null): boolean {
+  return type === EXTENDABLE_WARRANTY_TYPE;
+}
+
+/**
  * How many extension slots a record has left. The API sends `extensionsLeft`,
  * but older responses and the customer pages do not, so this is the fallback.
  */

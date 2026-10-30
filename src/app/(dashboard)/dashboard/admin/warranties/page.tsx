@@ -31,9 +31,11 @@ function normalizeWarranty(w: RawWarranty): NormalizedAdminWarranty {
     activationDate: w.activationDate,
     expiryDate: w.expiryDate,
     status: w.status as NormalizedAdminWarranty["status"],
-    // Live product terms first, then the copy saved on the warranty record when
-    // the product has been edited or deleted.
-    warrantyType: w?.productId?.warrantyType || w.warrantyType,
+    // The type saved on the record wins, because that is the cover the order was
+    // actually sold with: the server filters and extends by this same field, and
+    // only an extended-warranty record may take extra months. The live product is
+    // only a fallback for older records that never stored a copy.
+    warrantyType: w.warrantyType || w?.productId?.warrantyType,
     warrantyPeriodMonths:
       w?.productId?.warrantyPeriodMonths ?? w.warrantyPeriodMonths,
     warrantyTerms: w?.productId?.warrantyTerms || w.warrantyTerms,

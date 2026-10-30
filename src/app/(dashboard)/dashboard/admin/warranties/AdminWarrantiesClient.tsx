@@ -47,6 +47,7 @@ import {
   extensionUsageText,
   formatWarrantyDuration,
   hasWarrantyCoverage,
+  isExtendableWarrantyType,
   MAX_WARRANTY_EXTENSIONS,
   totalCoverageMonths,
   WARRANTY_TYPE_OPTIONS,
@@ -475,6 +476,9 @@ export default function AdminWarrantiesClient({
         selectedWarranty.warrantyPeriodMonths
       )
     : false;
+  // Only an Extended warranty may be lengthened: the other types cover exactly
+  // the period they were sold with. The server refuses the same thing.
+  const extendableType = isExtendableWarrantyType(selectedWarranty?.warrantyType);
   // How many extensions this record has used, and how many it may still take.
   const usedExtensions = selectedWarranty?.extensions?.length || 0;
   const slotsLeft = selectedWarranty
@@ -484,17 +488,19 @@ export default function AdminWarrantiesClient({
     ? ""
     : !hasCoverage
       ? "This item was sold without warranty coverage, so there is nothing to extend."
-      : selectedWarranty.closedReason === "void"
-        ? "The order was cancelled or returned, so this warranty can never be extended."
-        : slotsLeft === 0
-          ? `This warranty has used all ${MAX_WARRANTY_EXTENSIONS} extensions it is allowed.`
-          : "";
+      : !extendableType
+        ? "Only an Extended warranty can be extended. This coverage runs for the period it was sold with."
+        : selectedWarranty.closedReason === "void"
+          ? "The order was cancelled or returned, so this warranty can never be extended."
+          : slotsLeft === 0
+            ? `This warranty has used all ${MAX_WARRANTY_EXTENSIONS} extensions it is allowed.`
+            : "";
   const canExtend = extendBlockedReason === "";
-  // The form is only worth showing while another extension is possible. A record
-  // that used all its slots keeps just the history, and one with nothing to
-  // extend at all (sold without coverage, or a returned order) drops the section.
+  // The form is only worth showing while another extension is possible, so a
+  // record that used all its slots keeps just the history. Anything that is not
+  // an Extended warranty hides the section completely.
   const showExtensionHistory = !!selectedWarranty?.extensions?.length;
-  const showExtendSection = canExtend || showExtensionHistory;
+  const showExtendSection = canExtend || (extendableType && showExtensionHistory);
 
   return (
     <div className="space-y-6">
@@ -969,9 +975,10 @@ export default function AdminWarrantiesClient({
                         buttons: it changes the calendar, not the claim, and it is
                         the only fix for a warranty that simply ran out.
 
-                        The section is only rendered when there is something to
-                        show: the form while a slot is free, the history alone
-                        once they are all used. */}
+                        It is also a feature of the Extended warranty alone, so a
+                        manufacturer, seller or "other" record never sees this
+                        section. Inside it, the form appears while a slot is free
+                        and the history stays once they are all used. */}
                     {showExtendSection && (
                       <div className="space-y-3 border-t border-[var(--border-color)] pt-4">
                         <h4 className="text-xs font-bold flex items-center gap-2">
