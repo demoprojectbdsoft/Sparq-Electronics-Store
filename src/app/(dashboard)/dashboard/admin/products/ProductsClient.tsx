@@ -33,6 +33,7 @@ import {
   ArrowUpDown,
   RotateCcw,
   Shield,
+  Info,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import ImageUploader from "@/components/shared/ImageUploader";
@@ -1042,7 +1043,9 @@ export default function ProductsClient({
                     Pricing & Inventory
                   </h3>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
+                  {/* Three fields per row: five fields in one row forced the
+                      labels to wrap and pushed every input out of line. */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     <div>
                       <label className="text-xs font-bold text-[var(--foreground)] block mb-1">
                         Price ({currencySymbol}) *
@@ -1117,7 +1120,7 @@ export default function ProductsClient({
                       <Input
                         type="number"
                         min="0"
-                        placeholder="Leave blank to skip stock tracking"
+                        placeholder="e.g. 32"
                         value={editForm.stockQuantity}
                         onChange={(e) =>
                           setEditForm((prev) => ({
@@ -1130,17 +1133,21 @@ export default function ProductsClient({
                         }
                         className="w-full h-10 rounded-xl bg-[var(--surface-alt)] dark:bg-[var(--surface)] text-xs font-bold"
                       />
-                      <p className="text-[10px] text-[var(--foreground-muted)] mt-1">
-                        Leave blank if this product has no stock count. It then sells
-                        without any stock limit.
-                      </p>
                     </div>
                   </div>
 
+                  {/* One shared note instead of a paragraph under the field: the
+                      paragraph used to stretch the last column and unbalance the row. */}
+                  <p className="flex items-start gap-1.5 text-[10px] text-[var(--foreground-muted)]">
+                    <Info className="w-3 h-3 shrink-0 mt-0.5" />
+                    Leave Stock Quantity blank if this product has no stock count. It
+                    then sells without any stock limit.
+                  </p>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
                     {/* In Stock toggle — only for a product with a stock count */}
-                    <div className="flex items-center justify-between p-3 bg-[var(--surface-alt)] rounded-xl border border-[var(--border-color)]/60">
-                      <div>
+                    <div className="flex items-center justify-between gap-3 p-3 bg-[var(--surface-alt)] rounded-xl border border-[var(--border-color)]/60">
+                      <div className="min-w-0 flex-1">
                         <p className="text-xs font-bold text-[var(--foreground)]">
                           In Stock
                         </p>
@@ -1161,7 +1168,7 @@ export default function ProductsClient({
                               setEditForm((prev) => ({ ...prev, inStock: !!val }));
                             }
                           }}
-                          className={hasEditPositiveStock ? "opacity-70 cursor-not-allowed" : "cursor-pointer"}
+                          className={`shrink-0 ${hasEditPositiveStock ? "opacity-70 cursor-not-allowed" : "cursor-pointer"}`}
                         >
                           <Switch.Content className={hasEditPositiveStock ? "cursor-not-allowed" : "cursor-pointer"}>
                             <Switch.Control className={hasEditPositiveStock ? "cursor-not-allowed" : "cursor-pointer"}>
@@ -1173,10 +1180,10 @@ export default function ProductsClient({
                     </div>
 
                     {/* Featured toggle */}
-                    <div className="flex items-center justify-between p-3 bg-[var(--surface-alt)] rounded-xl border border-[var(--border-color)]/60 cursor-pointer">
-                      <div>
+                    <div className="flex items-center justify-between gap-3 p-3 bg-[var(--surface-alt)] rounded-xl border border-[var(--border-color)]/60 cursor-pointer">
+                      <div className="min-w-0 flex-1">
                         <p className="text-xs font-bold text-[var(--foreground)] flex items-center gap-1">
-                          <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Featured Item
+                          <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" /> Featured Item
                         </p>
                         <p className="text-[10px] text-[var(--foreground-muted)]">
                           Promote in featured grids & hero sections
@@ -1187,7 +1194,7 @@ export default function ProductsClient({
                         onChange={(val) =>
                           setEditForm((prev) => ({ ...prev, isFeatured: !!val }))
                         }
-                        className="cursor-pointer"
+                        className="shrink-0 cursor-pointer"
                       >
                         <Switch.Content className="cursor-pointer">
                           <Switch.Control className="cursor-pointer">
