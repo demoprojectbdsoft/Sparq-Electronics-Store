@@ -24,10 +24,12 @@ import {
   Filter,
   RotateCcw,
   X,
+  Loader2,
 } from "lucide-react";
 import { toast } from "react-toastify";
 import { CustomerTransaction, SavedPaymentCard } from "@/types/customerDashboard";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
+import { downloadTransactionReceiptPdf } from "@/lib/transactionReceiptPdf";
 
 const STATUS_OPTIONS = [
   { key: "all", label: "All Statuses" },
@@ -52,13 +54,17 @@ export default function CustomerTransactionsClient({
   initialTransactions = [],
   initialSavedCards = [],
 }: CustomerTransactionsClientProps) {
-  const { formatPrice } = useSiteSettings();
+  const { settings: siteSettings, formatPrice } = useSiteSettings();
+  const siteName = siteSettings.siteName || "Sparq";
   const [transactions, setTransactions] = useState<CustomerTransaction[]>(initialTransactions);
   const [savedCards, setSavedCards] = useState<SavedPaymentCard[]>(initialSavedCards);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortOrder, setSortOrder] = useState("newest");
   const [isAddCardOpen, setIsAddCardOpen] = useState(false);
+  // Which row is building its PDF, so the button can show a spinner and the
+  // other rows cannot start a second download at the same time.
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   // New card form state
   const [cardHolder, setCardHolder] = useState("");
@@ -119,8 +125,24 @@ export default function CustomerTransactionsClient({
     setSortOrder("newest");
   };
 
-  const handleDownloadInvoice = (invoiceNumber: string) => {
-    toast.success(`Downloading tax invoice ${invoiceNumber}.pdf...`);
+  const handleDownloadInvoice = async (tx: CustomerTransaction) => {
+    // One PDF at a time: jsPDF is loaded on demand, and a second click while it
+    // is still loading would build the same file twice.
+    if (downloadingId) return;
+
+    setDownloadingId(tx.id);
+    try {
+      await downloadTransactionReceiptPdf(tx, {
+        siteName,
+        formatPrice,
+      });
+      toast.success(`Receipt ${tx.invoiceNumber} downloaded.`);
+    } catch (err) {
+      console.error("Failed to build transaction receipt PDF:", err);
+      toast.error("Could not create the PDF receipt. Please try again.");
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   const handleSetDefaultCard = (id: string) => {
@@ -532,10 +554,17 @@ export default function CustomerTransactionsClient({
                     </td>
                     <td className="py-3.5 pr-2 text-right">
                       <button
-                        onClick={() => handleDownloadInvoice(tx.invoiceNumber)}
-                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[var(--border-color)] hover:bg-[var(--surface-alt)] dark:hover:bg-[var(--surface-alt)] text-[11px] font-semibold text-[var(--foreground)] transition-colors cursor-pointer"
+                        type="button"
+                        onClick={() => handleDownloadInvoice(tx)}
+                        disabled={downloadingId !== null}
+                        aria-label={`Download receipt ${tx.invoiceNumber} as PDF`}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[var(--border-color)] hover:bg-[var(--surface-alt)] dark:hover:bg-[var(--surface-alt)] text-[11px] font-semibold text-[var(--foreground)] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Download className="w-3.5 h-3.5" />
+                        {downloadingId === tx.id ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Download className="w-3.5 h-3.5" />
+                        )}
                         <span>PDF</span>
                       </button>
                     </td>
