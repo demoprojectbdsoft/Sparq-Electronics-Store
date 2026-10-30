@@ -653,6 +653,7 @@ export default function AddProductClient({
                     min="0"
                     step="1"
                     placeholder="e.g. 12"
+                    disabled={formState.warrantyType === "none"}
                     value={formState.warrantyPeriodMonths}
                     onChange={(e) =>
                       setFormState((prev) => ({
@@ -672,9 +673,16 @@ export default function AddProductClient({
                   <label className={labelClass}>Warranty Type</label>
                   <Select
                     selectedKey={formState.warrantyType}
-                    onSelectionChange={(key) =>
-                      setFormState((prev) => ({ ...prev, warrantyType: String(key) }))
-                    }
+                    onSelectionChange={(key) => {
+                      const warrantyType = String(key);
+                      // "No warranty" clears the period so the two fields can
+                      // never contradict each other.
+                      setFormState((prev) => ({
+                        ...prev,
+                        warrantyType,
+                        ...(warrantyType === "none" ? { warrantyPeriodMonths: "" } : {}),
+                      }));
+                    }}
                     placeholder="Select warranty type"
                   >
                     <Select.Trigger className="w-full cursor-pointer">

@@ -1141,6 +1141,7 @@ export default function ProductsClient({
                       min="0"
                       step="1"
                       placeholder="e.g. 12"
+                      disabled={editForm.warrantyType === "none"}
                       value={editForm.warrantyPeriodMonths}
                       onChange={(e) =>
                         setEditForm((prev) => ({
@@ -1163,9 +1164,16 @@ export default function ProductsClient({
                     </label>
                     <Select
                       selectedKey={editForm.warrantyType}
-                      onSelectionChange={(key) =>
-                        setEditForm((prev) => ({ ...prev, warrantyType: String(key) }))
-                      }
+                      onSelectionChange={(key) => {
+                        const warrantyType = String(key);
+                        // "No warranty" clears the period so the two fields can
+                        // never contradict each other.
+                        setEditForm((prev) => ({
+                          ...prev,
+                          warrantyType,
+                          ...(warrantyType === "none" ? { warrantyPeriodMonths: "" } : {}),
+                        }));
+                      }}
                       placeholder="Select warranty type"
                     >
                       <Select.Trigger className="w-full cursor-pointer">
