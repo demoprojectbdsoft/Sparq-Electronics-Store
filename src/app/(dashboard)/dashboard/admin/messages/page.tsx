@@ -7,6 +7,7 @@ interface AdminMessagesPageProps {
   searchParams: Promise<{
     status?: string;
     search?: string;
+    sort?: string;
     page?: string;
     limit?: string;
   }>;
@@ -21,6 +22,7 @@ export default async function AdminMessagesPage({ searchParams }: AdminMessagesP
   const res = await getMessages({
     status: params?.status,
     search: params?.search,
+    sort: params?.sort,
     page,
     limit,
   });

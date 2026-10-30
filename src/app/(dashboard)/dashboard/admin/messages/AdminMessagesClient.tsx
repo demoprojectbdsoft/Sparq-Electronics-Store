@@ -3,22 +3,33 @@
 import React, { useState, useTransition, useCallback } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Card, Input, Button, Modal } from "@heroui/react";
+import {
+  Card,
+  Input,
+  Button,
+  Select,
+  ListBox,
+  Modal,
+  TextArea,
+} from "@heroui/react";
 import {
   Mail,
   Search,
   RotateCcw,
   Trash2,
   Eye,
-  X,
   Calendar,
   AlertTriangle,
   CheckCircle2,
   Reply,
   User,
+  Loader2,
+  Send,
+  Clock,
 } from "lucide-react";
 import { toast } from "react-toastify";
-import { deleteMessage } from "@/lib/action/message";
+import { deleteMessage, replyToMessage } from "@/lib/action/message";
+import { formatOrderDate, formatOrderDateTime } from "@/lib/dateTime";
 
 /** The shape the backend returns for one stored contact message. */
 interface MessageItem {
@@ -52,14 +63,41 @@ const STATUS_TABS = [
   { key: "failed", label: "Not emailed" },
 ];
 
-/** "Oct 30, 2026" — one place, so every date in the table reads the same. */
-function formatDate(value?: string): string {
-  if (!value) return "—";
-  return new Date(value).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
+/** The orders the list can be shown in. "newest" matches the API default. */
+const SORT_OPTIONS = [
+  { key: "newest", label: "Newest first" },
+  { key: "oldest", label: "Oldest first" },
+  { key: "name", label: "Sender (A–Z)" },
+  { key: "subject", label: "Subject (A–Z)" },
+];
+
+/** "General & Business" or "Customer Support" — the department the visitor picked. */
+function departmentLabel(value: string): string {
+  return value === "contact" ? "General & Business" : "Customer Support";
+}
+
+/**
+ * The reply the admin starts from: a greeting, a short line, and the visitor's
+ * own message quoted underneath, so nothing has to be retyped.
+ */
+function buildReplyDraft(item: MessageItem) {
+  const firstName = (item.name || "there").split(" ")[0];
+  const quoted = item.body
+    .split("\n")
+    .map((line) => `> ${line}`)
+    .join("\n");
+
+  return {
+    subject: `Re: ${item.subject || "Your message"}`,
+    message: [
+      `Hi ${firstName},`,
+      "",
+      "Thanks for getting in touch.",
+      "",
+      "--- Your message ---",
+      quoted,
+    ].join("\n"),
+  };
 }
 
 export default function AdminMessagesClient({
@@ -83,8 +121,16 @@ export default function AdminMessagesClient({
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Reply composer. It opens on top of the details modal with the greeting and
+  // the visitor's own words already in the box.
+  const [isReplyOpen, setIsReplyOpen] = useState(false);
+  const [replySubject, setReplySubject] = useState("");
+  const [replyMessage, setReplyMessage] = useState("");
+  const [isSendingReply, setIsSendingReply] = useState(false);
+
   const currentStatus = searchParams.get("status") || "all";
   const currentSearch = searchParams.get("search") || "";
+  const currentSort = searchParams.get("sort") || "newest";
   const [searchInput, setSearchInput] = useState(currentSearch);
 
   /** Rewrites the URL, which makes the server component fetch the new page. */
@@ -122,6 +168,46 @@ export default function AdminMessagesClient({
   const openMessage = (item: MessageItem) => {
     setSelected(item);
     setIsViewOpen(true);
+  };
+
+  /** Opens the composer with a subject and message already written. */
+  const openReply = (item: MessageItem) => {
+    const draft = buildReplyDraft(item);
+    setReplySubject(draft.subject);
+    setReplyMessage(draft.message);
+    setIsReplyOpen(true);
+  };
+
+  const handleSendReply = async () => {
+    if (!selected || isSendingReply) return;
+
+    if (!replySubject.trim()) {
+      toast.warning("Add a subject for the email.");
+      return;
+    }
+    if (!replyMessage.trim()) {
+      toast.warning("Write a message before sending.");
+      return;
+    }
+
+    setIsSendingReply(true);
+    try {
+      const res = await replyToMessage(selected._id, {
+        subject: replySubject.trim(),
+        message: replyMessage.trim(),
+      });
+
+      if (res?.success !== false) {
+        toast.success(`Reply sent to ${selected.email}`);
+        setIsReplyOpen(false);
+      } else {
+        toast.error(res?.message || "The email could not be sent");
+      }
+    } catch (err) {
+      toast.error((err as Error).message || "An error occurred");
+    } finally {
+      setIsSendingReply(false);
+    }
   };
 
   const promptDelete = (item: MessageItem) => {
@@ -163,7 +249,8 @@ export default function AdminMessagesClient({
   };
   const startItem = total > 0 ? (page - 1) * limit + 1 : 0;
   const endItem = Math.min(page * limit, total);
-  const hasFilters = Boolean(currentSearch) || currentStatus !== "all";
+  const hasFilters =
+    Boolean(currentSearch) || currentStatus !== "all" || currentSort !== "newest";
 
   return (
     <div className="space-y-6">
@@ -181,8 +268,8 @@ export default function AdminMessagesClient({
             Contact <span className="text-primary">Messages</span>
           </h1>
           <p className="text-xs md:text-sm text-[var(--foreground-muted)] mt-1">
-            Every message written on the contact page. Replying is done from your mailbox —
-            the email copy carries the visitor as the reply-to address.
+            Every message written on the contact page. Open one to read it in full and
+            answer it by email without leaving this screen.
           </p>
         </div>
 
@@ -237,16 +324,47 @@ export default function AdminMessagesClient({
             </Button>
           </form>
 
-          {hasFilters && (
-            <Button
-              size="sm"
-              onPress={handleReset}
-              className="h-10 px-3 rounded-xl bg-[var(--surface-alt)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] text-xs font-semibold cursor-pointer flex items-center gap-1 self-end sm:self-auto"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>Reset</span>
-            </Button>
-          )}
+          <div className="flex items-center gap-2 self-end sm:self-auto">
+            {/* Sorting stays in the URL, like every other filter, so a
+                refresh or a shared link keeps the same order. */}
+            <div className="w-40">
+              <Select
+                aria-label="Sort messages"
+                selectedKey={currentSort}
+                onSelectionChange={(key) => updateParams({ sort: String(key) })}
+              >
+                <Select.Trigger className="h-10 w-full px-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--surface-alt)] text-xs font-semibold flex items-center justify-between gap-2">
+                  <Select.Value className="truncate" />
+                  <Select.Indicator />
+                </Select.Trigger>
+                <Select.Popover className="w-52 p-1.5 bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-xl shadow-xl">
+                  <ListBox>
+                    {SORT_OPTIONS.map((opt) => (
+                      <ListBox.Item
+                        key={opt.key}
+                        id={opt.key}
+                        textValue={opt.label}
+                        className="text-xs font-medium px-3 py-2 rounded-lg hover:bg-primary/10"
+                      >
+                        {opt.label}
+                      </ListBox.Item>
+                    ))}
+                  </ListBox>
+                </Select.Popover>
+              </Select>
+            </div>
+
+            {hasFilters && (
+              <Button
+                size="sm"
+                onPress={handleReset}
+                className="h-10 px-3 rounded-xl bg-[var(--surface-alt)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] text-xs font-semibold cursor-pointer flex items-center gap-1"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Reset</span>
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 
@@ -339,7 +457,7 @@ export default function AdminMessagesClient({
                     <td className="py-3.5 px-4 text-[11px] text-[var(--foreground-muted)] whitespace-nowrap">
                       <span className="inline-flex items-center gap-1">
                         <Calendar className="w-3.5 h-3.5" />
-                        {formatDate(item.createdAt)}
+                        {formatOrderDate(item.createdAt)}
                       </span>
                     </td>
 
@@ -424,11 +542,11 @@ export default function AdminMessagesClient({
             if (e.target === e.currentTarget) setIsViewOpen(false);
           }}
         >
-          <Modal.Container size="md">
+          <Modal.Container size="lg">
             <Modal.Dialog className="bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-3xl p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto text-[var(--foreground)]">
               {selected && (
                 <>
-                  <Modal.Header className="flex items-center justify-between border-b border-[var(--border-color)] pb-4">
+                  <Modal.Header className="border-b border-[var(--border-color)] pb-4">
                     <div className="flex items-center gap-2.5 min-w-0">
                       <div className="w-10 h-10 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
                         <Mail className="w-5 h-5" />
@@ -438,23 +556,14 @@ export default function AdminMessagesClient({
                           {selected.subject || "(no subject)"}
                         </Modal.Heading>
                         <p className="text-xs text-[var(--foreground-muted)]">
-                          {formatDate(selected.createdAt)} ·{" "}
-                          {selected.department === "contact" ? "General & Business" : "Support"}
+                          {departmentLabel(selected.department)}
                         </p>
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => setIsViewOpen(false)}
-                      aria-label="Close"
-                      className="p-1.5 rounded-xl text-[var(--foreground-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-alt)] transition-colors cursor-pointer shrink-0"
-                    >
-                      <X className="w-5 h-5" />
-                    </button>
                   </Modal.Header>
 
                   <Modal.Body className="space-y-4">
-                    {/* Who wrote it */}
+                    {/* Sender */}
                     <div className="flex items-center gap-2.5 p-3 rounded-xl bg-[var(--surface-alt)]">
                       <div className="w-8 h-8 rounded-full bg-primary/15 text-primary flex items-center justify-center shrink-0">
                         <User className="w-4 h-4" />
@@ -470,6 +579,83 @@ export default function AdminMessagesClient({
                       </div>
                     </div>
 
+                    {/* Every stored detail, so nothing has to be guessed */}
+                    <div className="rounded-2xl border border-[var(--border-color)] divide-y divide-[var(--border-color)]/70 text-xs">
+                      <div className="flex gap-3 p-3">
+                        <span className="w-24 shrink-0 font-bold text-[var(--foreground-muted)]">
+                          From
+                        </span>
+                        <span className="min-w-0 break-words">{selected.name}</span>
+                      </div>
+                      <div className="flex gap-3 p-3">
+                        <span className="w-24 shrink-0 font-bold text-[var(--foreground-muted)]">
+                          Email
+                        </span>
+                        <a
+                          href={`mailto:${selected.email}`}
+                          className="min-w-0 break-all text-primary hover:underline"
+                        >
+                          {selected.email}
+                        </a>
+                      </div>
+                      <div className="flex gap-3 p-3">
+                        <span className="w-24 shrink-0 font-bold text-[var(--foreground-muted)]">
+                          Department
+                        </span>
+                        <span className="min-w-0">{departmentLabel(selected.department)}</span>
+                      </div>
+                      <div className="flex gap-3 p-3">
+                        <span className="w-24 shrink-0 font-bold text-[var(--foreground-muted)]">
+                          Subject
+                        </span>
+                        <span className="min-w-0 break-words">
+                          {selected.subject || "(no subject)"}
+                        </span>
+                      </div>
+                      <div className="flex gap-3 p-3">
+                        <span className="w-24 shrink-0 font-bold text-[var(--foreground-muted)]">
+                          Received
+                        </span>
+                        <span className="min-w-0 inline-flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 shrink-0" />
+                          {formatOrderDateTime(selected.createdAt)}
+                        </span>
+                      </div>
+                      <div className="flex gap-3 p-3">
+                        <span className="w-24 shrink-0 font-bold text-[var(--foreground-muted)]">
+                          Delivery
+                        </span>
+                        <span className="min-w-0">
+                          {selected.status === "sent" ? (
+                            <span className="inline-flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                              Email copy sent to {selected.sentTo}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-start gap-1.5 text-amber-600 dark:text-amber-400 font-bold">
+                              <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                              <span>
+                                Email copy was not sent
+                                {selected.error && (
+                                  <span className="block font-normal text-[var(--foreground-muted)]">
+                                    {selected.error}
+                                  </span>
+                                )}
+                              </span>
+                            </span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex gap-3 p-3">
+                        <span className="w-24 shrink-0 font-bold text-[var(--foreground-muted)]">
+                          Message ID
+                        </span>
+                        <span className="min-w-0 break-all font-mono text-[11px] text-[var(--foreground-muted)]">
+                          {selected._id}
+                        </span>
+                      </div>
+                    </div>
+
                     {/* The message itself */}
                     <div className="space-y-1.5">
                       <p className="text-xs font-bold">Message</p>
@@ -477,51 +663,106 @@ export default function AdminMessagesClient({
                         {selected.body}
                       </div>
                     </div>
-
-                    {/* Delivery state */}
-                    <div className="p-3 rounded-xl bg-[var(--surface-alt)] text-[11px] space-y-1">
-                      <p className="flex items-center gap-1.5 font-bold">
-                        {selected.status === "sent" ? (
-                          <>
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                            Email copy sent to {selected.sentTo}
-                          </>
-                        ) : (
-                          <>
-                            <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                            Email copy was not sent
-                          </>
-                        )}
-                      </p>
-                      {selected.status !== "sent" && selected.error && (
-                        <p className="text-[var(--foreground-muted)]">{selected.error}</p>
-                      )}
-                    </div>
                   </Modal.Body>
 
-                  <Modal.Footer className="flex items-center justify-between gap-3 pt-2 border-t border-[var(--border-color)]">
+                  <Modal.Footer className="flex items-center justify-end gap-2 pt-4 border-t border-[var(--border-color)]">
                     <Button
-                      size="sm"
-                      variant="danger-soft"
-                      onPress={() => promptDelete(selected)}
-                      isDisabled={isDeleting}
-                      className="px-3.5 h-9 rounded-xl font-bold text-xs cursor-pointer inline-flex items-center gap-1.5"
+                      onPress={() => setIsViewOpen(false)}
+                      className="px-4 h-9 rounded-xl bg-[var(--surface-alt)] text-[var(--foreground)] font-bold text-xs cursor-pointer"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>Delete</span>
+                      Close
                     </Button>
-
-                    <a
-                      href={`mailto:${selected.email}?subject=${encodeURIComponent(
-                        `Re: ${selected.subject || "Your message"}`
-                      )}`}
+                    <Button
+                      onPress={() => openReply(selected)}
                       className="px-4 h-9 rounded-xl bg-primary hover:bg-primary-hover text-white font-bold text-xs shadow-sm cursor-pointer inline-flex items-center gap-1.5"
                     >
                       <Reply className="w-3.5 h-3.5" />
                       <span>Reply by email</span>
-                    </a>
+                    </Button>
                   </Modal.Footer>
                 </>
+              )}
+            </Modal.Dialog>
+          </Modal.Container>
+        </Modal.Backdrop>
+      </Modal>
+
+      {/* ════════════════════════════════════════════════════════
+          REPLY MODAL
+          Sits above the details modal, like the warranty screen. The subject and
+          the visitor's own words are already in the box, so the admin only
+          writes the answer.
+      ════════════════════════════════════════════════════════ */}
+      <Modal
+        isOpen={isReplyOpen}
+        onOpenChange={(open) => {
+          // A send in flight must not be dismissed half way.
+          if (!isSendingReply) setIsReplyOpen(open);
+        }}
+      >
+        <Modal.Backdrop isDismissable={!isSendingReply}>
+          <Modal.Container size="lg">
+            <Modal.Dialog className="bg-[var(--surface-elevated)] border border-[var(--border-color)] rounded-3xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto text-[var(--foreground)]">
+              {selected && (
+                <div className="space-y-5">
+                  <div className="flex items-center gap-3 border-b border-[var(--border-color)] pb-4">
+                    <div className="p-2.5 rounded-2xl bg-primary/10 text-primary">
+                      <Mail className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <h2 className="text-lg font-bold">Reply by email</h2>
+                      <p className="text-[10px] font-semibold text-[var(--foreground-muted)] truncate">
+                        To: {selected.email}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-[var(--foreground)]">Subject</label>
+                    <Input
+                      value={replySubject}
+                      onChange={(e) => setReplySubject(e.target.value)}
+                      className="bg-[var(--surface-alt)]"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-semibold text-[var(--foreground)]">Message</label>
+                    <TextArea
+                      rows={12}
+                      value={replyMessage}
+                      onChange={(e) => setReplyMessage(e.target.value)}
+                      className="bg-[var(--surface-alt)]"
+                    />
+                  </div>
+
+                  <p className="text-[11px] text-[var(--foreground-muted)]">
+                    Sent from the store address to this visitor. Their reply comes back to the
+                    store inbox, not to this screen.
+                  </p>
+
+                  <div className="flex items-center justify-end gap-2 border-t border-[var(--border-color)] pt-4">
+                    <Button
+                      isDisabled={isSendingReply}
+                      onPress={() => setIsReplyOpen(false)}
+                      className="h-10 px-4 rounded-xl bg-[var(--surface-alt)] text-xs font-bold cursor-pointer"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      isDisabled={isSendingReply}
+                      onPress={handleSendReply}
+                      className="h-10 px-5 rounded-xl bg-primary text-white text-xs font-bold flex items-center gap-2 cursor-pointer"
+                    >
+                      {isSendingReply ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4" />
+                      )}
+                      {isSendingReply ? "Sending..." : "Send Email"}
+                    </Button>
+                  </div>
+                </div>
               )}
             </Modal.Dialog>
           </Modal.Container>

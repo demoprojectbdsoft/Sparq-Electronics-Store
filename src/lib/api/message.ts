@@ -4,13 +4,14 @@ import { withQuery } from "../core/query";
 /**
  * Contact-page messages stored by the backend.
  *
- * Read-only: a message is created by `POST /contact` (a public visitor form),
- * and the admin only lists or deletes it here.
+ * Read-only here: a message is created by `POST /contact` (a public visitor
+ * form), and the admin lists, replies to or deletes it from the dashboard.
  */
 
 export const getMessages = async (params?: {
   status?: string;
   search?: string;
+  sort?: string;
   page?: number;
   limit?: number;
 }) => {
