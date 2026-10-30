@@ -57,11 +57,14 @@ export default async function AdminWarrantiesPage({ searchParams }: AdminWarrant
   const page = Number(params?.page) || 1;
   const limit = Number(params?.limit) || 10;
 
+  // No status in the URL means the default view: only what customers claimed.
+  // "all" is the explicit way to ask for every warranty, so it drops the filter.
+  const status = params?.status;
   const query: Record<string, string | number | undefined> = {
     page,
     limit,
     search: params?.search,
-    status: params?.status === "All" ? undefined : params?.status,
+    status: status === "all" ? undefined : status || "claimed",
     sort: params?.sort,
   };
 

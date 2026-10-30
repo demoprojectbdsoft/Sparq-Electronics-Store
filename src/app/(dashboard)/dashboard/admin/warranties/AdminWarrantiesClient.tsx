@@ -54,7 +54,22 @@ import {
 } from "@/lib/warranty";
 import type { NormalizedAdminWarranty } from "@/types";
 
-const STATUS_FILTER_TABS = ["All", "Active", "Claim Submitted", "Under Review", "Info Requested", "Resolved", "Expired"];
+/**
+ * Each tab carries the value the API expects. "Claims" is first and is the
+ * default view: a warranty nobody has claimed needs no admin work, so it only
+ * shows up under "All". "claimed" is a group the server understands — every
+ * record that reached claim_submitted, under_review, info_requested or resolved.
+ */
+const STATUS_FILTER_TABS = [
+  { label: "Claims", value: "claimed" },
+  { label: "All", value: "all" },
+  { label: "Active", value: "active" },
+  { label: "Claim Submitted", value: "claim_submitted" },
+  { label: "Under Review", value: "under_review" },
+  { label: "Info Requested", value: "info_requested" },
+  { label: "Resolved", value: "resolved" },
+  { label: "Expired", value: "expired" },
+];
 
 const SORT_OPTIONS = [
   { key: "newest", label: "Newest First" },
@@ -214,7 +229,9 @@ export default function AdminWarrantiesClient({
     setWarranties(Array.isArray(initialWarranties) ? initialWarranties : []);
   }, [initialWarranties]);
 
-  const currentStatusParam = searchParams.get("status") || "All";
+  // No status in the URL means the page opens on claims, so the first tab is
+  // highlighted without adding a parameter just to say so.
+  const currentStatusParam = searchParams.get("status") || "claimed";
   const currentSearch = searchParams.get("search") || "";
   const currentSort = searchParams.get("sort") || "newest";
   const [searchInput, setSearchInput] = useState(currentSearch);
@@ -227,7 +244,9 @@ export default function AdminWarrantiesClient({
     (updates: Record<string, string | undefined>) => {
       const params = new URLSearchParams(searchParams.toString());
       Object.entries(updates).forEach(([key, val]) => {
-        if (val === undefined || val === "" || (key === "status" && val.toLowerCase() === "all")) {
+        // "all" is a real choice, not an empty one: it has to stay in the URL,
+        // because a missing status means the page falls back to claims only.
+        if (val === undefined || val === "") {
           params.delete(key);
         } else {
           params.set(key, val);
@@ -470,11 +489,14 @@ export default function AdminWarrantiesClient({
             Warranty <span className="text-primary">Claims</span>
           </h1>
           <p className="text-xs md:text-sm text-[var(--foreground-muted)] mt-1">
-            Manage product warranty records and process customer claims.
+            Process customer claims. The page opens on claimed records — pick{" "}
+            <span className="font-semibold text-[var(--foreground)]">All</span> to
+            include warranties that have not been used.
           </p>
         </div>
         <div className="px-3.5 py-1.5 rounded-xl bg-primary/10 border border-primary/20 text-xs font-bold text-primary">
-          Total Records: <span className="font-extrabold">{total}</span>
+          {currentStatusParam === "claimed" ? "Claimed Records" : "Total Records"}:{" "}
+          <span className="font-extrabold">{total}</span>
         </div>
       </div>
 
@@ -483,18 +505,17 @@ export default function AdminWarrantiesClient({
         <div className="flex items-center gap-1.5 overflow-x-auto pb-3 border-b border-[var(--border-color)]/80">
           <span className="text-[11px] font-bold text-[var(--foreground-muted)] uppercase tracking-wider mr-1">Status:</span>
           {STATUS_FILTER_TABS.map((tab) => {
-            const rawStatus = tab === "All" ? "All" : tab.toLowerCase().replace(/ /g, "_");
-            const isActive = currentStatusParam === rawStatus;
+            const isActive = currentStatusParam === tab.value;
             return (
               <button
-                key={tab}
+                key={tab.value}
                 type="button"
-                onClick={() => updateParams({ status: rawStatus === "all" ? undefined : rawStatus })}
+                onClick={() => updateParams({ status: tab.value })}
                 className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                   isActive ? "bg-primary text-white shadow-xs font-bold" : "bg-[var(--surface-alt)] text-[var(--foreground-muted)] hover:text-[var(--foreground)] border border-[var(--border-color)]"
                 }`}
               >
-                {tab}
+                {tab.label}
               </button>
             );
           })}
@@ -537,7 +558,7 @@ export default function AdminWarrantiesClient({
                 </Select.Popover>
               </Select>
             </div>
-            {(currentSearch || currentStatusParam !== "All") && (
+            {(currentSearch || currentStatusParam !== "claimed") && (
               <Button size="sm" onPress={handleResetFilters} className="h-10 px-3 rounded-xl bg-[var(--surface-alt)] text-xs font-semibold">
                 <RotateCcw className="w-3.5 h-3.5 mr-1" /> Reset
               </Button>
@@ -555,8 +576,14 @@ export default function AdminWarrantiesClient({
       ) : warranties.length === 0 ? (
         <Card className="p-12 text-center border border-[var(--border-color)]">
           <Shield className="w-12 h-12 mx-auto text-[var(--foreground-muted)] mb-4 opacity-20" />
-          <h3 className="text-base font-bold">No records found</h3>
-          <p className="text-xs text-[var(--foreground-muted)] mt-1">Try adjusting your filters or search terms.</p>
+          <h3 className="text-base font-bold">
+            {currentStatusParam === "claimed" ? "No claims so far" : "No records found"}
+          </h3>
+          <p className="text-xs text-[var(--foreground-muted)] mt-1">
+            {currentStatusParam === "claimed"
+              ? "Nothing has been claimed yet. Pick All to see the warranties that are still waiting to be used."
+              : "Try adjusting your filters or search terms."}
+          </p>
         </Card>
       ) : (
         <Card className="overflow-hidden border border-[var(--border-color)] p-0">
