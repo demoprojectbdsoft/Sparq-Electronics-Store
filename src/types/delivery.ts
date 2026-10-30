@@ -143,6 +143,60 @@ export interface DeliveryTrackingOrder {
   createdAt: string;
 }
 
+/** One line on the rider's invoice PDF. */
+export interface DeliveryInvoiceItem {
+  title: string;
+  quantity: number;
+  price: number;
+}
+
+/**
+ * The rider's invoice, as the API assembles it from the order.
+ *
+ * The rider only ever sees their own job's invoice; the store's own details are
+ * included because the sheet is meant to be printed and shown at a door.
+ */
+export interface DeliveryInvoice {
+  invoiceNumber: string;
+  issuedAt: string;
+  order: {
+    _id: string;
+    orderNumber: string;
+    placedAt: string;
+    status: string;
+    paymentMethod: string;
+    shippingMethod: string;
+  };
+  store: {
+    name: string;
+    address: string;
+    email: string;
+    phone: string;
+    currency: string;
+  };
+  customer: {
+    name: string;
+    phone: string;
+    address: string;
+    postalCode: string;
+  };
+  rider: DeliveryRider | null;
+  delivery: {
+    status: DeliveryStatus;
+    fee: number;
+    distanceKm: number | null;
+    assignedAt: string;
+  };
+  items: DeliveryInvoiceItem[];
+  totals: {
+    subtotal: number;
+    shipping: number;
+    discount: number;
+    pointsRedeemed: number;
+    total: number;
+  };
+}
+
 /** Where the parcel is going, once the address has been put on the map. */
 export interface DeliveryDestination {
   lat: number;

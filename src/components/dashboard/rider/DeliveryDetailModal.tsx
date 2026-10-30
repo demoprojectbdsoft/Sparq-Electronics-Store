@@ -1,12 +1,14 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { Button, Chip, Modal } from "@heroui/react";
 import {
   Building2,
   Clock,
+  FileText,
   History,
+  Loader2,
   MapPin,
   Navigation,
   Package,
@@ -14,6 +16,7 @@ import {
   User as UserIcon,
   X,
 } from "lucide-react";
+import { toast } from "react-toastify";
 import { useSiteSettings } from "@/context/SiteSettingsContext";
 import {
   DELIVERY_STATUS_LABELS,
@@ -22,6 +25,8 @@ import {
   formatMoment,
   isActiveDelivery,
 } from "@/lib/rider";
+import { fetchDeliveryInvoiceAction } from "@/lib/action/deliveries";
+import { downloadDeliveryInvoicePdf } from "@/lib/deliveryInvoicePdf";
 import { useRiderLocation } from "@/hooks/useRiderLocation";
 import DeliveryActions from "./DeliveryActions";
 import type { DeliveryRecord } from "@/types/delivery";
@@ -54,10 +59,33 @@ export default function DeliveryDetailModal({
   const { isSharing, error, lastSentAt, points, toggle } = useRiderLocation(
     active && delivery ? delivery._id : null
   );
+  const [isLoadingInvoice, setIsLoadingInvoice] = useState(false);
 
   const handleChanged = () => {
     onChanged?.();
     onOpenChange(false);
+  };
+
+  /**
+   * The sheet is assembled on the server from the order itself, so it always
+   * matches what the store charged. It is fetched on the click, not with the
+   * job, because a rider only papers one of them at the door.
+   */
+  const handleInvoice = async () => {
+    if (!delivery || isLoadingInvoice) return;
+    setIsLoadingInvoice(true);
+    try {
+      const invoice = await fetchDeliveryInvoiceAction(delivery._id);
+      if (!invoice) {
+        toast.error("That invoice is not available for this job");
+        return;
+      }
+      await downloadDeliveryInvoicePdf(invoice, formatPrice);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not build the invoice");
+    } finally {
+      setIsLoadingInvoice(false);
+    }
   };
 
   return (
@@ -236,13 +264,29 @@ export default function DeliveryDetailModal({
                 </Modal.Body>
 
                 <Modal.Footer className="flex flex-wrap items-center justify-between gap-2 pt-4 border-t border-[var(--border-color)]">
-                  <Link
-                    href="/dashboard/rider/deliveries"
-                    className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary"
-                  >
-                    <Package className="w-3.5 h-3.5" />
-                    All my deliveries
-                  </Link>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Link
+                      href="/dashboard/rider/deliveries"
+                      className="inline-flex items-center gap-1.5 text-[11px] font-bold text-primary"
+                    >
+                      <Package className="w-3.5 h-3.5" />
+                      All my deliveries
+                    </Link>
+
+                    <Button
+                      size="sm"
+                      onPress={handleInvoice}
+                      isDisabled={isLoadingInvoice}
+                      className="h-8 px-3 rounded-xl bg-[var(--surface-alt)] border border-[var(--border-color)] text-[var(--foreground)] text-[10px] font-bold disabled:opacity-60"
+                    >
+                      {isLoadingInvoice ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <FileText className="w-3.5 h-3.5" />
+                      )}
+                      Invoice PDF
+                    </Button>
+                  </div>
 
                   <DeliveryActions
                     delivery={delivery}

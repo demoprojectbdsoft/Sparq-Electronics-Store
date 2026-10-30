@@ -1,7 +1,7 @@
 "use server";
 
 import { serverMutation, serverFetch } from "../core/server";
-import type { DeliveryTracking } from "@/types/delivery";
+import type { DeliveryInvoice, DeliveryTracking } from "@/types/delivery";
 
 /**
  * Every delivery write, and the two reads the tracking page polls.
@@ -87,6 +87,12 @@ export const shareLocationAction = async (
   point: { lat: number; lng: number; accuracy?: number; heading?: number; speed?: number }
 ) => {
   return serverMutation(`/deliveries/${id}/location`, point);
+};
+
+/** The figures the rider's own invoice prints. Read on demand, never in a list. */
+export const fetchDeliveryInvoiceAction = async (id: string): Promise<DeliveryInvoice | null> => {
+  const res = await serverFetch(`/deliveries/${id}/invoice`, true);
+  return res?.data ?? null;
 };
 
 // ─── Buyer ────────────────────────────────────────────────────────────────────
