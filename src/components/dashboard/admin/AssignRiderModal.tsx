@@ -10,6 +10,7 @@ import {
   MapPin,
   Package,
   Search,
+  ShieldAlert,
   Truck,
   User as UserIcon,
   WifiOff,
@@ -102,6 +103,9 @@ export default function AssignRiderModal({
   const riders = feed?.riders ?? [];
   // A live job means this picker is a hand-over, not a first assignment.
   const handover = feed?.currentDelivery ?? null;
+  // Only an unanswered offer can be handed on. Once the rider accepts, the job
+  // is theirs and the store is told to ask them, not to move it quietly.
+  const lockedByRider = Boolean(handover && handover.status !== "assigned");
 
   const visible = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -115,8 +119,13 @@ export default function AssignRiderModal({
   }, [riders, search]);
 
   const selectedRider = riders.find((rider) => rider._id === selectedId) || null;
+  const currentRider = riders.find((rider) => rider._id === feed?.currentRiderId) || null;
 
   const handleSubmit = async () => {
+    if (lockedByRider) {
+      toast.error("The rider has accepted this job, so it cannot be handed over");
+      return;
+    }
     if (!order || !selectedId) {
       toast.error("Pick a rider first");
       return;
@@ -172,7 +181,11 @@ export default function AssignRiderModal({
             <Modal.Header className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-[var(--border-color)] pb-4">
               <div>
                 <Modal.Heading className="text-base font-extrabold text-[var(--foreground)]">
-                  {handover ? "Hand this delivery over" : "Who is carrying this order?"}
+                  {lockedByRider
+                    ? "This job is with the rider"
+                    : handover
+                    ? "Hand this delivery over"
+                    : "Who is carrying this order?"}
                 </Modal.Heading>
                 <p className="text-xs text-[var(--foreground-muted)] mt-1">
                   {order
@@ -182,7 +195,9 @@ export default function AssignRiderModal({
                     : "No order selected"}
                 </p>
                 <p className="text-[11px] text-[var(--foreground-muted)] mt-1">
-                  {handover
+                  {lockedByRider
+                    ? "The rider has accepted this delivery, so the last word is theirs. Ask them to cancel it from their dashboard if it cannot go ahead."
+                    : handover
                     ? "The current rider is told the job moved. The order keeps its shipped status."
                     : order?.orderStatus === "shipped"
                     ? "This order shipped without a rider. Assigning one now puts it on somebody's route."
@@ -195,8 +210,24 @@ export default function AssignRiderModal({
             </Modal.Header>
 
             <Modal.Body className="space-y-5">
+              {lockedByRider && (
+                <div className="flex items-start gap-2 p-3 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/60">
+                  <ShieldAlert className="w-4 h-4 mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold text-amber-900 dark:text-amber-200">
+                      {`${currentRider?.name || "The rider"} is carrying this job`}
+                    </p>
+                    <p className="text-[11px] text-amber-800/80 dark:text-amber-300/80 mt-0.5 leading-relaxed">
+                      A delivery cannot be handed to somebody else once it is
+                      accepted. If it has to stop, the rider cancels it from their
+                      dashboard and the store then settles the order.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* ── Rider list ── */}
-              <div className="space-y-2">
+              <div className={`space-y-2 ${lockedByRider ? "opacity-60 pointer-events-none" : ""}`}>
                 <div className="flex items-center justify-between gap-2">
                   <p className="text-[11px] font-bold uppercase tracking-wider text-[var(--foreground-muted)]">
                     Riders
@@ -244,8 +275,11 @@ export default function AssignRiderModal({
                         <button
                           key={rider._id}
                           type="button"
+                          disabled={rider.suspended}
                           onClick={() => setSelectedId(rider._id)}
-                          className={`text-left rounded-2xl border p-3 transition-all cursor-pointer ${
+                          className={`text-left rounded-2xl border p-3 transition-all ${
+                            rider.suspended ? "cursor-not-allowed opacity-60" : "cursor-pointer"
+                          } ${
                             isSelected
                               ? "border-[var(--brand-flat)] bg-[var(--brand-flat)]/10 shadow-xs"
                               : "border-[var(--border-color)] bg-[var(--surface)] hover:border-[var(--brand-flat)]/50"
@@ -296,6 +330,11 @@ export default function AssignRiderModal({
                             {isCurrent && (
                               <span className="px-1.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/25 text-[9px] font-bold text-amber-600 dark:text-amber-400">
                                 Current rider
+                              </span>
+                            )}
+                            {rider.suspended && (
+                              <span className="px-1.5 py-0.5 rounded-md bg-rose-500/10 border border-rose-500/25 text-[9px] font-bold text-rose-600 dark:text-rose-400">
+                                Suspended
                               </span>
                             )}
                           </div>
@@ -374,7 +413,7 @@ export default function AssignRiderModal({
                 </Button>
                 <Button
                   onPress={handleSubmit}
-                  isDisabled={!selectedId || isSubmitting}
+                  isDisabled={!selectedId || isSubmitting || lockedByRider}
                   className="h-9 px-4 rounded-xl bg-brand-gradient text-[var(--on-grad-text)] text-xs font-bold shadow-xs disabled:opacity-50"
                 >
                   {isSubmitting ? (
@@ -382,6 +421,8 @@ export default function AssignRiderModal({
                       <Loader2 className="w-3.5 h-3.5 animate-spin" />
                       Saving
                     </span>
+                  ) : lockedByRider ? (
+                    "With the rider"
                   ) : handover ? (
                     "Hand over"
                   ) : order?.orderStatus === "shipped" ? (

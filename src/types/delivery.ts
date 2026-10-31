@@ -81,6 +81,8 @@ export interface AssignableRider {
   /** Jobs this rider is carrying right now. */
   activeJobs: number;
   completedJobs: number;
+  /** Suspended riders stay on the list but cannot be handed a job. */
+  suspended: boolean;
   available: boolean;
 }
 
