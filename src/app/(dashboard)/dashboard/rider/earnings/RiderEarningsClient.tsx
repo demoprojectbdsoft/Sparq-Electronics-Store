@@ -42,6 +42,7 @@ export default function RiderEarningsClient({
   );
 
   const averagePerJob = stats.completed > 0 ? stats.earnings / stats.completed : 0;
+  const weekEarnings = series.slice(-7).reduce((sum, point) => sum + point.earnings, 0);
   const bestDay = series.reduce(
     (best, point) => (point.earnings > best.earnings ? point : best),
     { date: "", delivered: 0, cancelled: 0, earnings: 0 }
@@ -53,6 +54,12 @@ export default function RiderEarningsClient({
       value: formatPrice(stats.earnings),
       note: `${stats.completed} delivered job${stats.completed === 1 ? "" : "s"}`,
       icon: Wallet,
+    },
+    {
+      title: "This Week",
+      value: formatPrice(weekEarnings),
+      note: series.length < 7 ? "Since your first job" : "The last 7 days",
+      icon: CalendarDays,
     },
     {
       title: "This Month",
